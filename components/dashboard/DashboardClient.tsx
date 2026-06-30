@@ -1,0 +1,591 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
+type DashboardClientProps = {
+  positions: any[];
+};
+
+function formatMoney(value: number | null | undefined) {
+  if (value == null) return "—";
+
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
+
+function formatNumber(value: number | null | undefined) {
+  if (value == null) return "—";
+
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: 0,
+  });
+}
+
+function pnlClass(value: number | null | undefined) {
+  if (value == null) return "text-slate-500";
+  return value >= 0 ? "text-emerald-600" : "text-rose-600";
+}
+
+function Badge({
+  children,
+  tone = "slate",
+}: {
+  children: React.ReactNode;
+  tone?: "slate" | "green" | "red" | "amber" | "blue";
+}) {
+  const styles = {
+    slate: "bg-slate-100 text-slate-700 ring-slate-200",
+    green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    red: "bg-rose-50 text-rose-700 ring-rose-200",
+    amber: "bg-amber-50 text-amber-700 ring-amber-200",
+    blue: "bg-blue-50 text-blue-700 ring-blue-200",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${styles[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SectionBar({
+  title,
+  tone,
+}: {
+  title: string;
+  tone: "green" | "red";
+}) {
+  const toneClass =
+    tone === "green"
+      ? "bg-emerald-700 text-white"
+      : "bg-red-600 text-white";
+
+  return (
+    <div
+      className={`rounded-t-2xl px-4 py-2 text-center text-xs font-bold uppercase tracking-widest ${toneClass}`}
+    >
+      {title}
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{sub}</p>
+    </div>
+  );
+}
+
+function PositionGrid({
+  title,
+  tone,
+  positions,
+  selectedId,
+  onSelect,
+}: {
+  title: string;
+  tone: "green" | "red";
+  positions: any[];
+  selectedId?: string;
+  onSelect: (position: any) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <SectionBar title={title} tone={tone} />
+
+      <div className="overflow-x-auto">
+        <div className="grid min-w-[1180px] grid-cols-12 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <div>Ticker</div>
+          <div className="col-span-2">Company Name</div>
+          <div>Current Price</div>
+          <div>% Change In Trading Day</div>
+          <div>Mrkt Value Of Position</div>
+          <div>% Of Portfolio</div>
+          <div>Total # Of Shares</div>
+          <div>WAP</div>
+          <div>Total % Change</div>
+          <div>Market Data</div>
+          <div>Comment Section</div>
+        </div>
+
+        {positions.map((position) => {
+          const marketData = position.security.marketData?.[0];
+          const latestComment = position.comments?.[0];
+          const openFlag = position.flags?.[0];
+
+          return (
+            <div
+              key={position.id}
+              className={`grid min-w-[1180px] grid-cols-12 items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50 ${
+                selectedId === position.id ? "bg-slate-100" : "bg-white"
+              }`}
+            >
+              <button
+                onClick={() => onSelect(position)}
+                className="flex items-center gap-1 text-left font-semibold text-slate-950 hover:underline"
+              >
+                {position.security.ticker}
+                {openFlag ? (
+                  <span className="text-amber-500" title={openFlag.flagType}>
+                    ⚑
+                  </span>
+                ) : null}
+              </button>
+
+              <div className="col-span-2 truncate text-slate-600">
+                {position.security.name}
+              </div>
+
+              <div className="font-medium">
+                {marketData?.currentPrice != null
+                  ? `$${marketData.currentPrice.toFixed(2)}`
+                  : "—"}
+              </div>
+
+              <div className={`font-semibold ${pnlClass(position.dayPctChange)}`}>
+                {position.dayPctChange != null
+                  ? `${position.dayPctChange >= 0 ? "+" : ""}${
+                      position.dayPctChange
+                    }%`
+                  : "—"}
+              </div>
+
+              <div>{formatMoney(position.marketValue)}</div>
+
+              <div>
+                {position.portfolioPct != null
+                  ? `${position.portfolioPct}%`
+                  : "—"}
+              </div>
+
+              <div>{formatNumber(position.shares)}</div>
+
+              <div>{position.wap != null ? `$${position.wap.toFixed(2)}` : "—"}</div>
+
+              <div className={`font-semibold ${pnlClass(position.totalPctChange)}`}>
+                {position.totalPctChange != null
+                  ? `${position.totalPctChange >= 0 ? "+" : ""}${
+                      position.totalPctChange
+                    }%`
+                  : "—"}
+              </div>
+
+              <div>
+                <button
+                  onClick={() => onSelect(position)}
+                  className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-700 hover:bg-slate-200"
+                >
+                  Market Data
+                </button>
+              </div>
+
+              <div>
+                <button
+                  onClick={() => onSelect(position)}
+                  className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
+                >
+                  {latestComment ? "Comment" : "Add Comment"}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TickerDetailPanel({
+  position,
+  onClose,
+}: {
+  position: any | null;
+  onClose: () => void;
+}) {
+  if (!position) return null;
+
+  const security = position.security;
+  const marketData = security.marketData?.[0];
+  const openFlag = position.flags?.[0];
+  const latestComment = position.comments?.[0];
+
+  return (
+    <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-xl">
+      <div className="border-b border-slate-200 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-semibold text-slate-950">
+                {security.ticker}
+              </h2>
+
+              <Badge tone={position.side === "SHORT" ? "red" : "green"}>
+                {position.side}
+              </Badge>
+
+              {openFlag ? <Badge tone="amber">{openFlag.flagType}</Badge> : null}
+            </div>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {security.name} • Clicked ticker detail
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Current Price</p>
+            <p className="mt-1 font-semibold text-slate-950">
+              {marketData?.currentPrice != null
+                ? `$${marketData.currentPrice.toFixed(2)}`
+                : "—"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">WAP / Point</p>
+            <p className="mt-1 font-semibold text-slate-950">
+              {position.wap != null ? `$${position.wap.toFixed(2)}` : "—"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Shares</p>
+            <p className="mt-1 font-semibold text-slate-950">
+              {formatNumber(position.shares)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Total % Change</p>
+            <p className={`mt-1 font-semibold ${pnlClass(position.totalPctChange)}`}>
+              {position.totalPctChange != null
+                ? `${position.totalPctChange >= 0 ? "+" : ""}${
+                    position.totalPctChange
+                  }%`
+                : "—"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+            Comment
+          </button>
+          <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Flag
+          </button>
+          <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Market Data
+          </button>
+          <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            Export
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto p-5">
+        <div className="mb-3">
+          <h3 className="font-semibold text-slate-950">
+            Trade History From Ticker Click
+          </h3>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 text-xs">
+          <div className="grid grid-cols-6 gap-2 bg-slate-50 px-3 py-3 font-semibold uppercase tracking-wide text-slate-500">
+            <span>Ticker</span>
+            <span>Date Traded</span>
+            <span>Shares Traded</span>
+            <span>Avg Price</span>
+            <span>PT History</span>
+            <span>Comment</span>
+          </div>
+
+          {position.trades?.length ? (
+            position.trades.map((trade: any) => (
+              <div
+                key={trade.id}
+                className="grid grid-cols-6 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
+              >
+                <span className="font-semibold">{security.ticker}</span>
+                <span>
+                  {new Date(trade.dateTraded).toLocaleDateString("en-US")}
+                </span>
+                <span>{formatNumber(trade.shares)}</span>
+                <span>${trade.avgPrice.toFixed(2)}</span>
+                <span>{trade.ptHistory || "—"}</span>
+                <span className="truncate text-slate-500">
+                  {trade.comment || "—"}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="px-3 py-4 text-slate-500">No trade history yet.</div>
+          )}
+        </div>
+
+        <section className="mt-5">
+          <h3 className="mb-3 font-semibold text-slate-950">Comment Section</h3>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            {latestComment?.content || "No comment added yet."}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <h3 className="mb-3 font-semibold text-slate-950">Comment Timeline</h3>
+
+          <div className="space-y-3">
+            {position.comments?.length ? (
+              position.comments.map((comment: any) => (
+                <div
+                  key={comment.id}
+                  className="rounded-2xl border border-slate-200 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <Badge tone="blue">{comment.tag}</Badge>
+                    <span className="text-xs text-slate-400">
+                      {new Date(comment.createdAt).toLocaleString("en-US")}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm text-slate-700">
+                    {comment.content}
+                  </p>
+
+                  <p className="mt-2 text-xs text-slate-400">
+                    by {comment.author?.name || comment.author?.email || "Unknown"}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">
+                No comments yet.
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </aside>
+  );
+}
+
+export default function DashboardClient({ positions }: DashboardClientProps) {
+  const [selectedPosition, setSelectedPosition] = useState<any | null>(
+    positions[0] ?? null
+  );
+
+  const longPositions = useMemo(
+    () => positions.filter((position) => position.side === "LONG"),
+    [positions]
+  );
+
+  const shortPositions = useMemo(
+    () => positions.filter((position) => position.side === "SHORT"),
+    [positions]
+  );
+
+  const totalMarketValue = positions.reduce(
+    (sum, position) => sum + (position.marketValue ?? 0),
+    0
+  );
+
+  const weightedPnlProxy = positions.reduce(
+    (sum, position) =>
+      sum + ((position.marketValue ?? 0) * (position.totalPctChange ?? 0)) / 100,
+    0
+  );
+
+  const dayPnl = positions.reduce(
+    (sum, position) =>
+      sum + ((position.marketValue ?? 0) * (position.dayPctChange ?? 0)) / 100,
+    0
+  );
+
+  const commentedItems = positions.filter(
+    (position) => position.comments?.length > 0
+  ).length;
+
+  return (
+    <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
+      <div className="flex h-full">
+        <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
+          <div className="mb-6 flex items-center gap-3 px-2 py-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
+              ⌘
+            </div>
+            <div>
+              <h1 className="font-semibold leading-tight">
+                HCA Central Command
+              </h1>
+              <p className="text-xs text-slate-500">Portfolio operations hub</p>
+            </div>
+          </div>
+
+          <nav className="space-y-2">
+            <div className="rounded-2xl bg-slate-900 px-3 py-2.5 text-sm text-white shadow-sm">
+              Home / Positions
+            </div>
+            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+              Watchlist
+            </div>
+            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+              Past Positions
+            </div>
+            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+              Comments
+            </div>
+            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+              Alerts
+            </div>
+            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+              Settings
+            </div>
+          </nav>
+
+          <div className="mt-auto rounded-3xl bg-slate-50 p-4">
+            <div className="mb-2 text-sm font-medium">Compliance Mode</div>
+            <p className="text-xs leading-5 text-slate-500">
+              Comments, flags, market-data opens, and exports are designed to be
+              audit logged. Trading actions are intentionally excluded.
+            </p>
+          </div>
+        </aside>
+
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
+            <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              Search ticker, company, side, sector, comments...
+            </div>
+
+            <div className="ml-4 flex items-center gap-3">
+              <Badge tone="green">Live data mock</Badge>
+              <div className="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
+                Joseph Moore
+              </div>
+            </div>
+          </header>
+
+          <div className="flex min-h-0 flex-1">
+            <div className="min-w-0 flex-1 overflow-auto p-6">
+              <div className="space-y-5">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <h2 className="text-3xl font-semibold tracking-tight">
+                      Home Page / Position Display
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Long and short positions with prices, daily move, market
+                      value, portfolio %, shares, WAP, total change, market data,
+                      flags, and comments.
+                    </p>
+                  </div>
+
+                  <button className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+                    Quick Comment
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4">
+                  <StatCard
+                    label="Total Market Value"
+                    value={formatMoney(totalMarketValue)}
+                    sub={`${positions.length} active positions`}
+                  />
+                  <StatCard
+                    label="Position P&L Proxy"
+                    value={formatMoney(weightedPnlProxy)}
+                    sub="Weighted by total % change"
+                  />
+                  <StatCard
+                    label="Day P&L"
+                    value={formatMoney(dayPnl)}
+                    sub="Estimated intraday move"
+                  />
+                  <StatCard
+                    label="Commented Items"
+                    value={String(commentedItems)}
+                    sub="Positions with comment history"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3">
+                  {[
+                    "All",
+                    "Long",
+                    "Short",
+                    "Winners",
+                    "Losers",
+                    "Flagged",
+                    "Technology",
+                    "Semiconductors",
+                  ].map((filter) => (
+                    <button
+                      key={filter}
+                      className={`rounded-xl px-3 py-2 text-sm ${
+                        filter === "All"
+                          ? "bg-slate-900 text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+
+                  <button className="ml-auto rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">
+                    Sort: Total % Change
+                  </button>
+                </div>
+
+                <PositionGrid
+                  title="Long Positions"
+                  tone="green"
+                  positions={longPositions}
+                  selectedId={selectedPosition?.id}
+                  onSelect={setSelectedPosition}
+                />
+
+                <PositionGrid
+                  title="Short Positions"
+                  tone="red"
+                  positions={shortPositions}
+                  selectedId={selectedPosition?.id}
+                  onSelect={setSelectedPosition}
+                />
+              </div>
+            </div>
+
+            <TickerDetailPanel
+              position={selectedPosition}
+              onClose={() => setSelectedPosition(null)}
+            />
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
