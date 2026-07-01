@@ -9,3 +9,7 @@ export function canEditWatchlist(role?: string | null) {
 export function canCreateFlags(role?: string | null) {
   return ["ADMIN", "TRADER", "PM"].includes(role || "");
 }
+
+export function canViewAuditLogs(role?: string | null) {
+  return ["ADMIN", "COMPLIANCE"].includes(role || "");
+}

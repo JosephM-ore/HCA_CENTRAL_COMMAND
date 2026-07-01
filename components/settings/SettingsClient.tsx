@@ -1,7 +1,8 @@
 "use client";
 
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
-
+import { useEffect, useState } from "react";
+import { canViewAuditLogs } from "@/lib/client-permissions";
 type SettingsClientProps = {
   auditLogCount: number;
   ingestionRuns: any[];
@@ -97,6 +98,24 @@ export default function SettingsClient({
   ingestionRuns,
   users,
 }: SettingsClientProps) {
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+
+    useEffect(() => {
+      async function loadCurrentUser() {
+        const response = await fetch("/api/auth/me");
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        setCurrentUser(data.user);
+      }
+
+      loadCurrentUser();
+    }, []);
+
+    const userCanViewAuditLogs = canViewAuditLogs(currentUser?.role);
+  
+  
   const navItems = [
     { href: "/", label: "Home / Positions" },
     { href: "/watchlist", label: "Watchlist" },
@@ -257,12 +276,26 @@ export default function SettingsClient({
                     description="Audit logs capture internal workflow actions such as comment creation, watchlist edits, flag changes, ingestion runs, and future export events."
                     >
                     <div className="rounded-2xl bg-slate-50 p-4">
-                        <p className="text-sm font-semibold text-slate-900">
+                      <p className="text-sm font-semibold text-slate-900">
                         {auditLogCount} audit records
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                        A dedicated audit log page can be added later for admin and compliance users.
-                        </p>
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
+                        Admin and compliance users can review workflow history, entity changes, and JSON payloads.
+                      </p>
+                      
+                  {userCanViewAuditLogs ? (
+                    <a
+                      href="/audit-logs"
+                      className="mt-3 inline-flex rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      View Audit Logs
+                    </a>
+                  ) : (
+                    <div className="mt-3 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
+                      Audit Logs are Admin / Compliance only
+                    </div>
+                  )}
+
                     </div>
                 </SettingsCard>
 
