@@ -101,6 +101,7 @@ function PositionGrid({
   selectedId,
   onSelect,
   onMarketData,
+  onComment,
 }: {
   title: string;
   tone: "green" | "red";
@@ -108,6 +109,7 @@ function PositionGrid({
   selectedId?: string;
   onSelect: (position: any) => void;
   onMarketData: (position: any) => void;
+  onComment: (position: any) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -201,11 +203,11 @@ function PositionGrid({
 
               <div>
                 <button
-                  onClick={() => onSelect(position)}
-                  className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
-                >
-                  {latestComment ? "Comment" : "Add Comment"}
-                </button>
+                onClick={() => onComment(position)}
+                className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
+              >
+                {latestComment ? "Comment" : "Add Comment"}
+              </button>
               </div>
             </div>
           );
@@ -502,44 +504,229 @@ function MarketDataModal({
     </div>
   );
 }
+function CommentModal({
+  position,
+  onClose,
+  onSave,
+}: {
+  position: any | null;
+  onClose: () => void;
+  onSave: (payload: {
+    securityId: string;
+    positionId: string;
+    tag: string;
+    content: string;
+  }) => Promise<void>;
+}) {
+  const [tag, setTag] = useState("COMMENT");
+  const [content, setContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!position) return null;
+
+  const latestComment = position.comments?.[0];
+
+  async function handleSave() {
+    setError("");
+
+    if (!content.trim()) {
+      setError("Please enter a comment.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await onSave({
+        securityId: position.securityId,
+        positionId: position.id,
+        tag,
+        content,
+      });
+
+      setContent("");
+      setTag("COMMENT");
+      onClose();
+    } catch (error) {
+      setError("Failed to save comment. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const categories = [
+    ["COMMENT", "Comment"],
+    ["THESIS", "Thesis"],
+    ["RISK", "Risk"],
+    ["CATALYST", "Catalyst"],
+    ["TRADE", "Trade"],
+    ["EXIT", "Exit"],
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Comment Section
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {position.security.ticker} • timestamp and author are captured
+              automatically
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-6 gap-2">
+          {categories.map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setTag(value)}
+              className={`rounded-2xl px-3 py-2 text-sm ${
+                tag === value
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <span className="font-medium text-slate-800">Existing comment:</span>{" "}
+          {latestComment?.content || "No comment yet."}
+        </div>
+
+        <textarea
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder="Write a comment, position note, trade rationale, market data observation, catalyst update, or exit rationale..."
+          className="mt-4 h-36 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+        />
+
+        {error ? (
+          <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Save Comment"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardClient({ positions }: DashboardClientProps) {
+  const [localPositions, setLocalPositions] = useState<any[]>(positions);
+
   const [selectedPosition, setSelectedPosition] = useState<any | null>(
     positions[0] ?? null
   );
+
   const [marketDataPosition, setMarketDataPosition] = useState<any | null>(null);
+  const [commentPosition, setCommentPosition] = useState<any | null>(null);
 
   const longPositions = useMemo(
-    () => positions.filter((position) => position.side === "LONG"),
-    [positions]
+  () => localPositions.filter((position) => position.side === "LONG"),
+  [localPositions]
   );
 
   const shortPositions = useMemo(
-    () => positions.filter((position) => position.side === "SHORT"),
-    [positions]
+    () => localPositions.filter((position) => position.side === "SHORT"),
+    [localPositions]
   );
 
-  const totalMarketValue = positions.reduce(
+  const totalMarketValue = localPositions.reduce(
     (sum, position) => sum + (position.marketValue ?? 0),
     0
   );
 
-  const weightedPnlProxy = positions.reduce(
+  const weightedPnlProxy = localPositions.reduce(
     (sum, position) =>
       sum + ((position.marketValue ?? 0) * (position.totalPctChange ?? 0)) / 100,
     0
   );
 
-  const dayPnl = positions.reduce(
+  const dayPnl = localPositions.reduce(
     (sum, position) =>
       sum + ((position.marketValue ?? 0) * (position.dayPctChange ?? 0)) / 100,
     0
   );
 
-  const commentedItems = positions.filter(
+  const commentedItems = localPositions.filter(
     (position) => position.comments?.length > 0
   ).length;
 
+  async function handleSaveComment(payload: {
+    securityId: string;
+    positionId: string;
+    tag: string;
+    content: string;
+  }){
+  const response = await fetch("/api/comments", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to save comment.");
+  }
+
+  const data = await response.json();
+  const newComment = data.comment;
+
+  setLocalPositions((currentPositions) =>
+    currentPositions.map((position) => {
+      if (position.id !== payload.positionId) return position;
+
+      return {
+        ...position,
+        comments: [newComment, ...(position.comments || [])],
+      };
+    })
+  );
+
+  setSelectedPosition((currentPosition: any | null) => {
+    if (!currentPosition || currentPosition.id !== payload.positionId) {
+      return currentPosition;
+    }
+
+    return {
+      ...currentPosition,
+      comments: [newComment, ...(currentPosition.comments || [])],
+    };
+  });
+}
+  function handleOpenComment(position: any) {
+  setSelectedPosition(position);
+  setCommentPosition(position);
+}
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
       <div className="flex h-full">
@@ -624,7 +811,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
                   <StatCard
                     label="Total Market Value"
                     value={formatMoney(totalMarketValue)}
-                    sub={`${positions.length} active positions`}
+                    sub={`${localPositions.length} active positions`}
                   />
                   <StatCard
                     label="Position P&L Proxy"
@@ -641,8 +828,11 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
                     value={String(commentedItems)}
                     sub="Positions with comment history"
                   />
-                </div>
 
+                  
+
+                </div>
+                
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3">
                   {[
                     "All",
@@ -672,12 +862,13 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
                 </div>
 
                 <PositionGrid
-                    title="Long Positions"
-                    tone="green"
-                    positions={longPositions}
-                    selectedId={selectedPosition?.id}
-                    onSelect={setSelectedPosition}
-                    onMarketData={setMarketDataPosition}
+                  title="Long Positions"
+                  tone="green"
+                  positions={longPositions}
+                  selectedId={selectedPosition?.id}
+                  onSelect={setSelectedPosition}
+                  onMarketData={setMarketDataPosition}
+                  onComment={handleOpenComment}
                 />
 
                 
@@ -688,6 +879,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
                   selectedId={selectedPosition?.id}
                   onSelect={setSelectedPosition}
                   onMarketData={setMarketDataPosition}
+                  onComment={handleOpenComment}
                 />
               </div>
             </div>
@@ -701,7 +893,11 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
               position={marketDataPosition}
               onClose={() => setMarketDataPosition(null)}
             />
-
+            <CommentModal
+              position={commentPosition}
+              onClose={() => setCommentPosition(null)}
+              onSave={handleSaveComment}
+            />
           </div>
         </section>
       </div>
