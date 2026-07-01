@@ -63,7 +63,15 @@ function formatDateTime(value: string | Date | null | undefined) {
   }).format(new Date(value));
 }
 
-function AlertCard({ flag }: { flag: any }) {
+
+function AlertCard({
+  flag,
+  onResolve,
+}: {
+  flag: any;
+  onResolve: (flagId: string) => Promise<void>;
+}) {
+
   const isOpen = flag.status === "OPEN";
 
   const iconClass =
@@ -113,22 +121,35 @@ function AlertCard({ flag }: { flag: any }) {
         </div>
       </div>
 
-      <button className="ml-4 shrink-0 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-        Review
-      </button>
+      {flag.status === "OPEN" ? (
+  <button
+      onClick={() => onResolve(flag.id)}
+      className="ml-4 shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+    >
+      Resolve
+    </button>
+  ) : (
+    <button
+      disabled
+      className="ml-4 shrink-0 cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
+    >
+      Resolved
+    </button>
+  )}
     </div>
   );
 }
 
 export default function AlertsClient({ initialFlags }: AlertsClientProps) {
   const [query, setQuery] = useState("");
+  const [flags, setFlags] = useState<any[]>(initialFlags);
 
   const filteredFlags = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    if (!normalizedQuery) return initialFlags;
+    if (!normalizedQuery) return flags;
 
-    return initialFlags.filter((flag) => {
+    return flags.filter((flag) => {
       const searchable = [
         flag.security?.ticker,
         flag.security?.name,
@@ -146,13 +167,31 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
 
       return searchable.includes(normalizedQuery);
     });
-  }, [initialFlags, query]);
+  }, [flags, query]);
 
-  const openFlags = initialFlags.filter((flag) => flag.status === "OPEN");
-  const highPriority = initialFlags.filter((flag) => flag.priority === "HIGH");
-  const resolvedFlags = initialFlags.filter(
-    (flag) => flag.status === "RESOLVED"
-  );
+  const openFlags = flags.filter((flag) => flag.status === "OPEN");
+  const highPriority = flags.filter((flag) => flag.priority === "HIGH");
+  const resolvedFlags = flags.filter((flag) => flag.status === "RESOLVED");
+
+  async function handleResolveFlag(flagId: string) {
+  const response = await fetch(`/api/flags/${flagId}/resolve`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to resolve flag.");
+  }
+
+  const data = await response.json();
+  const resolvedFlag = data.flag;
+
+  setFlags((currentFlags) =>
+    currentFlags.map((flag) =>
+      flag.id === resolvedFlag.id ? resolvedFlag : flag
+      )
+    );
+  }
+
 
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
@@ -263,7 +302,7 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
                     Total Alerts
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-slate-950">
-                    {initialFlags.length}
+                    {flags.length}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     Flags in system
@@ -310,7 +349,11 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
               <div className="space-y-3">
                 {filteredFlags.length ? (
                   filteredFlags.map((flag) => (
-                    <AlertCard key={flag.id} flag={flag} />
+                    <AlertCard
+                      key={flag.id}
+                      flag={flag}
+                      onResolve={handleResolveFlag}
+                    />
                   ))
                 ) : (
                   <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
