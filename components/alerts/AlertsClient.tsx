@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { canCreateFlags } from "@/lib/client-permissions";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 type AlertsClientProps = {
   initialFlags: any[];
@@ -67,9 +68,11 @@ function formatDateTime(value: string | Date | null | undefined) {
 function AlertCard({
   flag,
   onResolve,
+  canResolve,
 }: {
   flag: any;
   onResolve: (flagId: string) => Promise<void>;
+  canResolve: boolean;
 }) {
 
   const isOpen = flag.status === "OPEN";
@@ -121,21 +124,28 @@ function AlertCard({
         </div>
       </div>
 
-      {flag.status === "OPEN" ? (
-  <button
-      onClick={() => onResolve(flag.id)}
-      className="ml-4 shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-    >
-      Resolve
-    </button>
-  ) : (
-    <button
-      disabled
-      className="ml-4 shrink-0 cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
-    >
-      Resolved
-    </button>
-  )}
+      {flag.status === "RESOLVED" ? (
+          <button
+            disabled
+            className="ml-4 shrink-0 cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
+          >
+            Resolved
+          </button>
+        ) : canResolve ? (
+          <button
+            onClick={() => onResolve(flag.id)}
+            className="ml-4 shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Resolve
+          </button>
+        ) : (
+          <button
+            disabled
+            className="ml-4 shrink-0 cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
+          >
+            Read Only
+          </button>
+        )}
     </div>
   );
 }
@@ -143,9 +153,21 @@ function AlertCard({
 export default function AlertsClient({ initialFlags }: AlertsClientProps) {
   const [query, setQuery] = useState("");
   const [flags, setFlags] = useState<any[]>(initialFlags);
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  useEffect(() => {
+    async function loadCurrentUser() {
+      const response = await fetch("/api/auth/me");
 
+      if (!response.ok) return;
+
+      const data = await response.json();
+      setCurrentUser(data.user);
+    }
+
+    loadCurrentUser();
+  }, []);
   const filteredFlags = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = query.trim().toLowerCase();
 
     if (!normalizedQuery) return flags;
 
@@ -172,6 +194,7 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
   const openFlags = flags.filter((flag) => flag.status === "OPEN");
   const highPriority = flags.filter((flag) => flag.priority === "HIGH");
   const resolvedFlags = flags.filter((flag) => flag.status === "RESOLVED");
+  const userCanResolveFlags = canCreateFlags(currentUser?.role);
 
   async function handleResolveFlag(flagId: string) {
   const response = await fetch(`/api/flags/${flagId}/resolve`, {
@@ -356,6 +379,7 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
                       key={flag.id}
                       flag={flag}
                       onResolve={handleResolveFlag}
+                      canResolve={userCanResolveFlags}
                     />
                   ))
                 ) : (
