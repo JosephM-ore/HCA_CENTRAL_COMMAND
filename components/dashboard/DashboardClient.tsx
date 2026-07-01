@@ -889,6 +889,8 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
   const [commentPosition, setCommentPosition] = useState<any | null>(null);
   const [flagPosition, setFlagPosition] = useState<any | null>(null);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [query, setQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("All");
 
   const userCanCreateComments = canCreateComments(currentUser?.role);
   const userCanCreateFlags = canCreateFlags(currentUser?.role);
@@ -906,15 +908,51 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
     loadCurrentUser();
   }, []);
 
-  const longPositions = useMemo(
-  () => localPositions.filter((position) => position.side === "LONG"),
-  [localPositions]
-  );
+  const filteredPositions = useMemo(() => {
+  const normalizedQuery = query.trim().toLowerCase();
 
-  const shortPositions = useMemo(
-    () => localPositions.filter((position) => position.side === "SHORT"),
-    [localPositions]
-  );
+  return localPositions
+    .filter((position) => {
+      const latestComment = position.comments?.[0]?.content || "";
+      const flagText = position.flags?.map((flag: any) => flag.flagType).join(" ") || "";
+
+      const searchable = [
+        position.security?.ticker,
+        position.security?.name,
+        position.security?.sector,
+        position.side,
+        latestComment,
+        flagText,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesQuery = !normalizedQuery || searchable.includes(normalizedQuery);
+
+      const matchesFilter =
+        activeFilter === "All" ||
+        (activeFilter === "Long" && position.side === "LONG") ||
+        (activeFilter === "Short" && position.side === "SHORT") ||
+        (activeFilter === "Winners" && (position.totalPctChange ?? 0) >= 0) ||
+        (activeFilter === "Losers" && (position.totalPctChange ?? 0) < 0) ||
+        (activeFilter === "Flagged" && position.flags?.length > 0) ||
+        position.security?.sector?.toLowerCase().includes(activeFilter.toLowerCase());
+
+      return matchesQuery && matchesFilter;
+    })
+    .sort((a, b) => (b.totalPctChange ?? 0) - (a.totalPctChange ?? 0));
+}, [localPositions, query, activeFilter]);
+
+const longPositions = useMemo(
+  () => filteredPositions.filter((position) => position.side === "LONG"),
+  [filteredPositions]
+);
+
+const shortPositions = useMemo(
+  () => filteredPositions.filter((position) => position.side === "SHORT"),
+  [filteredPositions]
+);
 
   const totalMarketValue = localPositions.reduce(
     (sum, position) => sum + (position.marketValue ?? 0),
@@ -1103,8 +1141,9 @@ async function handleSaveFlag(payload: {
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
-            <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-              Search ticker, company, side, sector, comments...
+            <div>
+              <p className="text-sm font-medium text-slate-900">Home / Positions</p>
+              <p className="text-xs text-slate-500">Active portfolio dashboard</p>
             </div>
 
             <div className="ml-4 flex items-center gap-3">
@@ -1158,20 +1197,30 @@ async function handleSaveFlag(payload: {
                   
 
                 </div>
-                
+                <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search ticker, company, side, sector, comments, flags..."
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
+                  />
+                </div>
                 <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3">
                   {[
                     "All",
                     "Long",
                     "Short",
+                    "Winners",
+                    "Losers",
                     "Flagged",
                     "Technology",
                     "Semiconductors",
                   ].map((filter) => (
                     <button
                       key={filter}
+                      onClick={() => setActiveFilter(filter)}
                       className={`rounded-xl px-3 py-2 text-sm ${
-                        filter === "All"
+                        activeFilter === filter
                           ? "bg-slate-900 text-white"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
@@ -1180,9 +1229,15 @@ async function handleSaveFlag(payload: {
                     </button>
                   ))}
 
-                  <button className="ml-auto rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">
+                <div className="ml-auto flex items-center gap-3">
+                  <span className="text-sm text-slate-500">
+                    Showing {filteredPositions.length} of {localPositions.length}
+                  </span>
+
+                  <button className="rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">
                     Sort: Total % Change
                   </button>
+                </div>
                 </div>
 
                 <PositionGrid

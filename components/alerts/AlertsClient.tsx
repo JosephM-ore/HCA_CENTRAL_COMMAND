@@ -267,12 +267,10 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search ticker, alert type, priority, status, description..."
-              className="w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
-            />
+            <div>
+              <p className="text-sm font-medium text-slate-900">Alert Center</p>
+              <p className="text-xs text-slate-500">Open flags and review workflow</p>
+            </div>
 
             <div className="ml-4 flex items-center gap-3">
               <Badge tone="green">Live data mock</Badge>
@@ -343,7 +341,14 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
                   </p>
                 </div>
               </div>
-
+              <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search ticker, alert type, priority, status, description..."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
               <div className="space-y-3">
                 {filteredFlags.length ? (
                   filteredFlags.map((flag) => (

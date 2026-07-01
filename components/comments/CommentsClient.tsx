@@ -173,12 +173,10 @@ export default function CommentsClient({
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search ticker, company, comment text, author, category..."
-              className="w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
-            />
+            <div>
+              <p className="text-sm font-medium text-slate-900">Global Comments</p>
+              <p className="text-xs text-slate-500">Searchable comment timeline</p>
+            </div>
 
             <div className="ml-4 flex items-center gap-3">
               <Badge tone="green">Live data mock</Badge>
@@ -246,6 +244,15 @@ export default function CommentsClient({
                 Execution/context notes
                 </p>
             </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-3">
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search ticker, company, comment text, author, category..."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
+              />
             </div>
 
               <div className="space-y-3">

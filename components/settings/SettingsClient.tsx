@@ -149,8 +149,9 @@ export default function SettingsClient({
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
-            <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-              Search settings, permissions, audit logs, refresh controls...
+            <div>
+              <p className="text-sm font-medium text-slate-900">Settings</p>
+              <p className="text-xs text-slate-500">Permissions, audit, data, and shortcuts</p>
             </div>
 
             <div className="ml-4 flex items-center gap-3">

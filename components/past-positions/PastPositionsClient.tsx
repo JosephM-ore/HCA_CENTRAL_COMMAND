@@ -276,11 +276,34 @@ export default function PastPositionsClient({
 }: PastPositionsClientProps) {
   const [positions, setPositions] = useState<any[]>(initialPositions);
   const [commentPosition, setCommentPosition] = useState<any | null>(null);
+  const [query, setQuery] = useState("");
 
-  const closedPositions = useMemo(
-    () => positions.filter((position) => position.status === "CLOSED"),
-    [positions]
-  );
+  const closedPositions = useMemo(() => {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  return positions
+    .filter((position) => position.status === "CLOSED")
+    .filter((position) => {
+      if (!normalizedQuery) return true;
+
+      const latestComment = position.comments?.[0]?.content || "";
+
+      const searchable = [
+        position.security?.ticker,
+        position.security?.name,
+        position.security?.sector,
+        position.side,
+        position.exitRationale,
+        latestComment,
+        position.totalPctChange,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(normalizedQuery);
+    });
+}, [positions, query]);
 
   const winners = closedPositions.filter(
     (position) => (position.totalPctChange ?? 0) >= 0
@@ -393,8 +416,9 @@ export default function PastPositionsClient({
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
-            <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-              Search ticker, company, exit rationale, or comments...
+            <div>
+              <p className="text-sm font-medium text-slate-900">Past Positions</p>
+              <p className="text-xs text-slate-500">Closed positions and exit rationale</p>
             </div>
 
             <div className="ml-4 flex items-center gap-3">
@@ -452,6 +476,14 @@ export default function PastPositionsClient({
                 </div>
               </div>
 
+              <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search ticker, company, side, sector, exit rationale, comments..."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
               <PastPositionsGrid
                 positions={closedPositions}
                 onComment={setCommentPosition}

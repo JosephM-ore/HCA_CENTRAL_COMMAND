@@ -378,6 +378,7 @@ export default function WatchlistClient({
   const [entries, setEntries] = useState<any[]>(initialEntries);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [marketDataEntry, setMarketDataEntry] = useState<any | null>(null);
+  const [query, setQuery] = useState("");
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const userCanEditWatchlist = canEditWatchlist(currentUser?.role);
 
@@ -394,15 +395,43 @@ export default function WatchlistClient({
 
   loadCurrentUser();
 }, []);
-  const longEntries = useMemo(
-    () => entries.filter((entry) => entry.side === "LONG"),
-    [entries]
-  );
+  const filteredEntries = useMemo(() => {
+  const normalizedQuery = query.trim().toLowerCase();
 
-  const shortEntries = useMemo(
-    () => entries.filter((entry) => entry.side === "SHORT"),
-    [entries]
-  );
+  if (!normalizedQuery) return entries;
+
+  return entries.filter((entry) => {
+    const latestComment = entry.comments?.[0]?.content || "";
+    const flagText =
+      entry.flags?.map((flag: any) => flag.flagType).join(" ") || "";
+
+    const searchable = [
+      entry.security?.ticker,
+      entry.security?.name,
+      entry.security?.sector,
+      entry.side,
+      entry.targetPrice,
+      entry.notes,
+      latestComment,
+      flagText,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchable.includes(normalizedQuery);
+  });
+}, [entries, query]);
+
+const longEntries = useMemo(
+  () => filteredEntries.filter((entry) => entry.side === "LONG"),
+  [filteredEntries]
+);
+
+const shortEntries = useMemo(
+  () => filteredEntries.filter((entry) => entry.side === "SHORT"),
+  [filteredEntries]
+);
 
   async function handleAddEntry(payload: {
     ticker: string;
@@ -498,8 +527,9 @@ export default function WatchlistClient({
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
-            <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-              Search ticker, company, side, sector, comments...
+            <div>
+              <p className="text-sm font-medium text-slate-900">Watchlist</p>
+              <p className="text-xs text-slate-500">Long and short idea pipeline</p>
             </div>
 
             <div className="ml-4 flex items-center gap-3">
@@ -575,6 +605,17 @@ export default function WatchlistClient({
                   </p>
                 </div>
               </div>
+              
+              <div className="rounded-2xl border border-slate-200 bg-white p-3">
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search ticker, company, sector, side, target price, notes, comments, flags..."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
+              />
+            </div>  
+                  
+
 
               <WatchlistGrid
                 title="Long Watchlist"
