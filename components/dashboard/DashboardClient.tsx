@@ -100,12 +100,14 @@ function PositionGrid({
   positions,
   selectedId,
   onSelect,
+  onMarketData,
 }: {
   title: string;
   tone: "green" | "red";
   positions: any[];
   selectedId?: string;
   onSelect: (position: any) => void;
+  onMarketData: (position: any) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -189,11 +191,11 @@ function PositionGrid({
               </div>
 
               <div>
-                <button
-                  onClick={() => onSelect(position)}
-                  className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-700 hover:bg-slate-200"
+               <button
+                onClick={() => onMarketData(position)}
+                className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-700 hover:bg-slate-200"
                 >
-                  Market Data
+                Market Data
                 </button>
               </div>
 
@@ -393,11 +395,119 @@ function TickerDetailPanel({
     </aside>
   );
 }
+function MarketDataModal({
+  position,
+  onClose,
+}: {
+  position: any | null;
+  onClose: () => void;
+}) {
+  if (!position) return null;
+
+  const security = position.security;
+  const marketData = security.marketData?.[0];
+
+  const rows = [
+    ["VWAP", marketData?.vwap != null ? `$${marketData.vwap.toFixed(2)}` : "N/A"],
+    [
+      "52 Week High",
+      marketData?.high52w != null ? `$${marketData.high52w.toFixed(2)}` : "N/A",
+    ],
+    [
+      "52 Week Low",
+      marketData?.low52w != null ? `$${marketData.low52w.toFixed(2)}` : "N/A",
+    ],
+    ["Beta", marketData?.beta != null ? marketData.beta.toFixed(2) : "N/A"],
+    [
+      "Avg Volume",
+      marketData?.avgVolume != null
+        ? marketData.avgVolume.toLocaleString("en-US", {
+            maximumFractionDigits: 0,
+          })
+        : "N/A",
+    ],
+    [
+      "Short Float",
+      marketData?.shortFloat != null ? `${marketData.shortFloat}%` : "N/A",
+    ],
+    [
+      "Market Cap",
+      marketData?.marketCap != null ? formatMoney(marketData.marketCap) : "N/A",
+    ],
+    ["P/LTM EPS", marketData?.peLtm != null ? `${marketData.peLtm.toFixed(1)}x` : "N/A"],
+    [
+      "Price/Tang Book",
+      marketData?.priceToTangBook != null
+        ? `${marketData.priceToTangBook.toFixed(1)}x`
+        : "N/A",
+    ],
+    ["P/NTM EPS", marketData?.peNtm != null ? `${marketData.peNtm.toFixed(1)}x` : "N/A"],
+    [
+      "Price/Book",
+      marketData?.priceToBook != null
+        ? `${marketData.priceToBook.toFixed(1)}x`
+        : "N/A",
+    ],
+    [
+      "Total Debt/EBITDA",
+      marketData?.debtToEbitda != null
+        ? `${marketData.debtToEbitda.toFixed(1)}x`
+        : "N/A",
+    ],
+    ["EPS", marketData?.eps != null ? `$${marketData.eps.toFixed(2)}` : "N/A"],
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Market Data
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {security.ticker} • {security.name}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+          {rows.map(([label, value], index) => (
+            <div
+              key={label}
+              className={`grid grid-cols-2 px-4 py-3 text-sm ${
+                index % 2 === 0 ? "bg-slate-50" : "bg-white"
+              }`}
+            >
+              <span className="font-medium text-slate-700">{label}</span>
+              <span className="text-right font-semibold text-slate-950">
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
+          Source: {marketData?.source || "MOCK"} market data cache. Bloomberg
+          integration will replace this provider later.
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardClient({ positions }: DashboardClientProps) {
   const [selectedPosition, setSelectedPosition] = useState<any | null>(
     positions[0] ?? null
   );
+  const [marketDataPosition, setMarketDataPosition] = useState<any | null>(null);
 
   const longPositions = useMemo(
     () => positions.filter((position) => position.side === "LONG"),
@@ -562,19 +672,22 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
                 </div>
 
                 <PositionGrid
-                  title="Long Positions"
-                  tone="green"
-                  positions={longPositions}
-                  selectedId={selectedPosition?.id}
-                  onSelect={setSelectedPosition}
+                    title="Long Positions"
+                    tone="green"
+                    positions={longPositions}
+                    selectedId={selectedPosition?.id}
+                    onSelect={setSelectedPosition}
+                    onMarketData={setMarketDataPosition}
                 />
 
+                
                 <PositionGrid
                   title="Short Positions"
                   tone="red"
                   positions={shortPositions}
                   selectedId={selectedPosition?.id}
                   onSelect={setSelectedPosition}
+                  onMarketData={setMarketDataPosition}
                 />
               </div>
             </div>
@@ -583,6 +696,12 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
               position={selectedPosition}
               onClose={() => setSelectedPosition(null)}
             />
+
+            <MarketDataModal
+              position={marketDataPosition}
+              onClose={() => setMarketDataPosition(null)}
+            />
+
           </div>
         </section>
       </div>
