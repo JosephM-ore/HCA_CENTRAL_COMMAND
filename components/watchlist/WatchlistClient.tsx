@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { canEditWatchlist } from "@/lib/client-permissions";
-
+import CurrentUserPill from "@/components/auth/CurrentUserPill";
 type WatchlistClientProps = {
   initialEntries: any[];
 };
@@ -504,9 +504,7 @@ export default function WatchlistClient({
 
             <div className="ml-4 flex items-center gap-3">
               <Badge tone="green">Live data mock</Badge>
-              <div className="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
-                Joseph Moore
-              </div>
+              <CurrentUserPill />
             </div>
           </header>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-
+import CurrentUserPill from "@/components/auth/CurrentUserPill";
 type AlertsClientProps = {
   initialFlags: any[];
 };
@@ -277,9 +277,7 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
             <div className="ml-4 flex items-center gap-3">
               <Badge tone="green">Live data mock</Badge>
 
-              <div className="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
-                Joseph Moore
-              </div>
+              <CurrentUserPill />
             </div>
           </header>
 

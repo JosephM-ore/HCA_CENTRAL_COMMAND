@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
+import CurrentUserPill from "@/components/auth/CurrentUserPill";
 
 import {
   canCreateComments,
@@ -1109,9 +1109,7 @@ async function handleSaveFlag(payload: {
 
             <div className="ml-4 flex items-center gap-3">
               <Badge tone="green">Live data mock</Badge>
-              <div className="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
-                Joseph Moore
-              </div>
+              <CurrentUserPill />
             </div>
           </header>
 
