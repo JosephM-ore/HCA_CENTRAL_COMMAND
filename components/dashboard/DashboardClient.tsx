@@ -13,6 +13,9 @@ type DashboardClientProps = {
   positions: any[];
 };
 
+
+
+
 function formatMoney(value: number | null | undefined) {
   if (value == null) return "—";
 
@@ -34,6 +37,30 @@ function formatNumber(value: number | null | undefined) {
 function pnlClass(value: number | null | undefined) {
   if (value == null) return "text-slate-500";
   return value >= 0 ? "text-emerald-600" : "text-rose-600";
+}
+
+function formatDate(value: string | Date | null | undefined) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string | Date | null | undefined) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function Badge({
@@ -390,7 +417,7 @@ function TickerDetailPanel({
               >
                 <span className="font-semibold">{security.ticker}</span>
                 <span>
-                  {new Date(trade.dateTraded).toLocaleDateString("en-US")}
+                  {formatDate(trade.dateTraded)}
                 </span>
                 <span>{formatNumber(trade.shares)}</span>
                 <span>${trade.avgPrice.toFixed(2)}</span>
@@ -425,7 +452,7 @@ function TickerDetailPanel({
                   <div className="flex items-center justify-between">
                     <Badge tone="blue">{comment.tag}</Badge>
                     <span className="text-xs text-slate-400">
-                      {new Date(comment.createdAt).toLocaleString("en-US")}
+                      {formatDateTime(comment.createdAt)}
                     </span>
                   </div>
 
