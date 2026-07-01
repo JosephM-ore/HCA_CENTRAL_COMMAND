@@ -208,6 +208,13 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
             >
                 Alerts
             </a>
+
+             <a
+              href="/settings"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Settings
+            </a>
             </nav>
 
           <div className="mt-auto rounded-3xl bg-slate-50 p-4">

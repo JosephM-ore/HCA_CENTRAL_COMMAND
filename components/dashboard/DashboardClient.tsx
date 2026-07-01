@@ -754,24 +754,49 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
           </div>
 
           <nav className="space-y-2">
-            <div className="rounded-2xl bg-slate-900 px-3 py-2.5 text-sm text-white shadow-sm">
+            <a
+              href="/"
+              className="block rounded-2xl bg-slate-900 px-3 py-2.5 text-sm text-white shadow-sm"
+            >
               Home / Positions
-            </div>
-            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+            </a>
+
+            <a
+              href="/watchlist"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
               Watchlist
-            </div>
-            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+            </a>
+
+            <a
+              href="/past-positions"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
               Past Positions
-            </div>
-            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+            </a>
+
+            <a
+              href="/comments"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
               Comments
-            </div>
-            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+            </a>
+            
+            <a
+              href="/alerts"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
               Alerts
-            </div>
-            <div className="rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100">
+            </a>
+
+            <a
+              href="/settings"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
               Settings
-            </div>
+            </a>
+            
+    
           </nav>
 
           <div className="mt-auto rounded-3xl bg-slate-50 p-4">
