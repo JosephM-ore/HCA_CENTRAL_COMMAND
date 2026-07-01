@@ -881,7 +881,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
 
                 <div className="grid grid-cols-4 gap-4">
                   <StatCard
-                    label="Total Market Value"
+                    label="Net Equity"
                     value={formatMoney(totalMarketValue)}
                     sub={`${localPositions.length} active positions`}
                   />
@@ -910,8 +910,6 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
                     "All",
                     "Long",
                     "Short",
-                    "Winners",
-                    "Losers",
                     "Flagged",
                     "Technology",
                     "Semiconductors",
