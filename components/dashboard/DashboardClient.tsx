@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { canCreateComments } from "@/lib/client-permissions";
+
+import {
+  canCreateComments,
+  canCreateFlags,
+} from "@/lib/client-permissions";
+
 
 type DashboardClientProps = {
   positions: any[];
@@ -232,14 +237,17 @@ function TickerDetailPanel({
   onClose,
   onComment,
   onMarketData,
+  onFlag,
   canComment,
-
+  canFlag,
 }: {
   position: any | null;
   onClose: () => void;
   onComment: (position: any) => void;
   onMarketData: (position: any) => void;
+  onFlag: (position: any) => void;
   canComment: boolean;
+  canFlag: boolean;
 }) {
   if (!position) return null;
 
@@ -330,9 +338,21 @@ function TickerDetailPanel({
               Read Only
             </button>
           )}
-          <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            Flag
-          </button>      
+          {canFlag ? (
+            <button
+              onClick={() => onFlag(position)}
+              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Flag
+            </button>
+          ) : (
+            <button
+              disabled
+              className="cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
+            >
+              Flag
+            </button>
+          )}     
           <button
             onClick={() => onMarketData(position)}
             className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -671,6 +691,166 @@ function CommentModal({
   );
 }
 
+function FlagModal({
+  position,
+  onClose,
+  onSave,
+}: {
+  position: any | null;
+  onClose: () => void;
+  onSave: (payload: {
+    securityId: string;
+    positionId: string;
+    flagType: string;
+    priority: string;
+    description: string;
+  }) => Promise<void>;
+}) {
+  const [flagType, setFlagType] = useState("Risk Review");
+  const [priority, setPriority] = useState("MEDIUM");
+  const [description, setDescription] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!position) return null;
+
+  const flagTypes = [
+    "Risk Review",
+    "Earnings Upcoming",
+    "Valuation Stretched",
+    "Thesis Changed",
+    "Candidate",
+    "Under Review",
+    "Margin Pressure",
+    "Credit Watch",
+    "Quality Risk",
+    "Event-driven",
+    "Custom",
+  ];
+
+  async function handleSave() {
+    setError("");
+
+    if (!flagType.trim()) {
+      setError("Please select a flag type.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await onSave({
+        securityId: position.securityId,
+        positionId: position.id,
+        flagType,
+        priority,
+        description,
+      });
+
+      setFlagType("Risk Review");
+      setPriority("MEDIUM");
+      setDescription("");
+      onClose();
+    } catch {
+      setError("Failed to create flag. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Flag Ticker
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {position.security.ticker} • {position.security.name}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Flag Type
+            </label>
+            <select
+              value={flagType}
+              onChange={(event) => setFlagType(event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            >
+              {flagTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Priority
+            </label>
+            <select
+              value={priority}
+              onChange={(event) => setPriority(event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Describe why this ticker needs attention..."
+              className="mt-2 h-28 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            />
+          </div>
+        </div>
+
+        {error ? (
+          <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Save Flag"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function DashboardClient({ positions }: DashboardClientProps) {
   const [localPositions, setLocalPositions] = useState<any[]>(positions);
 
@@ -680,8 +860,11 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
 
   const [marketDataPosition, setMarketDataPosition] = useState<any | null>(null);
   const [commentPosition, setCommentPosition] = useState<any | null>(null);
+  const [flagPosition, setFlagPosition] = useState<any | null>(null);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
+
   const userCanCreateComments = canCreateComments(currentUser?.role);
+  const userCanCreateFlags = canCreateFlags(currentUser?.role);
 
   useEffect(() => {
     async function loadCurrentUser() {
@@ -728,11 +911,11 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
   ).length;
 
   async function handleSaveComment(payload: {
-    securityId: string;
-    positionId: string;
-    tag: string;
-    content: string;
-  }){
+  securityId: string;
+  positionId: string;
+  tag: string;
+  content: string;
+}) {
   const response = await fetch("/api/comments", {
     method: "POST",
     headers: {
@@ -770,9 +953,55 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
     };
   });
 }
-  function handleOpenComment(position: any) {
+
+function handleOpenComment(position: any) {
   setSelectedPosition(position);
   setCommentPosition(position);
+}
+
+async function handleSaveFlag(payload: {
+  securityId: string;
+  positionId: string;
+  flagType: string;
+  priority: string;
+  description: string;
+}) {
+  const response = await fetch("/api/flags", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create flag.");
+  }
+
+  const data = await response.json();
+  const newFlag = data.flag;
+
+  setLocalPositions((currentPositions) =>
+    currentPositions.map((position) => {
+      if (position.id !== payload.positionId) return position;
+
+      return {
+        ...position,
+        flags: [newFlag, ...(position.flags || [])],
+      };
+    })
+  );
+
+  setSelectedPosition((currentPosition: any | null) => {
+    if (!currentPosition || currentPosition.id !== payload.positionId) {
+      return currentPosition;
+    }
+
+    return {
+      ...currentPosition,
+      flags: [newFlag, ...(currentPosition.flags || [])],
+    };
+  });
 }
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
@@ -962,7 +1191,9 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
               onClose={() => setSelectedPosition(null)}
               onComment={handleOpenComment}
               onMarketData={setMarketDataPosition}
+              onFlag={setFlagPosition}
               canComment={userCanCreateComments}
+              canFlag={userCanCreateFlags}
             />
 
 
@@ -974,6 +1205,11 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
               position={commentPosition}
               onClose={() => setCommentPosition(null)}
               onSave={handleSaveComment}
+            />
+            <FlagModal
+              position={flagPosition}
+              onClose={() => setFlagPosition(null)}
+              onSave={handleSaveFlag}
             />
           </div>
         </section>
