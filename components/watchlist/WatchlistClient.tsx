@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { canEditWatchlist } from "@/lib/client-permissions";
 
 type WatchlistClientProps = {
   initialEntries: any[];
@@ -377,7 +378,22 @@ export default function WatchlistClient({
   const [entries, setEntries] = useState<any[]>(initialEntries);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [marketDataEntry, setMarketDataEntry] = useState<any | null>(null);
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const userCanEditWatchlist = canEditWatchlist(currentUser?.role);
 
+
+  useEffect(() => {
+  async function loadCurrentUser() {
+    const response = await fetch("/api/auth/me");
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+    setCurrentUser(data.user);
+  }
+
+  loadCurrentUser();
+}, []);
   const longEntries = useMemo(
     () => entries.filter((entry) => entry.side === "LONG"),
     [entries]
@@ -507,12 +523,21 @@ export default function WatchlistClient({
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setAddModalOpen(true)}
-                  className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-                >
-                  Add Stock
-                </button>
+                {userCanEditWatchlist ? (
+                    <button
+                      onClick={() => setAddModalOpen(true)}
+                      className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                    >
+                      Add Stock
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="cursor-not-allowed rounded-2xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+                    >
+                      Read Only
+                    </button>
+                  )}
               </div>
 
               <div className="grid grid-cols-3 gap-4">

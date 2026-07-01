@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { canCreateComments } from "@/lib/client-permissions";
 
 type DashboardClientProps = {
   positions: any[];
@@ -102,6 +104,7 @@ function PositionGrid({
   onSelect,
   onMarketData,
   onComment,
+  canComment,
 }: {
   title: string;
   tone: "green" | "red";
@@ -110,6 +113,7 @@ function PositionGrid({
   onSelect: (position: any) => void;
   onMarketData: (position: any) => void;
   onComment: (position: any) => void;
+  canComment: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -202,12 +206,18 @@ function PositionGrid({
               </div>
 
               <div>
-                <button
-                onClick={() => onComment(position)}
-                className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
-              >
-                {latestComment ? "Comment" : "Add Comment"}
-              </button>
+                {canComment ? (
+                  <button
+                    onClick={() => onComment(position)}
+                    className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    {latestComment ? "Comment" : "Add Comment"}
+                  </button>
+                ) : (
+                  <span className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-400">
+                    Read Only
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -222,11 +232,14 @@ function TickerDetailPanel({
   onClose,
   onComment,
   onMarketData,
+  canComment,
+
 }: {
   position: any | null;
   onClose: () => void;
   onComment: (position: any) => void;
   onMarketData: (position: any) => void;
+  canComment: boolean;
 }) {
   if (!position) return null;
 
@@ -302,12 +315,21 @@ function TickerDetailPanel({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            onClick={() => onComment(position)}
-            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-          >
-            Comment
-          </button>
+          {canComment ? (
+            <button
+              onClick={() => onComment(position)}
+              className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+            >
+              Comment
+            </button>
+          ) : (
+            <button
+              disabled
+              className="cursor-not-allowed rounded-2xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+            >
+              Read Only
+            </button>
+          )}
           <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Flag
           </button>      
@@ -658,6 +680,21 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
 
   const [marketDataPosition, setMarketDataPosition] = useState<any | null>(null);
   const [commentPosition, setCommentPosition] = useState<any | null>(null);
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const userCanCreateComments = canCreateComments(currentUser?.role);
+
+  useEffect(() => {
+    async function loadCurrentUser() {
+      const response = await fetch("/api/auth/me");
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      setCurrentUser(data.user);
+    }
+
+    loadCurrentUser();
+  }, []);
 
   const longPositions = useMemo(
   () => localPositions.filter((position) => position.side === "LONG"),
@@ -904,6 +941,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
                   onSelect={setSelectedPosition}
                   onMarketData={setMarketDataPosition}
                   onComment={handleOpenComment}
+                  canComment={userCanCreateComments}
                 />
 
                 
@@ -915,6 +953,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
                   onSelect={setSelectedPosition}
                   onMarketData={setMarketDataPosition}
                   onComment={handleOpenComment}
+                  canComment={userCanCreateComments}
                 />
               </div>
             </div>
@@ -925,6 +964,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
               onClose={() => setSelectedPosition(null)}
               onComment={handleOpenComment}
               onMarketData={setMarketDataPosition}
+              canComment={userCanCreateComments}
             />
 
 
