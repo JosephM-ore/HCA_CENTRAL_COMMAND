@@ -157,6 +157,16 @@ export default function SettingsClient({
               <div className="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
                 Joseph Moore
               </div>
+
+              <button
+                onClick={async () => {
+                  await fetch("/api/auth/logout", { method: "POST" });
+                  window.location.href = "/login";
+                }}
+                className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Logout
+              </button>
             </div>
           </header>
 
