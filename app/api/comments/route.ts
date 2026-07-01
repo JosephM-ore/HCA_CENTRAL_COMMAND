@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { canCreateComments } from "@/lib/permissions";
 
 const VALID_TAGS = ["COMMENT", "THESIS", "RISK", "CATALYST", "TRADE", "EXIT"];
 
@@ -43,19 +45,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Temporary MVP author until auth is wired.
-    const author = await prisma.user.findUnique({
-      where: {
-        email: "trader1@example.com",
-      },
-    });
+    
+    const author = await getCurrentUser();
+      if (!author) {
+        return NextResponse.json(
+          { error: "Authentication required." },
+          { status: 401 }
+        );
+      }
 
-    if (!author) {
-      return NextResponse.json(
-        { error: "Default seeded author not found. Run prisma db seed." },
-        { status: 500 }
-      );
-    }
+      if (!canCreateComments(author.role)) {
+        return NextResponse.json(
+          { error: "You do not have permission to create comments." },
+          { status: 403 }
+        );
+      }
 
     const comment = await prisma.comment.create({
       data: {

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { canEditWatchlist } from "@/lib/permissions";
 
 export async function GET() {
   try {
@@ -96,18 +98,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const author = await prisma.user.findUnique({
-      where: {
-        email: "trader1@example.com",
-      },
-    });
+    const author = await getCurrentUser();
 
-    if (!author) {
-      return NextResponse.json(
-        { error: "Default seeded author not found. Run prisma db seed." },
-        { status: 500 }
-      );
-    }
+      if (!author) {
+        return NextResponse.json(
+          { error: "Authentication required." },
+          { status: 401 }
+        );
+      }
+
+      if (!canEditWatchlist(author.role)) {
+        return NextResponse.json(
+          { error: "You do not have permission to edit the watchlist." },
+          { status: 403 }
+        );
+      }
 
     const normalizedTicker = ticker.trim().toUpperCase();
 
