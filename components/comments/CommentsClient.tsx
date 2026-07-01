@@ -1,0 +1,318 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+type CommentsClientProps = {
+  initialComments: any[];
+};
+
+function Badge({
+  children,
+  tone = "slate",
+}: {
+  children: React.ReactNode;
+  tone?: "slate" | "green" | "red" | "amber" | "blue" | "yellow";
+}) {
+  const styles = {
+    slate: "bg-slate-100 text-slate-700 ring-slate-200",
+    green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    red: "bg-rose-50 text-rose-700 ring-rose-200",
+    amber: "bg-amber-50 text-amber-700 ring-amber-200",
+    blue: "bg-blue-50 text-blue-700 ring-blue-200",
+    yellow: "bg-yellow-50 text-yellow-800 ring-yellow-200",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${styles[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function getTagTone(tag: string) {
+  if (tag === "RISK") return "red";
+  if (tag === "EXIT") return "yellow";
+  if (tag === "THESIS") return "green";
+  if (tag === "CATALYST") return "amber";
+  if (tag === "TRADE") return "blue";
+  return "slate";
+}
+
+function getContextLabel(comment: any) {
+  if (comment.watchlistEntryId) return "Watchlist";
+  if (comment.position?.status === "CLOSED") return "Past Position";
+  if (comment.position?.status === "ACTIVE") return "Active Position";
+  return "Security";
+}
+
+function formatDateTime(value: string | Date | null | undefined) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+export default function CommentsClient({
+  initialComments,
+}: CommentsClientProps) {
+  const [query, setQuery] = useState("");
+
+  const filteredComments = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) return initialComments;
+
+    return initialComments.filter((comment) => {
+      const searchable = [
+        comment.security?.ticker,
+        comment.security?.name,
+        comment.security?.sector,
+        comment.tag,
+        comment.content,
+        comment.author?.name,
+        comment.author?.email,
+        getContextLabel(comment),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(normalizedQuery);
+    });
+  }, [initialComments, query]);
+
+  const riskComments = initialComments.filter(
+    (comment) => comment.tag === "RISK"
+  ).length;
+
+  const exitComments = initialComments.filter(
+    (comment) => comment.tag === "EXIT"
+  ).length;
+
+  const tradeComments = initialComments.filter(
+    (comment) => comment.tag === "TRADE"
+  ).length;
+
+  return (
+    <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
+      <div className="flex h-full">
+        <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
+          <div className="mb-6 flex items-center gap-3 px-2 py-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
+              ⌘
+            </div>
+            <div>
+              <h1 className="font-semibold leading-tight">
+                HCA Central Command
+              </h1>
+              <p className="text-xs text-slate-500">Portfolio operations hub</p>
+            </div>
+          </div>
+
+          <nav className="space-y-2">
+            <Link
+              href="/"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Home / Positions
+            </Link>
+
+            <Link
+              href="/watchlist"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Watchlist
+            </Link>
+
+            <Link
+              href="/past-positions"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Past Positions
+            </Link>
+
+            <Link
+              href="/comments"
+              className="block rounded-2xl bg-slate-900 px-3 py-2.5 text-sm text-white shadow-sm"
+            >
+              Comments
+            </Link>
+
+            <Link
+              href="/alerts"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Alerts
+            </Link>
+
+            <Link
+              href="/settings"
+              className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+              Settings
+            </Link>
+          </nav>
+
+          <div className="mt-auto rounded-3xl bg-slate-50 p-4">
+            <div className="mb-2 text-sm font-medium">Compliance Mode</div>
+            <p className="text-xs leading-5 text-slate-500">
+              Global comments preserve internal rationale, risk updates, exit
+              notes, and trade context across positions and watchlists.
+            </p>
+          </div>
+        </aside>
+
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search ticker, company, comment text, author, category..."
+              className="w-full max-w-xl rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
+            />
+
+            <div className="ml-4 flex items-center gap-3">
+              <Badge tone="green">Live data mock</Badge>
+              <div className="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
+                Joseph Moore
+              </div>
+            </div>
+          </header>
+
+          <div className="min-w-0 flex-1 overflow-auto p-6">
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-3xl font-semibold tracking-tight">
+                  Global Comments
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Search all position, watchlist, and historical comment
+                  sections across the portfolio operations hub.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Total Comments
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {initialComments.length}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                Across all entities
+                </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Risk Notes
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-rose-600">
+                {riskComments}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                Tagged risk comments
+                </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Exit Notes
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-yellow-700">
+                {exitComments}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                Closed-position rationale
+                </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Trade Notes
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-blue-600">
+                {tradeComments}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                Execution/context notes
+                </p>
+            </div>
+            </div>
+
+              <div className="space-y-3">
+                {filteredComments.length ? (
+                  filteredComments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge tone="blue">
+                            {comment.security?.ticker || "N/A"}
+                          </Badge>
+
+                          <Badge tone={getTagTone(comment.tag) as any}>
+                            {comment.tag}
+                          </Badge>
+
+                          <Badge>{getContextLabel(comment)}</Badge>
+
+                          {comment.position?.side ? (
+                            <Badge
+                              tone={
+                                comment.position.side === "SHORT"
+                                  ? "red"
+                                  : "green"
+                              }
+                            >
+                              {comment.position.side}
+                            </Badge>
+                          ) : null}
+                        </div>
+
+                        <span className="text-xs text-slate-400">
+                          {formatDateTime(comment.createdAt)}
+                        </span>
+                      </div>
+
+                      <p className="mt-3 text-sm leading-6 text-slate-700">
+                        {comment.content}
+                      </p>
+
+                      <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+                        <span>
+                          by{" "}
+                          {comment.author?.name ||
+                            comment.author?.email ||
+                            "Unknown"}
+                        </span>
+
+                        <span>{comment.security?.name}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
+                    No comments matched your search.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
