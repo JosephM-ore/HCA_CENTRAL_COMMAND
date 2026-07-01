@@ -353,7 +353,7 @@ function TickerDetailPanel({
           {canComment ? (
             <button
               onClick={() => onComment(position)}
-              className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             >
               Comment
             </button>
@@ -574,11 +574,12 @@ function MarketDataModal({
             </div>
           ))}
         </div>
-
-        <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
-          Source: {marketData?.source || "MOCK"} market data cache. Bloomberg
-          integration will replace this provider later.
-        </div>
+        <div 
+            className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
+            Source: {marketData?.source || "Unknown"} market data cache. FMP values are
+            used where available; cached fallback values may remain for symbols limited by
+            the current data plan.
+          </div>
       </div>
     </div>
   );
@@ -1147,7 +1148,7 @@ async function handleSaveFlag(payload: {
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">Live data mock</Badge>
+              <Badge tone="green">FMP market data</Badge>
               <CurrentUserPill />
             </div>
           </header>
