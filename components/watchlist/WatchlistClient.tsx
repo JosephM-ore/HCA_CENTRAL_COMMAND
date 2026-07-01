@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { canEditWatchlist } from "@/lib/client-permissions";
+import {
+  canCreateComments,
+  canEditWatchlist,
+} from "@/lib/client-permissions";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 type WatchlistClientProps = {
   initialEntries: any[];
@@ -78,11 +81,15 @@ function WatchlistGrid({
   tone,
   entries,
   onMarketData,
+  onComment,
+  canComment,
 }: {
   title: string;
   tone: "green" | "red";
   entries: any[];
   onMarketData: (entry: any) => void;
+  onComment: (entry: any) => void;
+  canComment: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -142,9 +149,18 @@ function WatchlistGrid({
               </div>
 
               <div>
-                <button className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100">
-                  {latestComment ? "Comment" : "Add Comment"}
-                </button>
+                {canComment ? (
+                  <button
+                    onClick={() => onComment(entry)}
+                    className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    {latestComment ? "Comment" : "Add Comment"}
+                  </button>
+                ) : (
+                  <span className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-400">
+                    Read Only
+                  </span>
+                )}
               </div>
             </div>
           );
@@ -371,7 +387,139 @@ function AddStockModal({
     </div>
   );
 }
+function CommentModal({
+  entry,
+  onClose,
+  onSave,
+}: {
+  entry: any | null;
+  onClose: () => void;
+  onSave: (payload: {
+    securityId: string;
+    watchlistEntryId: string;
+    tag: string;
+    content: string;
+  }) => Promise<void>;
+}) {
+  const [tag, setTag] = useState("COMMENT");
+  const [content, setContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
 
+  if (!entry) return null;
+
+  const latestComment = entry.comments?.[0];
+
+  async function handleSave() {
+    setError("");
+
+    if (!content.trim()) {
+      setError("Please enter a comment.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await onSave({
+        securityId: entry.securityId,
+        watchlistEntryId: entry.id,
+        tag,
+        content,
+      });
+
+      setContent("");
+      setTag("COMMENT");
+      onClose();
+    } catch {
+      setError("Failed to save comment. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const categories = [
+    ["COMMENT", "Comment"],
+    ["THESIS", "Thesis"],
+    ["RISK", "Risk"],
+    ["CATALYST", "Catalyst"],
+    ["TRADE", "Trade"],
+    ["EXIT", "Exit"],
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Comment Section
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {entry.security.ticker} • timestamp and author are captured automatically
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-6 gap-2">
+          {categories.map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setTag(value)}
+              className={`rounded-2xl px-3 py-2 text-sm ${
+                tag === value
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <span className="font-medium text-slate-800">Existing comment:</span>{" "}
+          {latestComment?.content || entry.notes || "No comment yet."}
+        </div>
+
+        <textarea
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          placeholder="Write a watchlist note, thesis, risk, catalyst, or trade setup..."
+          className="mt-4 h-36 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+        />
+
+        {error ? (
+          <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Save Comment"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function WatchlistClient({
   initialEntries,
 }: WatchlistClientProps) {
@@ -381,6 +529,8 @@ export default function WatchlistClient({
   const [query, setQuery] = useState("");
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const userCanEditWatchlist = canEditWatchlist(currentUser?.role);
+  const userCanCreateComments = canCreateComments(currentUser?.role);
+  const [commentEntry, setCommentEntry] = useState<any | null>(null);
 
 
   useEffect(() => {
@@ -454,6 +604,39 @@ const shortEntries = useMemo(
     const data = await response.json();
 
     setEntries((currentEntries) => [data.entry, ...currentEntries]);
+  }
+
+  async function handleSaveComment(payload: {
+  securityId: string;
+  watchlistEntryId: string;
+  tag: string;
+  content: string;
+  }) {
+    const response = await fetch("/api/comments", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to save comment.");
+    }
+
+    const data = await response.json();
+    const newComment = data.comment;
+
+    setEntries((currentEntries: any[]) =>
+      currentEntries.map((entry) => {
+        if (entry.id !== payload.watchlistEntryId) return entry;
+
+        return {
+          ...entry,
+          comments: [newComment, ...(entry.comments || [])],
+        };
+      })
+    );
   }
 
   return (
@@ -605,7 +788,7 @@ const shortEntries = useMemo(
                   </p>
                 </div>
               </div>
-              
+
               <div className="rounded-2xl border border-slate-200 bg-white p-3">
               <input
                 value={query}
@@ -617,18 +800,24 @@ const shortEntries = useMemo(
                   
 
 
+              
               <WatchlistGrid
                 title="Long Watchlist"
                 tone="green"
                 entries={longEntries}
                 onMarketData={setMarketDataEntry}
+                onComment={setCommentEntry}
+                canComment={userCanCreateComments}
               />
+
 
               <WatchlistGrid
                 title="Short Watchlist"
                 tone="red"
                 entries={shortEntries}
                 onMarketData={setMarketDataEntry}
+                onComment={setCommentEntry}
+                canComment={userCanCreateComments}
               />
             </div>
           </div>
@@ -644,6 +833,11 @@ const shortEntries = useMemo(
       <MarketDataModal
         entry={marketDataEntry}
         onClose={() => setMarketDataEntry(null)}
+      />
+      <CommentModal
+        entry={commentEntry}
+        onClose={() => setCommentEntry(null)}
+        onSave={handleSaveComment}
       />
     </main>
   );
