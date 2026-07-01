@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
+import { canCreateComments } from "@/lib/client-permissions";
 type PastPositionsClientProps = {
   initialPositions: any[];
 };
@@ -192,9 +193,11 @@ function CommentModal({
 function PastPositionsGrid({
   positions,
   onComment,
+  canComment,
 }: {
   positions: any[];
   onComment: (position: any) => void;
+  canComment: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -250,12 +253,18 @@ function PastPositionsGrid({
             </div>
 
             <div>
-              <button
-                onClick={() => onComment(position)}
-                className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
-              >
-                Comment
-              </button>
+              {canComment ? (
+                <button
+                  onClick={() => onComment(position)}
+                  className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
+                >
+                  Comment
+                </button>
+              ) : (
+                <span className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-400">
+                  Read Only
+                </span>
+              )}
             </div>
 
             <div className="col-span-7 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
@@ -275,10 +284,24 @@ export default function PastPositionsClient({
   initialPositions,
 }: PastPositionsClientProps) {
   const [positions, setPositions] = useState<any[]>(initialPositions);
-  const [commentPosition, setCommentPosition] = useState<any | null>(null);
-  const [query, setQuery] = useState("");
+const [commentPosition, setCommentPosition] = useState<any | null>(null);
+const [query, setQuery] = useState("");
+const [currentUser, setCurrentUser] = useState<any | null>(null);
 
-  const closedPositions = useMemo(() => {
+useEffect(() => {
+  async function loadCurrentUser() {
+    const response = await fetch("/api/auth/me");
+
+    if (!response.ok) return;
+
+    const data = await response.json();
+    setCurrentUser(data.user);
+  }
+
+  loadCurrentUser();
+}, []);
+
+const closedPositions = useMemo(() => {
   const normalizedQuery = query.trim().toLowerCase();
 
   return positions
@@ -312,6 +335,8 @@ export default function PastPositionsClient({
   const losers = closedPositions.filter(
     (position) => (position.totalPctChange ?? 0) < 0
   ).length;
+
+  const userCanCreateComments = canCreateComments(currentUser?.role);
 
   async function handleSaveComment(payload: {
     securityId: string;
@@ -487,6 +512,7 @@ export default function PastPositionsClient({
               <PastPositionsGrid
                 positions={closedPositions}
                 onComment={setCommentPosition}
+                canComment={userCanCreateComments}
               />
             </div>
           </div>
