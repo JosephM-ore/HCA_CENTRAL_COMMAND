@@ -220,9 +220,13 @@ function PositionGrid({
 function TickerDetailPanel({
   position,
   onClose,
+  onComment,
+  onMarketData,
 }: {
   position: any | null;
   onClose: () => void;
+  onComment: (position: any) => void;
+  onMarketData: (position: any) => void;
 }) {
   if (!position) return null;
 
@@ -298,13 +302,19 @@ function TickerDetailPanel({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <button className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+          <button
+            onClick={() => onComment(position)}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+          >
             Comment
           </button>
           <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Flag
-          </button>
-          <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          </button>      
+          <button
+            onClick={() => onMarketData(position)}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
             Market Data
           </button>
           <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
@@ -884,10 +894,14 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
               </div>
             </div>
 
+            
             <TickerDetailPanel
               position={selectedPosition}
               onClose={() => setSelectedPosition(null)}
+              onComment={handleOpenComment}
+              onMarketData={setMarketDataPosition}
             />
+
 
             <MarketDataModal
               position={marketDataPosition}
