@@ -38,24 +38,24 @@ export async function POST() {
 
         const secData = await getSecFundamentals(cik, security.ticker);
 
-        // compute enterpriseValue if possible
+        // compute enterpriseValue if possible using actual debt and cash values
         const marketCap = existingMarketData?.marketCap ?? null;
-        const totalDebt = secData.totalDebt ?? existingMarketData?.debtToEbitda ?? secData.totalDebt ?? null;
-        const cash = secData.cashAndEquivalents ?? existingMarketData?.eps ?? null;
+        const totalDebt = secData.totalDebt ?? existingMarketData?.totalDebt ?? null;
+        const cash = secData.cashAndEquivalents ?? existingMarketData?.cashAndEquivalents ?? null;
 
         const enterpriseValue = marketCap != null && (totalDebt != null || cash != null)
           ? (marketCap + (totalDebt ?? 0) - (cash ?? 0))
           : null;
 
         const mergedBase = {
-          currentPrice: existingMarketData?.currentPrice ?? null,
-          marketCap: existingMarketData?.marketCap ?? null,
-          epsTtm: mergeNumber(secData.epsTtm, existingMarketData?.epsTtm),
-          bookValuePerShare: mergeNumber(secData.bookValuePerShare, existingMarketData?.bookValuePerShare),
-          tangibleBookValuePerShare: mergeNumber(secData.tangibleBookValuePerShare, existingMarketData?.tangibleBookValuePerShare),
-          totalDebt: mergeNumber(secData.totalDebt, existingMarketData?.totalDebt),
-          cashAndEquivalents: mergeNumber(secData.cashAndEquivalents, existingMarketData?.cashAndEquivalents),
-          ebitda: mergeNumber(secData.ebitda, existingMarketData?.ebitda),
+          currentPrice: existingMarketData?.currentPrice ?? null, // SEC does not provide price; preserve cache price
+          marketCap: existingMarketData?.marketCap ?? null, // market cap is not available from SEC fundamentals refresh
+          epsTtm: mergeNumber(secData.epsTtm, existingMarketData?.epsTtm), // prefer SEC trailing EPS, otherwise keep existing TTM EPS
+          bookValuePerShare: mergeNumber(secData.bookValuePerShare, existingMarketData?.bookValuePerShare), // book value per share from SEC or cache
+          tangibleBookValuePerShare: mergeNumber(secData.tangibleBookValuePerShare, existingMarketData?.tangibleBookValuePerShare), // tangible book value per share
+          totalDebt: mergeNumber(secData.totalDebt, existingMarketData?.totalDebt), // actual total debt amount
+          cashAndEquivalents: mergeNumber(secData.cashAndEquivalents, existingMarketData?.cashAndEquivalents), // actual cash and cash equivalents
+          ebitda: mergeNumber(secData.ebitda, existingMarketData?.ebitda), // EBITDA amount
         };
 
         const calculated = calculateValuationMetrics(mergedBase);
