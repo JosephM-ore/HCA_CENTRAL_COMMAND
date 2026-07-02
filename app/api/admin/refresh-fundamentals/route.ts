@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSecFundamentals } from "@/lib/sec";
+import { calculateValuationMetrics } from "@/lib/market-calculations";
 
 function mergeNumber(freshValue: number | null | undefined, existingValue: number | null | undefined) {
   return freshValue ?? existingValue ?? null;
@@ -46,6 +47,20 @@ export async function POST() {
           ? (marketCap + (totalDebt ?? 0) - (cash ?? 0))
           : null;
 
+        const mergedBase = {
+          currentPrice: existingMarketData?.currentPrice ?? null,
+          marketCap: existingMarketData?.marketCap ?? null,
+          epsTtm: mergeNumber(secData.epsTtm, existingMarketData?.epsTtm),
+          bookValuePerShare: mergeNumber(secData.bookValuePerShare, existingMarketData?.bookValuePerShare),
+          tangibleBookValuePerShare: mergeNumber(secData.tangibleBookValuePerShare, existingMarketData?.tangibleBookValuePerShare),
+          totalDebt: mergeNumber(secData.totalDebt, existingMarketData?.totalDebt),
+          cashAndEquivalents: mergeNumber(secData.cashAndEquivalents, existingMarketData?.cashAndEquivalents),
+          ebitda: mergeNumber(secData.ebitda, existingMarketData?.ebitda),
+        };
+
+        const calculated = calculateValuationMetrics(mergedBase);
+        const hasCalculated = Object.values(calculated).some((value) => value !== null);
+
         const data = {
           // fundamentals
           epsTtm: mergeNumber(secData.epsTtm, existingMarketData?.epsTtm),
@@ -68,12 +83,17 @@ export async function POST() {
           totalLiabilities: mergeNumber(secData.totalLiabilities, existingMarketData?.totalLiabilities),
           shareholdersEquity: mergeNumber(secData.shareholdersEquity, existingMarketData?.shareholdersEquity),
 
-          enterpriseValue: mergeNumber(enterpriseValue, existingMarketData?.enterpriseValue),
+          peLtm: calculated.peLtm ?? existingMarketData?.peLtm,
+          priceToBook: calculated.priceToBook ?? existingMarketData?.priceToBook,
+          priceToTangBook: calculated.priceToTangBook ?? existingMarketData?.priceToTangBook,
+          debtToEbitda: calculated.debtToEbitda ?? existingMarketData?.debtToEbitda,
+          enterpriseValue: calculated.enterpriseValue ?? mergeNumber(enterpriseValue, existingMarketData?.enterpriseValue),
 
           // provenance
           fundamentalsSource: "SEC_EDGAR",
           fundamentalsAsOf: secData.filingDate ? new Date(secData.filingDate) : new Date(),
           lastFundamentalsRefreshAt: new Date(),
+          dataQuality: hasCalculated ? "CALCULATED" : existingMarketData?.dataQuality ?? null,
         } as any;
 
         if (existingMarketData) {

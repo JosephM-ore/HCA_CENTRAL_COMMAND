@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getFmpMarketData } from "@/lib/fmp";
+import { calculateValuationMetrics } from "@/lib/market-calculations";
 
 function mergeNumber(
   freshValue: number | null | undefined,
@@ -44,34 +45,40 @@ export async function POST() {
         const existingMarketData = security.marketData[0] ?? null;
         const fmpData = await getFmpMarketData(security.ticker);
 
+        const mergedBase = {
+          currentPrice: mergeNumber(fmpData.currentPrice, existingMarketData?.currentPrice),
+          marketCap: mergeNumber(fmpData.marketCap, existingMarketData?.marketCap),
+          epsTtm: existingMarketData?.epsTtm ?? null,
+          bookValuePerShare: existingMarketData?.bookValuePerShare ?? null,
+          tangibleBookValuePerShare: existingMarketData?.tangibleBookValuePerShare ?? null,
+          totalDebt: existingMarketData?.totalDebt ?? null,
+          cashAndEquivalents: existingMarketData?.cashAndEquivalents ?? null,
+          ebitda: existingMarketData?.ebitda ?? null,
+        };
+
+        const calculated = calculateValuationMetrics(mergedBase);
+        const hasCalculated = Object.values(calculated).some((value) => value !== null);
+
         const data = {
-          currentPrice: mergeNumber(
-            fmpData.currentPrice,
-            existingMarketData?.currentPrice
-          ),
+          currentPrice: mergedBase.currentPrice,
           vwap: mergeNumber(fmpData.vwap, existingMarketData?.vwap),
           high52w: mergeNumber(fmpData.high52w, existingMarketData?.high52w),
           low52w: mergeNumber(fmpData.low52w, existingMarketData?.low52w),
           beta: mergeNumber(fmpData.beta, existingMarketData?.beta),
           avgVolume: mergeNumber(fmpData.avgVolume, existingMarketData?.avgVolume),
           shortFloat: mergeNumber(fmpData.shortFloat, existingMarketData?.shortFloat),
-          marketCap: mergeNumber(fmpData.marketCap, existingMarketData?.marketCap),
-          peLtm: mergeNumber(fmpData.peLtm, existingMarketData?.peLtm),
-          priceToTangBook: mergeNumber(
-            fmpData.priceToTangBook,
-            existingMarketData?.priceToTangBook
-          ),
+          marketCap: mergedBase.marketCap,
+          peLtm: calculated.peLtm ?? mergeNumber(fmpData.peLtm, existingMarketData?.peLtm),
+          priceToTangBook: calculated.priceToTangBook ?? mergeNumber(fmpData.priceToTangBook, existingMarketData?.priceToTangBook),
           peNtm: mergeNumber(fmpData.peNtm, existingMarketData?.peNtm),
-          priceToBook: mergeNumber(
-            fmpData.priceToBook,
-            existingMarketData?.priceToBook
-          ),
-          debtToEbitda: mergeNumber(
-            fmpData.debtToEbitda,
-            existingMarketData?.debtToEbitda
-          ),
+          priceToBook: calculated.priceToBook ?? mergeNumber(fmpData.priceToBook, existingMarketData?.priceToBook),
+          debtToEbitda: calculated.debtToEbitda ?? mergeNumber(fmpData.debtToEbitda, existingMarketData?.debtToEbitda),
           eps: mergeNumber(fmpData.eps, existingMarketData?.eps),
+          enterpriseValue: calculated.enterpriseValue ?? existingMarketData?.enterpriseValue ?? null,
           source: "FMP",
+          marketDataSource: "FMP",
+          fundamentalsSource: existingMarketData?.fundamentalsSource ?? null,
+          dataQuality: hasCalculated ? "CALCULATED" : existingMarketData?.dataQuality ?? null,
         };
 
         if (existingMarketData) {
