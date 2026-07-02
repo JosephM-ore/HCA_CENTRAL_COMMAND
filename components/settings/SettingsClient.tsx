@@ -99,6 +99,9 @@ export default function SettingsClient({
   users,
 }: SettingsClientProps) {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [isRefreshingMarketData, setIsRefreshingMarketData] = useState(false);
+  const [marketDataRefreshResult, setMarketDataRefreshResult] = useState<any | null>(null);
+  const [marketDataRefreshError, setMarketDataRefreshError] = useState("");
 
     useEffect(() => {
       async function loadCurrentUser() {
@@ -113,6 +116,43 @@ export default function SettingsClient({
       loadCurrentUser();
     }, []);
 
+
+    async function handleRefreshMarketData() {
+        setIsRefreshingMarketData(true);
+        setMarketDataRefreshResult(null);
+        setMarketDataRefreshError("");
+
+        try {
+          const response = await fetch("/api/admin/refresh-market-data", {
+            method: "POST",
+            credentials: "include",
+          });
+
+          const text = await response.text();
+
+          let data: any = null;
+
+          try {
+            data = JSON.parse(text);
+          } catch {
+            throw new Error(text || "Unexpected refresh response.");
+          }
+
+          if (!response.ok) {
+            throw new Error(data.error || data.detail || "Market data refresh failed.");
+          }
+
+          setMarketDataRefreshResult(data);
+        } catch (error) {
+          setMarketDataRefreshError(
+            error instanceof Error
+              ? error.message
+              : "Market data refresh failed."
+          );
+        } finally {
+          setIsRefreshingMarketData(false);
+        }
+      }
     const userCanViewAuditLogs = canViewAuditLogs(currentUser?.role);
   
   
@@ -174,7 +214,7 @@ export default function SettingsClient({
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">Live data mock</Badge>
+              <Badge tone="green">FMP market data</Badge>
 
               <CurrentUserPill />
 
@@ -227,7 +267,7 @@ export default function SettingsClient({
                     {ingestionRuns.length}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Mock integration history
+                    Integration refresh history
                   </p>
                 </div>
 
@@ -302,7 +342,7 @@ export default function SettingsClient({
                 <SettingsCard
                   eyebrow="Data Operations"
                   title="Data Refresh"
-                  description="Market data currently comes from the mock market data cache. Wells Fargo and Bloomberg integrations are stubbed concepts for future phases."
+                  description="Market data is refreshed from Financial Modeling Prep and stored in the local market data cache. Symbols unavailable under the current data plan continue using cached fallback values."
                 >
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-slate-50 p-4">
@@ -310,7 +350,7 @@ export default function SettingsClient({
                         Market Data
                       </p>
                       <p className="mt-2 text-sm font-semibold text-slate-900">
-                        MOCK provider
+                        FMP provider
                       </p>
                     </div>
 
@@ -322,6 +362,80 @@ export default function SettingsClient({
                         {latestIngestionRun?.status || "N/A"}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-950">
+                          FMP Market Data Refresh
+                        </h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          Refresh cached market data from Financial Modeling Prep. Some symbols
+                          may continue using cached fallback values if unavailable under the
+                          current data plan.
+                        </p>
+                      </div>
+
+                      {userCanViewAuditLogs ? (
+                        <button
+                          onClick={handleRefreshMarketData}
+                          disabled={isRefreshingMarketData}
+                          className="shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isRefreshingMarketData ? "Refreshing..." : "Refresh FMP Market Data"}
+                        </button>
+                      ) : (
+                        <div className="shrink-0 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
+                          Admin / Compliance only
+                        </div>
+                      )}
+                    </div>
+
+                    {marketDataRefreshResult ? (
+                      <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+                        FMP refresh complete. Updated:{" "}
+                        <span className="font-semibold">
+                          {marketDataRefreshResult.updatedCount}
+                        </span>
+                        . Failed:{" "}
+                        <span className="font-semibold">
+                          {marketDataRefreshResult.failedCount}
+                        </span>
+                        .
+                      </div>
+                    ) : null}
+
+                    {marketDataRefreshError ? (
+                      <div className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
+                        {marketDataRefreshError}
+                      </div>
+                    ) : null}
+
+                    {marketDataRefreshResult?.results?.length ? (
+                      <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-slate-200">
+                        {marketDataRefreshResult.results.map((result: any) => (
+                          <div
+                            key={result.ticker}
+                            className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-xs last:border-b-0"
+                          >
+                            <span className="font-semibold text-slate-700">
+                              {result.ticker}
+                            </span>
+
+                            <span
+                              className={
+                                result.status === "UPDATED"
+                                  ? "text-emerald-600"
+                                  : "text-amber-600"
+                              }
+                            >
+                              {result.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
 
                   {latestIngestionRun ? (
@@ -371,19 +485,19 @@ export default function SettingsClient({
                       Future Integration Stubs
                     </p>
                     <h3 className="mt-2 text-lg font-semibold text-slate-950">
-                      Wells Fargo, Bloomberg, and Bank SSO
+                      Wells Fargo, FMP Expansion, and Bank SSO
                     </h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                      The MVP keeps these integrations as placeholders. Wells
-                      Fargo will later ingest official reports, Bloomberg will
-                      replace mock market data, and bank SSO will replace local
-                      username/password authentication.
+                    <p className="mt-2 text-sm leading-6 text-slate-500">                
+                      The MVP keeps these integrations as placeholders. Wells Fargo
+                      will later ingest official reports, FMP can be expanded with
+                      additional market-data endpoints or a paid plan, and bank SSO
+                      will replace local username/password authentication.
                     </p>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
                     <Badge tone="amber">Wells Fargo Stub</Badge>
-                    <Badge tone="blue">Bloomberg Stub</Badge>
+                    <Badge tone="blue">FMP Expansion</Badge>
                     <Badge tone="slate">SSO Future</Badge>
                   </div>
                 </div>

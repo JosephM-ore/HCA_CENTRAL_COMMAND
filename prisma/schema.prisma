@@ -34,13 +34,17 @@ model Session {
   createdAt DateTime @default(now())
 }
 model Security {
-  id        String   @id @default(cuid())
-  ticker    String   @unique
-  name      String
-  sector    String?
+  id            String   @id @default(cuid())
+  ticker        String   @unique
+  name          String
+  sector        String?
+  industry      String?
+  exchange      String?
+  cik           String?
+  securityType  String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   positions        Position[]
   trades           Trade[]
@@ -48,6 +52,8 @@ model Security {
   comments         Comment[]
   flags            Flag[]
   marketData       MarketDataCache[]
+
+  @@index([cik])
 }
 
 model Position {
@@ -183,6 +189,12 @@ model MarketDataCache {
   avgVolume         Float?
   shortFloat        Float?
   marketCap         Float?
+  dayChange         Float?
+  dayPctChange      Float?
+  volume            Float?
+  sharesOutstanding Float?
+  floatShares       Float?
+  shortInterestShares Float?
 
   peLtm             Float?
   priceToTangBook   Float?
@@ -190,11 +202,44 @@ model MarketDataCache {
   priceToBook       Float?
   debtToEbitda      Float?
   eps               Float?
+  epsTtm            Float?
+  epsNtm            Float?
+  bookValue         Float?
+  bookValuePerShare Float?
+  tangibleBookValue Float?
+  tangibleBookValuePerShare Float?
+  enterpriseValue   Float?
+  ebitda            Float?
+  totalDebt         Float?
+  revenue           Float?
+  revenueTtm        Float?
+  grossProfit       Float?
+  operatingIncome   Float?
+  netIncome         Float?
+  netIncomeTtm      Float?
+  cashAndEquivalents Float?
+  totalAssets       Float?
+  totalLiabilities  Float?
+  shareholdersEquity Float?
 
   source            String   @default("MOCK")
+  marketDataSource  String?
+  fundamentalsSource String?
+  shortInterestSource String?
+  snapshotAsOf      DateTime?
+  fundamentalsAsOf  DateTime?
+  shortInterestAsOf DateTime?
+  dataQuality       String?
+  sourceDetailJson  String?
+  lastMarketDataRefreshAt DateTime?
+  lastFundamentalsRefreshAt DateTime?
+  lastShortInterestRefreshAt DateTime?
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([securityId])
+  @@index([updatedAt])
 }
 
 model IngestionRun {
