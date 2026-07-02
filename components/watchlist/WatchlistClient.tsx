@@ -66,6 +66,19 @@ function formatMoney(value: number | null | undefined) {
   });
 }
 
+function formatDateTime(value: string | Date | null | undefined) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "numeric",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 function pctClass(value: number | null | undefined) {
   if (value == null) return "text-slate-500";
   return value >= 0 ? "text-emerald-600" : "text-rose-600";
@@ -251,6 +264,34 @@ function MarketDataModal({
               </span>
             </div>
           ))}
+        </div>
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-500">
+            <span className="font-medium text-slate-700">Market Data Source</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.marketDataSource ?? "N/A"}
+            </span>
+            <span className="font-medium text-slate-700">Fundamentals Source</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.fundamentalsSource ?? "N/A"}
+            </span>
+            <span className="font-medium text-slate-700">Data Quality</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.dataQuality ?? "N/A"}
+            </span>
+            <span className="font-medium text-slate-700">Last Market Refresh</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.lastMarketDataRefreshAt
+                ? formatDateTime(marketData.lastMarketDataRefreshAt)
+                : "N/A"}
+            </span>
+            <span className="font-medium text-slate-700">Last Fundamentals Refresh</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.lastFundamentalsRefreshAt
+                ? formatDateTime(marketData.lastFundamentalsRefreshAt)
+                : "N/A"}
+            </span>
+          </div>
         </div>
       </div>
     </div>

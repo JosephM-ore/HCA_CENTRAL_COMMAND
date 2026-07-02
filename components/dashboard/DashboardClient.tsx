@@ -574,12 +574,34 @@ function MarketDataModal({
             </div>
           ))}
         </div>
-        <div 
-            className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
-            Source: {marketData?.source || "Unknown"} market data cache. FMP values are
-            used where available; cached fallback values may remain for symbols limited by
-            the current data plan.
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-slate-500">
+            <span className="font-medium text-slate-700">Market Data Source</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.marketDataSource ?? "N/A"}
+            </span>
+            <span className="font-medium text-slate-700">Fundamentals Source</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.fundamentalsSource ?? "N/A"}
+            </span>
+            <span className="font-medium text-slate-700">Data Quality</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.dataQuality ?? "N/A"}
+            </span>
+            <span className="font-medium text-slate-700">Last Market Refresh</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.lastMarketDataRefreshAt
+                ? formatDateTime(marketData.lastMarketDataRefreshAt)
+                : "N/A"}
+            </span>
+            <span className="font-medium text-slate-700">Last Fundamentals Refresh</span>
+            <span className="text-right font-semibold text-slate-950">
+              {marketData?.lastFundamentalsRefreshAt
+                ? formatDateTime(marketData.lastFundamentalsRefreshAt)
+                : "N/A"}
+            </span>
           </div>
+        </div>
       </div>
     </div>
   );
