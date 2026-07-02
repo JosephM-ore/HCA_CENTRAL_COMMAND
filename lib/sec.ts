@@ -158,12 +158,44 @@ function computeTTM(facts: CompanyFacts, tagCandidates: string[]): { value: numb
     const summed = sumLastN(q, 4);
     if (summed !== null) return { value: summed, asOf: q.length ? q[q.length - 1].end : undefined };
 
-    // fallback to latest annual
     const latest = getLatestFactValue(facts, [candidate]);
     if (latest.value !== null) return latest;
   }
 
   return { value: null };
+}
+
+function formatQuarterlyValues(values: Array<{ val: number; end?: string }>) {
+  return values.map((item) => `${item.end ?? "unknown"}:${item.val}`).join(", ");
+}
+
+function computeEpsTtm(facts: CompanyFacts, tagCandidates: string[], ticker?: string): { value: number | null; asOf?: string; source: string; quarterlyValues: Array<{ val: number; end?: string }>; tag?: string } {
+  const allQuarterly: Array<{ tag: string; values: Array<{ val: number; end?: string }> }> = [];
+
+  for (const candidate of tagCandidates) {
+    const q = getQuarterlyValues(facts, candidate);
+    if (q.length) allQuarterly.push({ tag: candidate, values: q });
+
+    const summed = sumLastN(q, 4);
+    if (summed !== null) {
+      const last4 = q.slice(-4);
+      const asOf = last4[last4.length - 1].end;
+      console.debug(`SEC EPS TTM for ${ticker ?? "unknown"} using quarterly ${candidate}: ${formatQuarterlyValues(last4)} -> ${summed}`);
+      return { value: summed, asOf, source: "quarterly", quarterlyValues: last4, tag: candidate };
+    }
+  }
+
+  for (const candidate of tagCandidates) {
+    const latestAnnual = getLatestFactValue(facts, [candidate]);
+    if (latestAnnual.value !== null) {
+      console.debug(`SEC EPS TTM for ${ticker ?? "unknown"} falling back to annual ${candidate}: ${latestAnnual.value}`);
+      return { value: latestAnnual.value, asOf: latestAnnual.asOf, source: "annual", quarterlyValues: [], tag: candidate };
+    }
+  }
+
+  const latestFact = getLatestFactValue(facts, tagCandidates);
+  console.debug(`SEC EPS TTM for ${ticker ?? "unknown"} falling back to latest EPS fact: ${latestFact.value}`);
+  return { value: latestFact.value, asOf: latestFact.asOf, source: "latest_fact", quarterlyValues: [], tag: tagCandidates[0] };
 }
 
 // Public mapping function that extracts many common fundamentals
@@ -184,7 +216,8 @@ export async function getSecFundamentals(cik: string, ticker?: string) {
   const netIncomeTtm = computeTTM(facts, netIncomeTags);
 
   const epsLatest = getLatestFactValue(facts, epsTags);
-  const epsTtm = epsLatest.value; // EPS TTM best-effort from EPS tag (many filers don't report TTM EPS via companyfacts)
+  const epsTtmResult = computeEpsTtm(facts, epsTags, ticker);
+  const epsTtm = epsTtmResult.value;
 
   const shareholdersEquity = getLatestFactValue(facts, shareholdersEquityTags);
   const totalDebt = getLatestFactValue(facts, totalDebtTags);
