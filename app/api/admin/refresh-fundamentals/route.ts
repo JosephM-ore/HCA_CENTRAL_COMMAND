@@ -88,6 +88,13 @@ export async function POST() {
           priceToTangBook: calculated.priceToTangBook ?? existingMarketData?.priceToTangBook,
           debtToEbitda: calculated.debtToEbitda ?? existingMarketData?.debtToEbitda,
           enterpriseValue: calculated.enterpriseValue ?? mergeNumber(enterpriseValue, existingMarketData?.enterpriseValue),
+          shortFloat: null,
+          peNtm: null,
+          epsNtm: null,
+          volume: null,
+          sharesOutstanding: null,
+          floatShares: null,
+          shortInterestShares: null,
 
           // provenance
           fundamentalsSource: "SEC_EDGAR",
