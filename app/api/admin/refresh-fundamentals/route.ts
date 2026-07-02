@@ -35,7 +35,7 @@ export async function POST() {
           continue;
         }
 
-        const secData = await getSecFundamentals(cik);
+        const secData = await getSecFundamentals(cik, security.ticker);
 
         // compute enterpriseValue if possible
         const marketCap = existingMarketData?.marketCap ?? null;

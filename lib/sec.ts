@@ -1,7 +1,65 @@
 type CompanyFacts = any;
 
+function normalizeCik(cik: string) {
+  const digits = String(cik).trim().replace(/\D/g, "");
+  if (!digits || digits.length > 10) {
+    throw new Error(`Invalid CIK value: ${cik}. Expected up to 10 digits.`);
+  }
+  return digits.padStart(10, "0");
+}
+
 function padCik(cik: string) {
-  return cik.replace(/^0+/, "") .padStart(10, "0");
+  return normalizeCik(cik);
+}
+
+type SecTickerMapEntry = {
+  cik_str: number | string;
+  ticker: string;
+  title: string;
+};
+
+let secTickerMapCache: SecTickerMapEntry[] | null = null;
+const secTickerLookupCache = new Map<string, string>();
+
+async function fetchSecTickerMap(): Promise<SecTickerMapEntry[]> {
+  if (secTickerMapCache) return secTickerMapCache;
+
+  const url = "https://www.sec.gov/files/company_tickers.json";
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "User-Agent": process.env.SEC_API_USER_AGENT ?? "hca-central-command/1.0",
+  };
+
+  const res = await fetch(url, {
+    headers,
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`SEC ticker mapping request failed: ${res.status} ${text}`);
+  }
+
+  const data = await res.json();
+  const entries = Object.values(data) as Array<SecTickerMapEntry>;
+
+  secTickerMapCache = entries.filter((entry): entry is SecTickerMapEntry => !!entry?.ticker && entry?.cik_str != null);
+  return secTickerMapCache;
+}
+
+export async function resolveSecCikForTicker(ticker: string): Promise<string | null> {
+  const normalized = ticker.trim().toUpperCase();
+  if (!normalized) return null;
+  if (secTickerLookupCache.has(normalized)) return secTickerLookupCache.get(normalized)!;
+
+  const entries = await fetchSecTickerMap();
+  const match = entries.find((entry) => entry.ticker.toUpperCase() === normalized);
+  if (!match) return null;
+
+  const cik = String(match.cik_str).replace(/^0+/, "");
+  const resolved = cik || null;
+  if (resolved) secTickerLookupCache.set(normalized, resolved);
+  return resolved;
 }
 
 function parseNumber(value: unknown): number | null {
@@ -10,11 +68,12 @@ function parseNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-async function fetchCompanyFacts(cik: string): Promise<CompanyFacts | null> {
+async function fetchCompanyFacts(cik: string, ticker?: string): Promise<CompanyFacts | null> {
   const apiAgent = process.env.SEC_API_USER_AGENT;
   if (!apiAgent) throw new Error("Missing SEC_API_USER_AGENT environment variable.");
 
-  const padded = padCik(cik);
+  const normalized = normalizeCik(cik);
+  const padded = `CIK${normalized}`;
   const url = `https://data.sec.gov/api/xbrl/companyfacts/${padded}.json`;
 
   const res = await fetch(url, {
@@ -27,7 +86,7 @@ async function fetchCompanyFacts(cik: string): Promise<CompanyFacts | null> {
 
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`SEC companyfacts request failed: ${res.status} ${txt}`);
+    throw new Error(`SEC companyfacts request failed: ticker=${ticker ?? "unknown"} cik=${normalized} url=${url} status=${res.status} message=${txt}`);
   }
 
   return res.json();
@@ -108,8 +167,8 @@ function computeTTM(facts: CompanyFacts, tagCandidates: string[]): { value: numb
 }
 
 // Public mapping function that extracts many common fundamentals
-export async function getSecFundamentals(cik: string) {
-  const facts = await fetchCompanyFacts(cik);
+export async function getSecFundamentals(cik: string, ticker?: string) {
+  const facts = await fetchCompanyFacts(cik, ticker);
 
   // Helper candidates for common tags
   const revenueTags = ["Revenues", "SalesRevenueNet", "RevenueFromContractWithCustomerExcludingAssessedTax"];
