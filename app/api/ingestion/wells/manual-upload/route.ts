@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { detectWellsReportType } from "@/lib/ingestion/wells-detect-report";
-import { parseWellsTaxLotCsv } from "@/lib/ingestion/wells-tax-lot";
+
 import { parseWellsTransactionActivityCsv } from "@/lib/ingestion/wells-transaction-activity";
 
 async function bufferToString(buffer: ArrayBuffer): Promise<string> {
@@ -63,67 +63,32 @@ export async function POST(request: Request) {
     const sourceRowHashBase = fileName;
 
     if (reportType === "TAX_LOT_POSITION_PNL") {
-      const { rows, positions, failures: parseFailures } = parseWellsTaxLotCsv(rawContent, fileName);
-      rowsFailed += parseFailures.length;
-      failures.push(...parseFailures);
-      rowsProcessed += rows.length;
+      await prisma.ingestionRun.update({
+        where: { id: ingestionRun.id },
+        data: {
+          status: "COMPLETED",
+          message:
+            "Detected TAX_LOT_POSITION_PNL report type, but position ingestion is not implemented yet.",
+          rowsProcessed: 0,
+          rowsFailed: 0,
+          detailsJson: JSON.stringify({
+            reason:
+              "Tax lot position parser is intentionally disabled until Investment Total / open tax lot parsing is validated.",
+          }),
+          endedAt: new Date(),
+        },
+      });
 
-      for (const position of positions) {
-        if (!position.accountNumber) {
-          failures.push(`Missing accountNumber for aggregated position ${position.securityName}`);
-          rowsFailed += 1;
-          continue;
-        }
-
-        let security = null;
-        if (position.ticker) {
-          security = await prisma.security.findUnique({ where: { ticker: position.ticker } });
-        }
-
-        if (!security) {
-          security = await prisma.security.create({
-            data: {
-              ticker: position.ticker || position.securityName,
-              name: position.securityName,
-              wellsSecurityId: undefined,
-              cusip: undefined,
-              isin: undefined,
-              sedol: undefined,
-            },
-          });
-          securitiesCreated += 1;
-        } else {
-          securitiesUpdated += 1;
-        }
-
-        const positionData = {
-          securityId: security.id,
+      return NextResponse.json(
+        {
           source: "WELLS_FARGO",
-          accountNumber: position.accountNumber,
-          custodian: "Wells Fargo",
-          costBasis: position.costBasis,
-          unrealizedPnl: position.unrealizedPnl,
-          sourceReportDate: position.sourceReportDate ? new Date(position.sourceReportDate) : sourceReportDate,
-          sourceFileName: position.sourceFileName,
-          sourceRowHash: position.sourceRowHash,
-          ingestionRunId: ingestionRun.id,
-          side: position.side,
-          status: "ACTIVE",
-          shares: position.shares,
-          marketValue: position.marketValue,
-          wap: position.wap,
-          openedAt: position.openedAt ? new Date(position.openedAt) : undefined,
-        };
-
-        const existingPosition = await prisma.position.findFirst({ where: { securityId: security.id, accountNumber: position.accountNumber, status: "ACTIVE" } });
-        if (existingPosition) {
-          await prisma.position.update({ where: { id: existingPosition.id }, data: positionData });
-          positionsUpdated += 1;
-        } else {
-          await prisma.position.create({ data: positionData });
-          positionsCreated += 1;
-        }
-      }
+          reportType,
+          message: "NOT_IMPLEMENTED_FOR_THIS_REPORT_TYPE",
+          reason:
+            "Tax lot position ingestion is disabled until parser preview validation is complete.",
+        },
+        { status: 200 }
+      );
     }
 
     if (reportType === "TRANSACTION_ACTIVITY") {

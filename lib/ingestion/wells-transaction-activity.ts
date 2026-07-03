@@ -79,11 +79,15 @@ export function parseWellsTransactionActivityCsv(content: string, sourceFileName
       lower[k.trim().toLowerCase()] = String(v).trim();
     }
 
-    const accountNumber = lower["accountnumber"] || lower["accountname"] || "";
+    
+    const accountNumber = lower["accountnumber"] || "";
     const securityName = lower["securitydescription"] || lower["securityid"] || "";
-    const ticker = lower["securityid"] || securityName || undefined;
+    const securityId = lower["securityid"] || undefined;
+    const securityIdType = lower["securityidtype"]?.toUpperCase();
+    const ticker = securityIdType === "TS" ? securityId : undefined;
     const activity = lower["activity"];
     const tradeType = normalizeTradeType(activity);
+
 
     const quantity = parseFloatOrUndefined(lower["quantity"]);
     const price = parseFloatOrUndefined(lower["price"]);
@@ -118,7 +122,7 @@ export function parseWellsTransactionActivityCsv(content: string, sourceFileName
       settlementDate: safeDate(lower["settledate"]),
       securityName,
       ticker,
-      securityId: lower["securityid"],
+      securityId,
       wfSecId: lower["wfsecid"],
       activity,
       tradeType,
