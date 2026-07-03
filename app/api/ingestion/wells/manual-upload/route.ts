@@ -1,33 +1,66 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { detectWellsReportType } from "@/lib/ingestion/wells-detect-report";
-
-import { parseWellsTransactionActivityCsv } from "@/lib/ingestion/wells-transaction-activity";
-
-async function bufferToString(buffer: ArrayBuffer): Promise<string> {
-  return new TextDecoder("utf-8").decode(new Uint8Array(buffer));
-}
+import { parseWellsTaxLotCsv } from "@/lib/ingestion/wells-tax-lot";
 
 function normalizeFilename(filename: string): string {
   return filename.replace(/\s+/g, "_").trim();
 }
 
-function rowsToSummary(rows: any[]) {
-  return rows.length;
+function isRawPdfContent(content: string): boolean {
+  return content.trimStart().startsWith("%PDF-");
+}
+
+async function completeIngestionRun(params: {
+  id: string;
+  status: string;
+  message: string;
+  rowsProcessed?: number;
+  rowsFailed?: number;
+  sourceReportDate?: Date;
+  accountNumber?: string;
+  details?: unknown;
+}) {
+  const {
+    id,
+    status,
+    message,
+    rowsProcessed = 0,
+    rowsFailed = 0,
+    sourceReportDate,
+    accountNumber,
+    details,
+  } = params;
+
+  await prisma.ingestionRun.update({
+    where: { id },
+    data: {
+      status,
+      message,
+      rowsProcessed,
+      rowsFailed,
+      sourceReportDate,
+      accountNumber,
+      detailsJson: details ? JSON.stringify(details) : undefined,
+      endedAt: new Date(),
+    },
+  });
 }
 
 export async function POST(request: Request) {
+  let ingestionRunId: string | null = null;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file");
+
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
 
     const fileName = normalizeFilename(file.name);
-    const fileType = file.type || "text/csv";
+    const fileType = file.type || "text/plain";
     const rawContent = await file.text();
-    const reportType = detectWellsReportType(rawContent);
 
     const ingestionRun = await prisma.ingestionRun.create({
       data: {
@@ -39,43 +72,68 @@ export async function POST(request: Request) {
       },
     });
 
-    if (reportType === "UNKNOWN") {
-      await prisma.ingestionRun.update({ where: { id: ingestionRun.id }, data: { status: "FAILED", message: "Unrecognized Wells report type.", endedAt: new Date() } });
-      return NextResponse.json({ error: "Unrecognized Wells report type.", reportType }, { status: 400 });
-    }
+    ingestionRunId = ingestionRun.id;
 
-    if (reportType === "CHANGE_IN_EQUITY_PERFORMANCE" || reportType === "PORTFOLIO_RISK_EXPOSURE") {
-      await prisma.ingestionRun.update({ where: { id: ingestionRun.id }, data: { status: "COMPLETED", message: `Detected report type ${reportType}, ingestion not implemented.`, endedAt: new Date() } });
-      return NextResponse.json({ source: "WELLS_FARGO", reportType, message: "NOT_IMPLEMENTED_FOR_THIS_REPORT_TYPE" }, { status: 200 });
-    }
+    if (isRawPdfContent(rawContent)) {
+      await completeIngestionRun({
+        id: ingestionRun.id,
+        status: "FAILED",
+        message:
+          "Raw PDF upload detected. PDF text extraction is required before Wells ingestion.",
+        rowsProcessed: 0,
+        rowsFailed: 1,
+        details: {
+          reason:
+            "Raw PDF upload is not supported yet. Run pdftotext -layout and upload the extracted .txt file.",
+        },
+      });
 
-    let rowsProcessed = 0;
-    let rowsFailed = 0;
-    let securitiesCreated = 0;
-    let securitiesUpdated = 0;
-    let positionsCreated = 0;
-    let positionsUpdated = 0;
-    let tradesCreated = 0;
-    let tradesUpdated = 0;
-    const failures: string[] = [];
-
-    const sourceReportDate = new Date();
-    const sourceRowHashBase = fileName;
-
-    if (reportType === "TAX_LOT_POSITION_PNL") {
-      await prisma.ingestionRun.update({
-        where: { id: ingestionRun.id },
-        data: {
-          status: "COMPLETED",
+      return NextResponse.json(
+        {
+          error: "PDF_TEXT_EXTRACTION_REQUIRED",
           message:
-            "Detected TAX_LOT_POSITION_PNL report type, but position ingestion is not implemented yet.",
-          rowsProcessed: 0,
-          rowsFailed: 0,
-          detailsJson: JSON.stringify({
-            reason:
-              "Tax lot position parser is intentionally disabled until Investment Total / open tax lot parsing is validated.",
-          }),
-          endedAt: new Date(),
+            "Raw PDF upload is not supported yet. Run pdftotext -layout and upload the extracted .txt file.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const reportType = detectWellsReportType(rawContent);
+
+    if (reportType === "UNKNOWN") {
+      await completeIngestionRun({
+        id: ingestionRun.id,
+        status: "FAILED",
+        message: "Unrecognized Wells report type.",
+        rowsProcessed: 0,
+        rowsFailed: 1,
+        details: {
+          reason: "Report type detection returned UNKNOWN.",
+        },
+      });
+
+      return NextResponse.json(
+        { error: "Unrecognized Wells report type.", reportType },
+        { status: 400 }
+      );
+    }
+
+    if (
+      reportType === "CHANGE_IN_EQUITY_PERFORMANCE" ||
+      reportType === "PORTFOLIO_RISK_EXPOSURE" ||
+      reportType === "TRANSACTION_ACTIVITY"
+    ) {
+      await completeIngestionRun({
+        id: ingestionRun.id,
+        status: "COMPLETED",
+        message: `Detected report type ${reportType}, ingestion not implemented for this milestone.`,
+        rowsProcessed: 0,
+        rowsFailed: 0,
+        details: {
+          reason:
+            reportType === "TRANSACTION_ACTIVITY"
+              ? "Transaction Activity parsing is intentionally deferred until fixed-width extracted text parsing is validated."
+              : "Report type detected but intentionally deferred.",
         },
       });
 
@@ -84,112 +142,133 @@ export async function POST(request: Request) {
           source: "WELLS_FARGO",
           reportType,
           message: "NOT_IMPLEMENTED_FOR_THIS_REPORT_TYPE",
-          reason:
-            "Tax lot position ingestion is disabled until parser preview validation is complete.",
         },
         { status: 200 }
       );
     }
 
-    if (reportType === "TRANSACTION_ACTIVITY") {
-      const { rows, failures: parseFailures } = parseWellsTransactionActivityCsv(rawContent, fileName);
+    let rowsProcessed = 0;
+    let rowsFailed = 0;
+    let securitiesCreated = 0;
+    let securitiesUpdated = 0;
+    let positionsCreated = 0;
+    let positionsUpdated = 0;
+    const tradesCreated = 0;
+    const tradesUpdated = 0;
+    const failures: string[] = [];
+
+    if (reportType === "TAX_LOT_POSITION_PNL") {
+      const {
+        rows,
+        positions,
+        failures: parseFailures,
+      } = parseWellsTaxLotCsv(rawContent, fileName);
+
+      rowsProcessed += rows.length;
       rowsFailed += parseFailures.length;
       failures.push(...parseFailures);
-      rowsProcessed += rows.length;
 
-      for (const row of rows) {
-        if (!row.accountNumber) {
-          failures.push(`Missing accountNumber for row ${row.sourceRowHash}`);
+      for (const position of positions) {
+        if (!position.accountNumber) {
           rowsFailed += 1;
+          failures.push(
+            `Missing accountNumber for aggregated position ${position.securityName}`
+          );
           continue;
         }
 
-        if (!row.securityName && !row.ticker) {
-          failures.push(`Missing securityName/ticker for row ${row.sourceRowHash}`);
+        if (!position.ticker) {
           rowsFailed += 1;
+          failures.push(
+            `Missing ticker for aggregated position ${position.securityName}`
+          );
           continue;
         }
 
-        const tradeType = row.tradeType || "UNSUPPORTED";
-        if (tradeType === "UNSUPPORTED") {
-          failures.push(`Unsupported activity '${row.activity}' for row ${row.sourceRowHash}`);
-          rowsFailed += 1;
-          continue;
-        }
-
-        let security = null;
-        if (row.ticker) {
-          security = await prisma.security.findUnique({ where: { ticker: row.ticker } });
-        }
+        let security = await prisma.security.findUnique({
+          where: { ticker: position.ticker },
+        });
 
         if (!security) {
           security = await prisma.security.create({
             data: {
-              ticker: row.ticker || row.securityName || "UNKNOWN",
-              name: row.securityName || row.ticker || "UNKNOWN",
-              wellsSecurityId: row.wfSecId,
-              cusip: row.cusip,
-              isin: row.isin,
-              sedol: row.sedol,
+              ticker: position.ticker,
+              name: position.securityName,
+              securityType: position.productType,
             },
           });
+
           securitiesCreated += 1;
         } else {
+          await prisma.security.update({
+            where: { id: security.id },
+            data: {
+              name: security.name || position.securityName,
+              securityType: security.securityType || position.productType,
+            },
+          });
+
           securitiesUpdated += 1;
         }
 
-        const lookupTransactionId = row.transactionId || row.sourceRowHash;
-
-        const tradeData = {
+        const positionData = {
           securityId: security.id,
-          dateTraded: row.tradeDate ? new Date(row.tradeDate) : new Date(),
-          settlementDate: row.settlementDate ? new Date(row.settlementDate) : undefined,
-          postDate: row.postDate ? new Date(row.postDate) : undefined,
-          tradeType,
-          shares: row.quantity ?? 0,
-          avgPrice: row.price ?? 0,
-          commission: row.commission,
-          fees: row.fees,
-          accruedInterest: row.accruedInterest,
-          netAmount: row.netAmount,
-          currency: row.currency,
-          transactionId: row.transactionId,
-          clientReferenceId: row.clientReferenceId,
           source: "WELLS_FARGO",
-          sourceFileName: row.sourceFileName,
-          sourceRowHash: row.sourceRowHash,
-          sourceReportDate: row.sourceReportDate ? new Date(row.sourceReportDate) : sourceReportDate,
+          accountNumber: position.accountNumber,
+          custodian: "Wells Fargo",
+          costBasis: position.costBasis,
+          unrealizedPnl: position.unrealizedPnl,
+          sourceReportDate: position.sourceReportDate
+            ? new Date(position.sourceReportDate)
+            : new Date(),
+          sourceFileName: position.sourceFileName,
+          sourceRowHash: position.sourceRowHash,
           ingestionRunId: ingestionRun.id,
-          comment: undefined,
+          side: position.side,
+          status: "ACTIVE",
+          shares: position.shares,
+          marketValue: position.marketValue,
+          wap: position.wap,
+          openedAt: position.openedAt ? new Date(position.openedAt) : undefined,
         };
 
-        const existingTrade = row.transactionId
-          ? await prisma.trade.findFirst({ where: { transactionId: row.transactionId } })
-          : await prisma.trade.findFirst({ where: { sourceRowHash: row.sourceRowHash } });
+        const existingPosition = await prisma.position.findFirst({
+          where: {
+            securityId: security.id,
+            accountNumber: position.accountNumber,
+            status: "ACTIVE",
+          },
+        });
 
-        if (existingTrade) {
-          await prisma.trade.update({ where: { id: existingTrade.id }, data: tradeData });
-          tradesUpdated += 1;
+        if (existingPosition) {
+          await prisma.position.update({
+            where: { id: existingPosition.id },
+            data: positionData,
+          });
+
+          positionsUpdated += 1;
         } else {
-          await prisma.trade.create({ data: tradeData });
-          tradesCreated += 1;
+          await prisma.position.create({
+            data: positionData,
+          });
+
+          positionsCreated += 1;
         }
       }
     }
 
-    await prisma.ingestionRun.update({
-      where: { id: ingestionRun.id },
-      data: {
-        status: "COMPLETED",
-        message: `Wells ingestion ${reportType} completed.
-Processed ${rowsProcessed} rows, failed ${rowsFailed}.`,
-        rowsProcessed,
-        rowsFailed,
-        sourceReportDate,
-        accountNumber: undefined,
-        detailsJson: JSON.stringify({ failures }),
-        endedAt: new Date(),
-      },
+    const sourceReportDate = new Date();
+    const finalStatus = rowsFailed > 0 ? "COMPLETED_WITH_WARNINGS" : "COMPLETED";
+
+    await completeIngestionRun({
+      id: ingestionRun.id,
+      status: finalStatus,
+      message: `Wells ingestion ${reportType} completed. Processed ${rowsProcessed} rows, failed ${rowsFailed}.`,
+      rowsProcessed,
+      rowsFailed,
+      sourceReportDate,
+      accountNumber: undefined,
+      details: { failures },
     });
 
     return NextResponse.json({
@@ -207,6 +286,23 @@ Processed ${rowsProcessed} rows, failed ${rowsFailed}.`,
     });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
+
+    if (ingestionRunId) {
+      await completeIngestionRun({
+        id: ingestionRunId,
+        status: "FAILED",
+        message: error instanceof Error ? error.message : "Unknown Wells ingestion error",
+        rowsProcessed: 0,
+        rowsFailed: 1,
+        details: {
+          error: error instanceof Error ? error.stack || error.message : String(error),
+        },
+      });
+    }
+
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }
