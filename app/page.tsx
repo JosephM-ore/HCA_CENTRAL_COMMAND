@@ -4,9 +4,21 @@ import DashboardClient from "@/components/dashboard/DashboardClient";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  const wellsActivePositionCount = await prisma.position.count({
+    where: {
+      status: "ACTIVE",
+      source: "WELLS_FARGO",
+    },
+  });
+
   const positions = await prisma.position.findMany({
     where: {
       status: "ACTIVE",
+      ...(wellsActivePositionCount > 0
+        ? {
+            source: "WELLS_FARGO",
+          }
+        : {}),
     },
     include: {
       security: {
