@@ -384,7 +384,7 @@ function WatchlistDetailPanel({
   const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
 
   return (
-    <aside className="fixed right-0 top-0 z-40 flex h-screen w-[440px] flex-col border-l border-slate-200 bg-white shadow-xl">
+      <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-xl">      
       <div className="border-b border-slate-200 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1028,15 +1028,17 @@ const shortEntries = useMemo(
 
   const updatedEntry = data.watchlistEntry;
 
-  setEntries((currentEntries) =>
-    currentEntries.map((currentEntry) =>
+    
+  setEntries((currentEntries: any[]) =>
+    currentEntries.map((currentEntry: any) =>
       currentEntry.id === updatedEntry.id ? updatedEntry : currentEntry
     )
   );
 
-  setSelectedEntry((currentEntry) =>
+  setSelectedEntry((currentEntry: any | null) =>
     currentEntry?.id === updatedEntry.id ? updatedEntry : currentEntry
   );
+
 }
 
 async function handleRemoveEntry(entry: any) {
@@ -1056,17 +1058,21 @@ async function handleRemoveEntry(entry: any) {
       throw new Error(data.error || data.detail || "Failed to remove watchlist item.");
     }
 
-    setEntries((currentEntries) =>
-      currentEntries.filter((currentEntry) => currentEntry.id !== entry.id)
-    );
+    if (!response.ok) {
+  throw new Error(data.error || data.detail || "Failed to remove watchlist item.");
+}
 
-    setSelectedEntry((currentEntry) =>
-      currentEntry?.id === entry.id ? null : currentEntry
-    );
+  setEntries((currentEntries: any[]) =>
+    currentEntries.filter((currentEntry: any) => currentEntry.id !== entry.id)
+  );
 
-    setEditingEntry((currentEntry) =>
-      currentEntry?.id === entry.id ? null : currentEntry
-    );
+  setSelectedEntry((currentEntry: any | null) =>
+    currentEntry?.id === entry.id ? null : currentEntry
+  );
+
+  setEditingEntry((currentEntry: any | null) =>
+    currentEntry?.id === entry.id ? null : currentEntry
+  );
   }
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
@@ -1150,120 +1156,124 @@ async function handleRemoveEntry(entry: any) {
             </div>
           </header>
 
-          <div className="min-w-0 flex-1 overflow-auto p-6">
-            <div className="space-y-5">
-              <div className="flex items-end justify-between">
-                <div>
-                  <h2 className="text-3xl font-semibold tracking-tight">
-                    Watchlist
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Long and short watchlists with current price, buy/short
-                    point, percent from point, market data, flags, and comments.
-                  </p>
-                </div>
+                      
+            <div className="flex min-h-0 flex-1">
+                        <div className="min-w-0 flex-1 overflow-auto p-6">
+                          <div className="space-y-5">
+                            <div className="flex items-end justify-between">
+                              <div>
+                                <h2 className="text-3xl font-semibold tracking-tight">
+                                  Watchlist
+                                </h2>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  Long and short watchlists with current price, buy/short
+                                  point, percent from point, market data, flags, and comments.
+                                </p>
+                              </div>
 
-                {userCanEditWatchlist ? (
-                    <button
-                      onClick={() => setAddModalOpen(true)}
-                      className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-                    >
-                      Add Stock
-                    </button>
-                  ) : (
-                    <button
-                      disabled
-                      className="cursor-not-allowed rounded-2xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
-                    >
-                      Read Only
-                    </button>
-                  )}
+                              {userCanEditWatchlist ? (
+                                <button
+                                  onClick={() => setAddModalOpen(true)}
+                                  className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                                >
+                                  Add Stock
+                                </button>
+                              ) : (
+                                <button
+                                  disabled
+                                  className="cursor-not-allowed rounded-2xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+                                >
+                                  Read Only
+                                </button>
+                              )}
+                            </div>
+                              <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Long Watchlist
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                  {longEntries.length}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Potential long ideas
+                </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Long Watchlist
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">
-                    {longEntries.length}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Potential long ideas
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Short Watchlist
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">
-                    {shortEntries.length}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Potential short ideas
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Commented Names
-                  </p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">
-                    {entries.filter((entry) => entry.comments?.length > 0).length}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    With comment history
-                  </p>
-                </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Short Watchlist
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                  {shortEntries.length}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Potential short ideas
+                </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Commented Names
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                  {entries.filter((entry) => entry.comments?.length > 0).length}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  With comment history
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-3">
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search ticker, company, sector, side, target price, notes, comments, flags..."
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
               />
-            </div>  
-                  
-
-
-              
-              
-              <WatchlistGrid
-                title="Long Watchlist"
-                tone="green"
-                entries={longEntries}
-                onSelect={setSelectedEntry}
-                onMarketData={setMarketDataEntry}
-                onComment={setCommentEntry}
-                onEdit={setEditingEntry}
-                onRemove={handleRemoveEntry}
-                canComment={userCanCreateComments}
-                canEdit={userCanEditWatchlist}
-              />
-
-
-
-              
-              <WatchlistGrid
-                title="Short Watchlist"
-                tone="red"
-                entries={shortEntries}
-                onSelect={setSelectedEntry}
-                onMarketData={setMarketDataEntry}
-                onComment={setCommentEntry}
-                onEdit={setEditingEntry}
-                onRemove={handleRemoveEntry}
-                canComment={userCanCreateComments}
-                canEdit={userCanEditWatchlist}
-              />
-
             </div>
+
+            <WatchlistGrid
+              title="Long Watchlist"
+              tone="green"
+              entries={longEntries}
+              onSelect={setSelectedEntry}
+              onMarketData={setMarketDataEntry}
+              onComment={setCommentEntry}
+              onEdit={setEditingEntry}
+              onRemove={handleRemoveEntry}
+              canComment={userCanCreateComments}
+              canEdit={userCanEditWatchlist}
+            />
+
+            <WatchlistGrid
+              title="Short Watchlist"
+              tone="red"
+              entries={shortEntries}
+              onSelect={setSelectedEntry}
+              onMarketData={setMarketDataEntry}
+              onComment={setCommentEntry}
+              onEdit={setEditingEntry}
+              onRemove={handleRemoveEntry}
+              canComment={userCanCreateComments}
+              canEdit={userCanEditWatchlist}
+            />
+                
+              </div>
+            </div>
+
+            <WatchlistDetailPanel
+              entry={selectedEntry}
+              onClose={() => setSelectedEntry(null)}
+              onEdit={setEditingEntry}
+              onRemove={handleRemoveEntry}
+              canEdit={userCanEditWatchlist}
+            />
           </div>
         </section>
       </div>
+
 
       <AddStockModal
         open={addModalOpen}
@@ -1279,13 +1289,7 @@ async function handleRemoveEntry(entry: any) {
         entry={marketDataEntry}
         onClose={() => setMarketDataEntry(null)}
       />
-      <WatchlistDetailPanel
-        entry={selectedEntry}
-        onClose={() => setSelectedEntry(null)}
-        onEdit={setEditingEntry}
-        onRemove={handleRemoveEntry}
-        canEdit={userCanEditWatchlist}
-      />
+     
       <CommentModal
         entry={commentEntry}
         onClose={() => setCommentEntry(null)}
