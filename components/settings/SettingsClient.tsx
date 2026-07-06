@@ -106,6 +106,12 @@ export default function SettingsClient({
   const [fundamentalsRefreshResult, setFundamentalsRefreshResult] = useState<any | null>(null);
   const [fundamentalsRefreshError, setFundamentalsRefreshError] = useState("");
 
+  
+const [isRefreshingCiks, setIsRefreshingCiks] = useState(false);
+const [cikRefreshResult, setCikRefreshResult] = useState<any | null>(null);
+const [cikRefreshError, setCikRefreshError] = useState("");
+
+
     useEffect(() => {
       async function loadCurrentUser() {
         const response = await fetch("/api/auth/me");
@@ -118,6 +124,41 @@ export default function SettingsClient({
 
       loadCurrentUser();
     }, []);
+
+    async function handleRefreshCiks() {
+      setIsRefreshingCiks(true);
+      setCikRefreshResult(null);
+      setCikRefreshError("");
+
+      try {
+        const response = await fetch("/api/admin/refresh-ciks", {
+          method: "POST",
+          credentials: "include",
+        });
+
+        const text = await response.text();
+
+        let data: any = null;
+
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(text || "Unexpected CIK refresh response.");
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || data.detail || "CIK refresh failed.");
+        }
+
+        setCikRefreshResult(data);
+      } catch (error) {
+        setCikRefreshError(
+          error instanceof Error ? error.message : "CIK refresh failed."
+        );
+      } finally {
+        setIsRefreshingCiks(false);
+      }
+    }
 
 
     async function handleRefreshMarketData() {
@@ -250,7 +291,7 @@ export default function SettingsClient({
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">FMP market data</Badge>
+              <Badge tone="green">Finnhub current prices</Badge>
 
               <CurrentUserPill />
 
@@ -378,7 +419,7 @@ export default function SettingsClient({
                 <SettingsCard
                   eyebrow="Data Operations"
                   title="Data Refresh"
-                  description="Market data is refreshed from Financial Modeling Prep and stored in the local market data cache. Symbols unavailable under the current data plan continue using cached fallback values."
+                  description="Current prices are refreshed from Finnhub and stored in the local market data cache. Wells remains the source for position economics and SEC EDGAR remains the source for fundamentals."
                 >
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-slate-50 p-4">
@@ -386,7 +427,7 @@ export default function SettingsClient({
                         Market Data
                       </p>
                       <p className="mt-2 text-sm font-semibold text-slate-900">
-                        FMP provider
+                        Finnhub provider
                       </p>
                     </div>
 
@@ -399,17 +440,96 @@ export default function SettingsClient({
                       </p>
                     </div>
                   </div>
+                  
+                  
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-950">
+                          SEC CIK Refresh
+                        </h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          Resolve SEC CIK identifiers for securities before refreshing SEC
+                          fundamentals.
+                        </p>
+                      </div>
+
+                      {userCanViewAuditLogs ? (
+                        <button
+                          onClick={handleRefreshCiks}
+                          disabled={isRefreshingCiks}
+                          className="shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isRefreshingCiks ? "Refreshing..." : "Refresh SEC CIKs"}
+                        </button>
+                      ) : (
+                        <div className="shrink-0 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
+                          Admin / Compliance only
+                        </div>
+                      )}
+                    </div>
+
+                    {cikRefreshResult ? (
+                      <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+                        CIK refresh complete. Updated:{" "}
+                        <span className="font-semibold">
+                          {cikRefreshResult.updatedCount ??
+                            cikRefreshResult.updated ??
+                            cikRefreshResult.updatedSymbols ??
+                            "N/A"}
+                        </span>
+                        . Failed:{" "}
+                        <span className="font-semibold">
+                          {cikRefreshResult.failedCount ??
+                            cikRefreshResult.failed ??
+                            cikRefreshResult.failedSymbols ??
+                            "N/A"}
+                        </span>
+                        .
+                      </div>
+                    ) : null}
+
+                    {cikRefreshError ? (
+                      <div className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
+                        {cikRefreshError}
+                      </div>
+                    ) : null}
+
+                    {cikRefreshResult?.results?.length ? (
+                      <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-slate-200">
+                        {cikRefreshResult.results.map((result: any) => (
+                          <div
+                            key={result.ticker}
+                            className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-xs last:border-b-0"
+                          >
+                            <span className="font-semibold text-slate-700">
+                              {result.ticker}
+                            </span>
+
+                            <span
+                              className={
+                                result.status === "UPDATED"
+                                  ? "text-emerald-600"
+                                  : "text-amber-600"
+                              }
+                            >
+                              {result.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+
 
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-950">
-                          FMP Market Data Refresh
+                          Finnhub Current Price Refresh
                         </h3>
                         <p className="mt-1 text-sm leading-6 text-slate-500">
-                          Refresh cached market data from Financial Modeling Prep. Some symbols
-                          may continue using cached fallback values if unavailable under the
-                          current data plan.
+                          Refresh live current prices from Finnhub. Other portfolio metrics continue to come from Wells position data and SEC fundamentals.
                         </p>
                       </div>
 
@@ -419,7 +539,7 @@ export default function SettingsClient({
                           disabled={isRefreshingMarketData}
                           className="shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {isRefreshingMarketData ? "Refreshing..." : "Refresh FMP Market Data"}
+                         {isRefreshingMarketData ? "Refreshing..." : "Refresh Current Prices"}
                         </button>
                       ) : (
                         <div className="shrink-0 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
@@ -430,7 +550,7 @@ export default function SettingsClient({
 
                     {marketDataRefreshResult ? (
                       <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
-                        FMP refresh complete. Updated:{" "}
+                        Current price refresh complete. Updated:{" "}
                         <span className="font-semibold">
                           {marketDataRefreshResult.updatedCount}
                         </span>

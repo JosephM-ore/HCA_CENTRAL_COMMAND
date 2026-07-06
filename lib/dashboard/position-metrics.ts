@@ -110,9 +110,11 @@ export function getWellsUnrealizedPnl(position: any) {
   return unrealizedPnl;
 }
 
+
 function isRealQuoteSource(source: string | null | undefined) {
-  return source === "FINNHUB" || source === "FMP" || source === "ALPHA_VANTAGE";
+  return source === "FINNHUB";
 }
+
 
 export function getDisplayCurrentPrice(position: DashboardMetricPosition) {
   const marketData = position.security?.marketData?.[0];
