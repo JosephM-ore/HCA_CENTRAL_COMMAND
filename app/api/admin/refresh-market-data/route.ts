@@ -73,6 +73,7 @@ export async function POST() {
           continue;
         }
 
+        
         const data = {
           currentPrice: quote.currentPrice,
           dayChange: quote.dayChange,
@@ -82,6 +83,7 @@ export async function POST() {
           dataQuality: "REAL",
           lastMarketDataRefreshAt: new Date(),
         };
+
 
         if (existingMarketData) {
           await prisma.marketDataCache.update({

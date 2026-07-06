@@ -17,6 +17,7 @@ import {
   getDisplayTotalPctChange,
   getDisplayUnrealizedPnl,
   getDisplayWap,
+  getDisplayDayPctChange,
 } from "@/lib/dashboard/position-metrics";
 
 
@@ -210,6 +211,7 @@ function PositionGrid({
           const wap = getDisplayWap(position);
           const totalPctChange = getDisplayTotalPctChange(position);
           const portfolioPct = getDisplayPortfolioPct(position, portfolioPositions);
+          const dayPctChange = getDisplayDayPctChange(position);
 
           return (
             <div
@@ -240,13 +242,11 @@ function PositionGrid({
               </div>
 
 
-              <div className={`font-semibold ${pnlClass(position.dayPctChange)}`}>
-                {position.dayPctChange != null
-                  ? `${position.dayPctChange >= 0 ? "+" : ""}${
-                      position.dayPctChange
-                    }%`
-                  : "—"}
+                            
+              <div className={`font-semibold ${pnlClass(dayPctChange)}`}>
+                {formatPercent(dayPctChange)}
               </div>
+
 
               <div>{formatMoney(position.marketValue)}</div>
 
@@ -1273,7 +1273,7 @@ async function handleSaveFlag(payload: {
                     value={formatMoney(totalMarketValue)}
                     sub={`${localPositions.length} active positions from Wells`}
                   />
-
+ 
                   
                   <StatCard
                     label="Unrealized P&L"

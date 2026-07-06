@@ -8,6 +8,7 @@ type DashboardMetricPosition = {
   security?: {
   marketData?: Array<{
     currentPrice?: number | string | null;
+    dayPctChange?: number | string | null;
     marketDataSource?: string | null;
   }> | null;
 } | null;
@@ -114,7 +115,21 @@ export function getWellsUnrealizedPnl(position: any) {
 function isRealQuoteSource(source: string | null | undefined) {
   return source === "FINNHUB";
 }
+export function getDisplayDayPctChange(position: DashboardMetricPosition) {
+  const marketData = position.security?.marketData?.[0];
 
+  if (marketData?.marketDataSource !== "FINNHUB") {
+    return null;
+  }
+
+  const dayPctChange = getNumber((marketData as any).dayPctChange);
+
+  if (dayPctChange == null) {
+    return null;
+  }
+
+  return dayPctChange;
+}
 
 export function getDisplayCurrentPrice(position: DashboardMetricPosition) {
   const marketData = position.security?.marketData?.[0];
