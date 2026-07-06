@@ -66,6 +66,20 @@ function formatMoney(value: number | null | undefined) {
   });
 }
 
+
+function getCapitalIqUrl(ticker: string) {
+  const normalizedTicker = ticker.trim().toLowerCase();
+
+  return `https://www.capitaliq.spglobal.com/apisv3/spg-webplatform-core/search/searchResults?vertical=&q=${encodeURIComponent(
+    normalizedTicker
+  )}`;
+}
+
+function openCapitalIq(ticker: string) {
+  window.open(getCapitalIqUrl(ticker), "_blank");
+}
+
+
 function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return "—";
 
@@ -196,10 +210,10 @@ function WatchlistGrid({
 
               <div>
                 <button
-                  onClick={() => onMarketData(entry)}
+                  onClick={() => openCapitalIq(entry.security.ticker)}
                   className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-700 hover:bg-slate-200"
                 >
-                  Market Data
+                  Capital IQ
                 </button>
               </div>
 

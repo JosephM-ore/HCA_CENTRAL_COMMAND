@@ -38,6 +38,21 @@ function formatMoney(value: number | null | undefined) {
   });
 }
 
+function getCapitalIqUrl(ticker: string) {
+  const normalizedTicker = ticker.trim().toLowerCase();
+
+  return `https://www.capitaliq.spglobal.com/apisv3/spg-webplatform-core/search/searchResults?vertical=&q=${encodeURIComponent(
+    normalizedTicker
+  )}`;
+}
+
+
+function openCapitalIq(ticker: string) {
+  window.open(getCapitalIqUrl(ticker), "_blank");
+}
+
+
+
 function formatNumber(value: number | null | undefined) {
   if (value == null) return "—";
 
@@ -266,12 +281,12 @@ function PositionGrid({
               </div>
 
 
-              <div>
-               <button
-                onClick={() => onMarketData(position)}
-                className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-700 hover:bg-slate-200"
+              <div>              
+                <button
+                  onClick={() => openCapitalIq(position.security.ticker)}
+                  className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-700 hover:bg-slate-200"
                 >
-                Market Data
+                  Capital IQ
                 </button>
               </div>
 
@@ -426,12 +441,14 @@ function TickerDetailPanel({
               Flag
             </button>
           )}     
+          
           <button
-            onClick={() => onMarketData(position)}
+            onClick={() => openCapitalIq(position.security.ticker)}
             className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            Market Data
+            Capital IQ
           </button>
+
           <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
             Export
           </button>
