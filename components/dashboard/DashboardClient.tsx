@@ -34,6 +34,49 @@ function formatNumber(value: number | null | undefined) {
   });
 }
 
+function isRealMarketData(marketData: any) {
+  return marketData?.marketDataSource === "FMP";
+}
+
+function getWellsImpliedPrice(position: any) {
+  const shares = Number(position.shares ?? 0);
+  const marketValue = Number(position.marketValue ?? 0);
+
+  if (!shares || !marketValue) {
+    return null;
+  }
+
+  return Math.abs(marketValue / shares);
+}
+
+function getDisplayCurrentPrice(position: any) {
+  const marketData = position.security?.marketData?.[0];
+
+  if (isRealMarketData(marketData) && marketData?.currentPrice != null) {
+    return Number(marketData.currentPrice);
+  }
+
+  if (position.source === "WELLS_FARGO") {
+    return getWellsImpliedPrice(position);
+  }
+
+  return null;
+}
+
+function formatPrice(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+
 function pnlClass(value: number | null | undefined) {
   if (value == null) return "text-slate-500";
   return value >= 0 ? "text-emerald-600" : "text-rose-600";
@@ -168,6 +211,7 @@ function PositionGrid({
 
         {positions.map((position) => {
           const marketData = position.security.marketData?.[0];
+          const displayCurrentPrice = getDisplayCurrentPrice(position);
           const latestComment = position.comments?.[0];
           const openFlag = position.flags?.[0];
 
@@ -194,11 +238,11 @@ function PositionGrid({
                 {position.security.name}
               </div>
 
+              
               <div className="font-medium">
-                {marketData?.currentPrice != null
-                  ? `$${marketData.currentPrice.toFixed(2)}`
-                  : "—"}
+                {formatPrice(displayCurrentPrice)}
               </div>
+
 
               <div className={`font-semibold ${pnlClass(position.dayPctChange)}`}>
                 {position.dayPctChange != null
@@ -282,6 +326,7 @@ function TickerDetailPanel({
   const marketData = security.marketData?.[0];
   const openFlag = position.flags?.[0];
   const latestComment = position.comments?.[0];
+  const displayCurrentPrice = getDisplayCurrentPrice(position);
 
   return (
     <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-xl">
@@ -316,11 +361,11 @@ function TickerDetailPanel({
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl bg-slate-50 p-3">
             <p className="text-xs text-slate-500">Current Price</p>
+            
             <p className="mt-1 font-semibold text-slate-950">
-              {marketData?.currentPrice != null
-                ? `$${marketData.currentPrice.toFixed(2)}`
-                : "—"}
+              {formatPrice(displayCurrentPrice)}
             </p>
+
           </div>
 
           <div className="rounded-2xl bg-slate-50 p-3">
