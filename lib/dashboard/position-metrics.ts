@@ -130,9 +130,10 @@ export function getDisplayTotalPctChange(position: any) {
 
 export function getDashboardStats(positions: any[]) {
   const totalMarketValue = positions.reduce(
-    (sum, position) => sum + (getNumber(position.marketValue) ?? 0),
+    (sum, position) => sum + Math.abs(getNumber(position.marketValue) ?? 0),
     0
   );
+
 
   const totalUnrealizedPnl = positions.reduce(
     (sum, position) => sum + (getWellsUnrealizedPnl(position) ?? 0),

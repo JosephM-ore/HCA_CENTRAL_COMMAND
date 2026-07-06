@@ -319,7 +319,15 @@ function TickerDetailPanel({
 
   const security = position.security;
   const openFlag = position.flags?.[0];
-  const latestComment = position.comments?.[0];
+
+  const latestComment = position.comments?.find(
+    (comment: any) => comment.tag !== "PT"
+  );
+
+  const latestPtComment = position.comments?.find(
+    (comment: any) => comment.tag === "PT"
+  );
+
   const currentPrice = getDisplayCurrentPrice(position);
   const wap = getDisplayWap(position);
   const totalPctChange = getDisplayTotalPctChange(position);
@@ -472,8 +480,25 @@ function TickerDetailPanel({
 
         <section className="mt-5">
           <h3 className="mb-3 font-semibold text-slate-950">Comment Section</h3>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            {latestComment?.content || "No comment added yet."}
+
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Latest Comment
+              </div>
+              <div>
+                {latestComment?.content || "No comment added yet."}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Latest PT Comment
+              </div>
+              <div>
+                {latestPtComment?.content || "No PT comment added yet."}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -702,11 +727,13 @@ function CommentModal({
 
   const categories = [
     ["COMMENT", "Comment"],
+    ["PT", "PT"],
     ["THESIS", "Thesis"],
     ["RISK", "Risk"],
     ["CATALYST", "Catalyst"],
     ["TRADE", "Trade"],
     ["EXIT", "Exit"],
+    
   ];
 
   return (
@@ -979,7 +1006,14 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
 
   return localPositions
     .filter((position) => {
-      const latestComment = position.comments?.[0]?.content || "";
+      const latestComment = position.comments?.find(
+            (comment: any) => comment.tag !== "PT"
+          );
+
+          const latestPtComment = position.comments?.find(
+            (comment: any) => comment.tag === "PT"
+          );
+
       const flagText = position.flags?.map((flag: any) => flag.flagType).join(" ") || "";
 
       const searchable = [
@@ -1233,11 +1267,13 @@ async function handleSaveFlag(payload: {
                 </div>
 
                 <div className="grid grid-cols-4 gap-4">
+                  
                   <StatCard
-                    label="Net Equity"
+                    label="Gross Exposure"
                     value={formatMoney(totalMarketValue)}
-                    sub={`${localPositions.length} active positions`}
+                    sub={`${localPositions.length} active positions from Wells`}
                   />
+
                   
                   <StatCard
                     label="Unrealized P&L"
