@@ -8,12 +8,15 @@ import {
   canCreateFlags,
 } from "@/lib/client-permissions";
 
+
 import {
   getDashboardStats,
   getDisplayCurrentPrice,
+  getDisplayPortfolioPct,
   getDisplayTotalPctChange,
   getDisplayWap,
 } from "@/lib/dashboard/position-metrics";
+
 
 type DashboardClientProps = {
   positions: any[];
@@ -161,6 +164,7 @@ function PositionGrid({
   title,
   tone,
   positions,
+  portfolioPositions,
   selectedId,
   onSelect,
   onMarketData,
@@ -170,6 +174,7 @@ function PositionGrid({
   title: string;
   tone: "green" | "red";
   positions: any[];
+  portfolioPositions: any[];
   selectedId?: string;
   onSelect: (position: any) => void;
   onMarketData: (position: any) => void;
@@ -202,6 +207,7 @@ function PositionGrid({
           const currentPrice = getDisplayCurrentPrice(position);
           const wap = getDisplayWap(position);
           const totalPctChange = getDisplayTotalPctChange(position);
+          const portfolioPct = getDisplayPortfolioPct(position, portfolioPositions);
 
           return (
             <div
@@ -242,11 +248,11 @@ function PositionGrid({
 
               <div>{formatMoney(position.marketValue)}</div>
 
+              
               <div>
-                {position.portfolioPct != null
-                  ? `${position.portfolioPct}%`
-                  : "—"}
+                {portfolioPct != null ? `${portfolioPct.toFixed(2)}%` : "—"}
               </div>
+
 
               <div>{formatNumber(position.shares)}</div>
 
@@ -1298,6 +1304,7 @@ async function handleSaveFlag(payload: {
                   onMarketData={setMarketDataPosition}
                   onComment={handleOpenComment}
                   canComment={userCanCreateComments}
+                  portfolioPositions={localPositions}
                 />
 
                 
@@ -1310,6 +1317,7 @@ async function handleSaveFlag(payload: {
                   onMarketData={setMarketDataPosition}
                   onComment={handleOpenComment}
                   canComment={userCanCreateComments}
+                  portfolioPositions={localPositions}
                 />
               </div>
             </div>

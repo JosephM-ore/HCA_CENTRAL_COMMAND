@@ -1,3 +1,11 @@
+type DashboardMetricPosition = {
+  source?: string | null;
+  shares?: number | string | null;
+  marketValue?: number | string | null;
+  costBasis?: number | string | null;
+  unrealizedPnl?: number | string | null;
+  comments?: unknown[] | null;
+};
 function getNumber(value: unknown) {
   const numberValue = Number(value);
 
@@ -7,7 +15,28 @@ function getNumber(value: unknown) {
 
   return numberValue;
 }
+export function getDisplayPortfolioPct(
+  position: DashboardMetricPosition,
+  positions: DashboardMetricPosition[]
+) {
+  const positionMarketValue = getNumber(position.marketValue);
 
+  if (!positionMarketValue) {
+    return null;
+  }
+
+  const grossMarketValue = positions.reduce(
+    (sum, currentPosition) =>
+      sum + Math.abs(getNumber(currentPosition.marketValue) ?? 0),
+    0
+  );
+
+  if (!grossMarketValue) {
+    return null;
+  }
+
+  return (Math.abs(positionMarketValue) / grossMarketValue) * 100;
+}
 export function getWellsImpliedPrice(position: any) {
   const shares = getNumber(position.shares);
   const marketValue = getNumber(position.marketValue);
