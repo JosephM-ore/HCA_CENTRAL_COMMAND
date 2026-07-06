@@ -84,43 +84,80 @@ function pctClass(value: number | null | undefined) {
   return value >= 0 ? "text-emerald-600" : "text-rose-600";
 }
 
-function calculateFromTarget(currentPrice?: number | null, targetPrice?: number | null) {
-  if (currentPrice == null || targetPrice == null || targetPrice === 0) return null;
-  return ((currentPrice - targetPrice) / targetPrice) * 100;
+function getWatchlistCurrentPrice(entry: any) {
+  const marketData = entry.security?.marketData?.[0];
+
+  if (marketData?.marketDataSource !== "FINNHUB") {
+    return null;
+  }
+
+  const currentPrice = Number(marketData.currentPrice);
+
+  if (!Number.isFinite(currentPrice)) {
+    return null;
+  }
+
+  return currentPrice;
 }
 
+function calculateFromTarget(
+  currentPrice?: number | null,
+  targetPrice?: number | null
+) {
+  if (currentPrice == null || targetPrice == null || currentPrice === 0) {
+    return null;
+  }
+
+  return ((targetPrice - currentPrice) / currentPrice) * 100;
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return "—";
+
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
+
 function WatchlistGrid({
-  title,
-  tone,
-  entries,
-  onMarketData,
-  onComment,
-  canComment,
-}: {
-  title: string;
-  tone: "green" | "red";
-  entries: any[];
-  onMarketData: (entry: any) => void;
-  onComment: (entry: any) => void;
-  canComment: boolean;
-}) {
+    title,
+    tone,
+    entries,
+    onSelect,
+    onMarketData,
+    onComment,
+    onEdit,
+    onRemove,
+    canComment,
+    canEdit,
+  }: {
+    title: string;
+    tone: "green" | "red";
+    entries: any[];
+    onSelect: (entry: any) => void;
+    onMarketData: (entry: any) => void;
+    onComment: (entry: any) => void;
+    onEdit: (entry: any) => void;
+    onRemove: (entry: any) => void;
+    canComment: boolean;
+    canEdit: boolean;
+  }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <SectionBar title={title} tone={tone} />
 
       <div className="overflow-x-auto">
-        <div className="grid min-w-[900px] grid-cols-7 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+       <div className="grid min-w-[1050px] grid-cols-8 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
           <div className="col-span-2">Ticker # / Name</div>
           <div>Current Price</div>
           <div>{tone === "green" ? "Buy PT" : "Short PT"}</div>
           <div>% From PT</div>
           <div>Market Data</div>
           <div>Comment Section</div>
+          <div>Actions</div>
         </div>
 
         {entries.map((entry) => {
-          const marketData = entry.security.marketData?.[0];
-          const currentPrice = marketData?.currentPrice ?? null;
+          const currentPrice = getWatchlistCurrentPrice(entry);
           const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
           const openFlag = entry.flags?.[0];
           const latestComment = entry.comments?.[0];
@@ -128,9 +165,13 @@ function WatchlistGrid({
           return (
             <div
               key={entry.id}
-              className="grid min-w-[900px] grid-cols-7 items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50"
+              className="grid min-w-[1050px] grid-cols-8 items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50"
             >
-              <div className="col-span-2 flex items-center gap-1 font-semibold text-slate-950">
+              
+              <button
+                onClick={() => onSelect(entry)}
+                className="col-span-2 flex items-center gap-1 text-left font-semibold text-slate-950 hover:underline"
+              >
                 {entry.security.ticker}
                 {openFlag ? (
                   <span className="text-amber-500" title={openFlag.flagType}>
@@ -140,17 +181,18 @@ function WatchlistGrid({
                 <span className="ml-1 truncate font-normal text-slate-500">
                   {entry.security.name}
                 </span>
-              </div>
+              </button>
+
 
               <div>{currentPrice != null ? `$${currentPrice.toFixed(2)}` : "—"}</div>
 
               <div>{entry.targetPrice != null ? `$${entry.targetPrice.toFixed(2)}` : "—"}</div>
 
+             
               <div className={`font-semibold ${pctClass(fromTarget)}`}>
-                {fromTarget != null
-                  ? `${fromTarget >= 0 ? "+" : ""}${fromTarget.toFixed(1)}%`
-                  : "—"}
+                {formatPercent(fromTarget)}
               </div>
+
 
               <div>
                 <button
@@ -169,6 +211,30 @@ function WatchlistGrid({
                   >
                     {latestComment ? "Comment" : "Add Comment"}
                   </button>
+                ) : (
+                  <span className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-400">
+                    Read Only
+                  </span>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                {canEdit ? (
+                  <>
+                    <button
+                      onClick={() => onEdit(entry)}
+                      className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-700 hover:bg-slate-200"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => onRemove(entry)}
+                      className="rounded-xl bg-rose-50 px-2 py-1 font-medium text-rose-700 hover:bg-rose-100"
+                    >
+                      Remove
+                    </button>
+                  </>
                 ) : (
                   <span className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-400">
                     Read Only
@@ -297,7 +363,137 @@ function MarketDataModal({
     </div>
   );
 }
+function WatchlistDetailPanel({
+  entry,
+  onClose,
+  onEdit,
+  onRemove,
+  canEdit,
+}: {
+  entry: any | null;
+  onClose: () => void;
+  onEdit: (entry: any) => void;
+  onRemove: (entry: any) => void;
+  canEdit: boolean;
+}) {
+  if (!entry) return null;
 
+  const security = entry.security;
+  const marketData = security.marketData?.[0];
+  const currentPrice = getWatchlistCurrentPrice(entry);
+  const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
+
+  return (
+    <aside className="fixed right-0 top-0 z-40 flex h-screen w-[440px] flex-col border-l border-slate-200 bg-white shadow-xl">
+      <div className="border-b border-slate-200 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-semibold text-slate-950">
+                {security.ticker}
+              </h2>
+
+              <Badge tone={entry.side === "SHORT" ? "red" : "green"}>
+                {entry.side}
+              </Badge>
+            </div>
+
+            <p className="mt-1 text-sm text-slate-500">{security.name}</p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Current Price</p>
+            <p className="mt-1 font-semibold text-slate-950">
+              {formatMoney(currentPrice)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">
+              {entry.side === "SHORT" ? "Short PT" : "Buy PT"}
+            </p>
+            <p className="mt-1 font-semibold text-slate-950">
+              {formatMoney(entry.targetPrice)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">% From PT</p>
+            <p className={`mt-1 font-semibold ${pctClass(fromTarget)}`}>
+              {formatPercent(fromTarget)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">Market Data Source</p>
+            <p className="mt-1 font-semibold text-slate-950">
+              {marketData?.marketDataSource ?? "N/A"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {canEdit ? (
+            <>
+              <button
+                onClick={() => onEdit(entry)}
+                className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Edit
+              </button>
+
+              <button
+                onClick={() => onRemove(entry)}
+                className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
+              >
+                Remove
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto p-5">
+        <section>
+          <h3 className="mb-3 font-semibold text-slate-950">Notes</h3>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            {entry.notes || "No notes added yet."}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <h3 className="mb-3 font-semibold text-slate-950">Latest Comment</h3>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            {entry.comments?.[0]?.content || "No comment added yet."}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <h3 className="mb-3 font-semibold text-slate-950">Refresh Info</h3>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
+            <div className="flex justify-between gap-4">
+              <span>Last Market Refresh</span>
+              <span className="font-semibold text-slate-800">
+                {marketData?.lastMarketDataRefreshAt
+                  ? formatDateTime(marketData.lastMarketDataRefreshAt)
+                  : "N/A"}
+              </span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </aside>
+  );
+}
 function AddStockModal({
   open,
   onClose,
@@ -428,6 +624,133 @@ function AddStockModal({
     </div>
   );
 }
+
+function EditWatchlistModal({
+  entry,
+  onClose,
+  onSave,
+}: {
+  entry: any | null;
+  onClose: () => void;
+  onSave: (entry: any, payload: {
+    side: string;
+    targetPrice: string;
+    notes: string;
+  }) => Promise<void>;
+}) {
+  const [side, setSide] = useState("LONG");
+  const [targetPrice, setTargetPrice] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!entry) return;
+
+    setSide(entry.side || "LONG");
+    setTargetPrice(
+      entry.targetPrice != null ? String(entry.targetPrice) : ""
+    );
+    setNotes(entry.notes || "");
+    setError("");
+  }, [entry]);
+
+  if (!entry) return null;
+
+  async function handleSave() {
+    setError("");
+    setIsSaving(true);
+
+    try {
+      await onSave(entry, {
+        side,
+        targetPrice,
+        notes,
+      });
+
+      onClose();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update watchlist item."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Edit Watchlist Item
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {entry.security.ticker} • {entry.security.name}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <select
+            value={side}
+            onChange={(event) => setSide(event.target.value)}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+          >
+            <option value="LONG">Long Watchlist</option>
+            <option value="SHORT">Short Watchlist</option>
+          </select>
+
+          <input
+            value={targetPrice}
+            onChange={(event) => setTargetPrice(event.target.value)}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            placeholder="Buy PT / Short PT"
+          />
+
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            className="h-28 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            placeholder="Watchlist notes..."
+          />
+        </div>
+
+        {error ? (
+          <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CommentModal({
   entry,
   onClose,
@@ -481,6 +804,7 @@ function CommentModal({
 
   const categories = [
     ["COMMENT", "Comment"],
+    ["PT", "PT"],
     ["THESIS", "Thesis"],
     ["RISK", "Risk"],
     ["CATALYST", "Catalyst"],
@@ -572,7 +896,8 @@ export default function WatchlistClient({
   const userCanEditWatchlist = canEditWatchlist(currentUser?.role);
   const userCanCreateComments = canCreateComments(currentUser?.role);
   const [commentEntry, setCommentEntry] = useState<any | null>(null);
-
+  const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
+  const [editingEntry, setEditingEntry] = useState<any | null>(null);
 
   useEffect(() => {
   async function loadCurrentUser() {
@@ -679,7 +1004,70 @@ const shortEntries = useMemo(
       })
     );
   }
+  async function handleSaveEdit(
+  entry: any,
+  payload: {
+    side: string;
+    targetPrice: string;
+    notes: string;
+  }
+) {
+  const response = await fetch(`/api/watchlist/${entry.id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || data.detail || "Failed to update watchlist item.");
+  }
+
+  const updatedEntry = data.watchlistEntry;
+
+  setEntries((currentEntries) =>
+    currentEntries.map((currentEntry) =>
+      currentEntry.id === updatedEntry.id ? updatedEntry : currentEntry
+    )
+  );
+
+  setSelectedEntry((currentEntry) =>
+    currentEntry?.id === updatedEntry.id ? updatedEntry : currentEntry
+  );
+}
+
+async function handleRemoveEntry(entry: any) {
+    const confirmed = window.confirm(
+      `Remove ${entry.security.ticker} from the watchlist?`
+    );
+
+    if (!confirmed) return;
+
+    const response = await fetch(`/api/watchlist/${entry.id}`, {
+      method: "DELETE",
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || data.detail || "Failed to remove watchlist item.");
+    }
+
+    setEntries((currentEntries) =>
+      currentEntries.filter((currentEntry) => currentEntry.id !== entry.id)
+    );
+
+    setSelectedEntry((currentEntry) =>
+      currentEntry?.id === entry.id ? null : currentEntry
+    );
+
+    setEditingEntry((currentEntry) =>
+      currentEntry?.id === entry.id ? null : currentEntry
+    );
+  }
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
       <div className="flex h-full">
@@ -757,7 +1145,7 @@ const shortEntries = useMemo(
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">Live data mock</Badge>
+              <Badge tone="green">Finnhub current prices</Badge>
               <CurrentUserPill />
             </div>
           </header>
@@ -842,24 +1230,36 @@ const shortEntries = useMemo(
 
 
               
+              
               <WatchlistGrid
                 title="Long Watchlist"
                 tone="green"
                 entries={longEntries}
+                onSelect={setSelectedEntry}
                 onMarketData={setMarketDataEntry}
                 onComment={setCommentEntry}
+                onEdit={setEditingEntry}
+                onRemove={handleRemoveEntry}
                 canComment={userCanCreateComments}
+                canEdit={userCanEditWatchlist}
               />
 
 
+
+              
               <WatchlistGrid
                 title="Short Watchlist"
                 tone="red"
                 entries={shortEntries}
+                onSelect={setSelectedEntry}
                 onMarketData={setMarketDataEntry}
                 onComment={setCommentEntry}
+                onEdit={setEditingEntry}
+                onRemove={handleRemoveEntry}
                 canComment={userCanCreateComments}
+                canEdit={userCanEditWatchlist}
               />
+
             </div>
           </div>
         </section>
@@ -870,10 +1270,21 @@ const shortEntries = useMemo(
         onClose={() => setAddModalOpen(false)}
         onAdd={handleAddEntry}
       />
-
+      <EditWatchlistModal
+        entry={editingEntry}
+        onClose={() => setEditingEntry(null)}
+        onSave={handleSaveEdit}
+      />
       <MarketDataModal
         entry={marketDataEntry}
         onClose={() => setMarketDataEntry(null)}
+      />
+      <WatchlistDetailPanel
+        entry={selectedEntry}
+        onClose={() => setSelectedEntry(null)}
+        onEdit={setEditingEntry}
+        onRemove={handleRemoveEntry}
+        canEdit={userCanEditWatchlist}
       />
       <CommentModal
         entry={commentEntry}
