@@ -5,6 +5,12 @@ type DashboardMetricPosition = {
   costBasis?: number | string | null;
   unrealizedPnl?: number | string | null;
   comments?: unknown[] | null;
+  security?: {
+  marketData?: Array<{
+    currentPrice?: number | string | null;
+    marketDataSource?: string | null;
+  }> | null;
+} | null;
 };
 function getNumber(value: unknown) {
   const numberValue = Number(value);
@@ -104,9 +110,18 @@ export function getWellsUnrealizedPnl(position: any) {
   return unrealizedPnl;
 }
 
-export function getDisplayCurrentPrice(position: any) {
-  if (position.source === "WELLS_FARGO") {
-    return getWellsImpliedPrice(position);
+function isRealQuoteSource(source: string | null | undefined) {
+  return source === "FINNHUB" || source === "FMP" || source === "ALPHA_VANTAGE";
+}
+
+export function getDisplayCurrentPrice(position: DashboardMetricPosition) {
+  const marketData = position.security?.marketData?.[0];
+
+  if (
+    isRealQuoteSource(marketData?.marketDataSource) &&
+    marketData?.currentPrice != null
+  ) {
+    return getNumber(marketData.currentPrice);
   }
 
   return null;
