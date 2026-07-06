@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { parseWellsTransactionActivityCsv } from "@/lib/ingestion/wells-transaction-activity";
 import { prisma } from "@/lib/prisma";
 import { detectWellsReportType } from "@/lib/ingestion/wells-detect-report";
 import { parseWellsTaxLotCsv } from "@/lib/ingestion/wells-tax-lot";
@@ -119,22 +120,20 @@ export async function POST(request: Request) {
     }
 
     if (
-      reportType === "CHANGE_IN_EQUITY_PERFORMANCE" ||
-      reportType === "PORTFOLIO_RISK_EXPOSURE" ||
-      reportType === "TRANSACTION_ACTIVITY"
-    ) {
+    reportType === "CHANGE_IN_EQUITY_PERFORMANCE" ||
+    reportType === "PORTFOLIO_RISK_EXPOSURE"
+  ) {
       await completeIngestionRun({
         id: ingestionRun.id,
         status: "COMPLETED",
         message: `Detected report type ${reportType}, ingestion not implemented for this milestone.`,
         rowsProcessed: 0,
         rowsFailed: 0,
+        
         details: {
-          reason:
-            reportType === "TRANSACTION_ACTIVITY"
-              ? "Transaction Activity parsing is intentionally deferred until fixed-width extracted text parsing is validated."
-              : "Report type detected but intentionally deferred.",
+          reason: "Report type detected but intentionally deferred.",
         },
+
       });
 
       return NextResponse.json(
@@ -153,8 +152,8 @@ export async function POST(request: Request) {
     let securitiesUpdated = 0;
     let positionsCreated = 0;
     let positionsUpdated = 0;
-    const tradesCreated = 0;
-    const tradesUpdated = 0;
+    let tradesCreated = 0;
+    let tradesUpdated = 0;
     const failures: string[] = [];
 
     if (reportType === "TAX_LOT_POSITION_PNL") {
@@ -256,6 +255,150 @@ export async function POST(request: Request) {
         }
       }
     }
+
+    if (reportType === "TRANSACTION_ACTIVITY") {
+        const {
+          rows,
+          failures: parseFailures,
+        } = parseWellsTransactionActivityCsv(rawContent, fileName);
+
+        rowsProcessed += rows.length;
+        rowsFailed += parseFailures.length;
+        failures.push(...parseFailures);
+
+        const supportedTradeTypes = new Set(["BUY", "SELL", "SHORT", "COVER"]);
+
+        for (const trade of rows) {
+          if (!supportedTradeTypes.has(trade.tradeType || "")) {
+            continue;
+          }
+
+          if (!trade.accountNumber) {
+            rowsFailed += 1;
+            failures.push(`Missing accountNumber for trade ${trade.transactionId}`);
+            continue;
+          }
+
+          if (!trade.ticker) {
+            rowsFailed += 1;
+            failures.push(
+              `Missing ticker for trade ${trade.transactionId || trade.securityName}`
+            );
+            continue;
+          }
+
+          if (!trade.tradeDate) {
+            rowsFailed += 1;
+            failures.push(`Missing tradeDate for trade ${trade.transactionId}`);
+            continue;
+          }
+
+          if (trade.quantity == null) {
+            rowsFailed += 1;
+            failures.push(`Missing quantity for trade ${trade.transactionId}`);
+            continue;
+          }
+
+          let security = await prisma.security.findUnique({
+            where: {
+              ticker: trade.ticker,
+            },
+          });
+
+          if (!security) {
+            security = await prisma.security.create({
+              data: {
+                ticker: trade.ticker,
+                name: trade.securityName || trade.ticker,
+                wellsSecurityId: trade.wfSecId,
+                cusip: trade.cusip,
+                isin: trade.isin,
+                sedol: trade.sedol,
+              },
+            });
+
+            securitiesCreated += 1;
+          } else {
+            await prisma.security.update({
+              where: {
+                id: security.id,
+              },
+              data: {
+                name: security.name || trade.securityName || trade.ticker,
+                wellsSecurityId: security.wellsSecurityId || trade.wfSecId,
+                cusip: security.cusip || trade.cusip,
+                isin: security.isin || trade.isin,
+                sedol: security.sedol || trade.sedol,
+              },
+            });
+
+            securitiesUpdated += 1;
+          }
+
+          const matchingPosition = await prisma.position.findFirst({
+            where: {
+              securityId: security.id,
+              accountNumber: trade.accountNumber,
+              source: "WELLS_FARGO",
+              status: "ACTIVE",
+            },
+          });
+
+          const tradeData = {
+            securityId: security.id,
+            positionId: matchingPosition?.id,
+            dateTraded: new Date(trade.tradeDate),
+            shares: trade.quantity,
+            avgPrice: trade.price ?? 0,
+            tradeType: trade.tradeType,
+            settlementDate: trade.settlementDate
+              ? new Date(trade.settlementDate)
+              : undefined,
+            postDate: trade.postDate ? new Date(trade.postDate) : undefined,
+            notional:
+              trade.price != null && trade.quantity != null
+                ? trade.price * trade.quantity
+                : undefined,
+            commission: trade.commission,
+            fees: trade.fees,
+            accruedInterest: trade.accruedInterest,
+            netAmount: trade.netAmount,
+            currency: trade.currency,
+            transactionId: trade.transactionId,
+            clientReferenceId: trade.clientReferenceId,
+            source: "WELLS_FARGO",
+            sourceFileName: trade.sourceFileName,
+            sourceRowHash: trade.sourceRowHash,
+            sourceReportDate: trade.sourceReportDate
+              ? new Date(trade.sourceReportDate)
+              : undefined,
+            ingestionRunId: ingestionRun.id,
+          };
+
+          const existingTrade = await prisma.trade.findFirst({
+            where: {
+              sourceRowHash: trade.sourceRowHash,
+            },
+          });
+
+          if (existingTrade) {
+            await prisma.trade.update({
+              where: {
+                id: existingTrade.id,
+              },
+              data: tradeData,
+            });
+
+            tradesUpdated += 1;
+          } else {
+            await prisma.trade.create({
+              data: tradeData,
+            });
+
+            tradesCreated += 1;
+          }
+        }
+      }
 
     const sourceReportDate = new Date();
     const finalStatus = rowsFailed > 0 ? "COMPLETED_WITH_WARNINGS" : "COMPLETED";

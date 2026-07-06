@@ -105,6 +105,9 @@ export default function SettingsClient({
   const [isRefreshingFundamentals, setIsRefreshingFundamentals] = useState(false);
   const [fundamentalsRefreshResult, setFundamentalsRefreshResult] = useState<any | null>(null);
   const [fundamentalsRefreshError, setFundamentalsRefreshError] = useState("");
+  const [isUploadingWells, setIsUploadingWells] = useState(false);
+  const [wellsUploadResult, setWellsUploadResult] = useState<any | null>(null);
+  const [wellsUploadError, setWellsUploadError] = useState("");
 
   
 const [isRefreshingCiks, setIsRefreshingCiks] = useState(false);
@@ -160,6 +163,49 @@ const [cikRefreshError, setCikRefreshError] = useState("");
       }
     }
 
+    async function handleWellsUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  setIsUploadingWells(true);
+  setWellsUploadResult(null);
+  setWellsUploadError("");
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/ingestion/wells/manual-upload", {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+
+    const text = await response.text();
+
+    let data: any = null;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(text || "Unexpected Wells upload response.");
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || "Wells upload failed.");
+    }
+
+    setWellsUploadResult(data);
+  } catch (error) {
+    setWellsUploadError(
+      error instanceof Error ? error.message : "Wells upload failed."
+    );
+  } finally {
+    setIsUploadingWells(false);
+    event.target.value = "";
+  }
+}
 
     async function handleRefreshMarketData() {
         setIsRefreshingMarketData(true);
@@ -441,6 +487,106 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                     </div>
                   </div>
                   
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-950">
+                          Wells CSV Upload
+                        </h3>
+                        <p className="mt-1 text-sm leading-6 text-slate-500">
+                          Upload Wells tax lot or transaction activity CSV files. Upload the
+                          TaxLotDailyTD file first to refresh positions, then upload the
+                          ActTDDaily file to populate trade history.
+                        </p>
+                      </div>
+
+                      {userCanViewAuditLogs ? (
+                        <label className="shrink-0 cursor-pointer rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                          {isUploadingWells ? "Uploading..." : "Upload Wells CSV"}
+                          <input
+                            type="file"
+                            accept=".csv,text/csv"
+                            disabled={isUploadingWells}
+                            onChange={handleWellsUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      ) : (
+                        <div className="shrink-0 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
+                          Admin / Compliance only
+                        </div>
+                      )}
+                    </div>
+
+                    {wellsUploadResult ? (
+                      <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+                        <p className="font-semibold">
+                          Wells upload complete: {wellsUploadResult.reportType || "N/A"}
+                        </p>
+
+                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <span>Rows processed</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.rowsProcessed ?? "N/A"}
+                          </span>
+
+                          <span>Rows failed</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.rowsFailed ?? "N/A"}
+                          </span>
+
+                          <span>Securities created</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.securitiesCreated ?? "N/A"}
+                          </span>
+
+                          <span>Securities updated</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.securitiesUpdated ?? "N/A"}
+                          </span>
+
+                          <span>Positions created</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.positionsCreated ?? "N/A"}
+                          </span>
+
+                          <span>Positions updated</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.positionsUpdated ?? "N/A"}
+                          </span>
+
+                          <span>Trades created</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.tradesCreated ?? "N/A"}
+                          </span>
+
+                          <span>Trades updated</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.tradesUpdated ?? "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {wellsUploadError ? (
+                      <div className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
+                        {wellsUploadError}
+                      </div>
+                    ) : null}
+
+                    {wellsUploadResult?.failures?.length ? (
+                      <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-amber-200 bg-amber-50">
+                        {wellsUploadResult.failures.map((failure: string, index: number) => (
+                          <div
+                            key={`${failure}-${index}`}
+                            className="border-b border-amber-100 px-4 py-2 text-xs text-amber-800 last:border-b-0"
+                          >
+                            {failure}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                   
                   <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="flex items-start justify-between gap-4">
