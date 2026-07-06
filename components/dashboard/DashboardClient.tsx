@@ -8,6 +8,12 @@ import {
   canCreateFlags,
 } from "@/lib/client-permissions";
 
+import {
+  getDashboardStats,
+  getDisplayCurrentPrice,
+  getDisplayTotalPctChange,
+  getDisplayWap,
+} from "@/lib/dashboard/position-metrics";
 
 type DashboardClientProps = {
   positions: any[];
@@ -34,39 +40,8 @@ function formatNumber(value: number | null | undefined) {
   });
 }
 
-function isRealMarketData(marketData: any) {
-  return marketData?.marketDataSource === "FMP";
-}
-
-function getWellsImpliedPrice(position: any) {
-  const shares = Number(position.shares ?? 0);
-  const marketValue = Number(position.marketValue ?? 0);
-
-  if (!shares || !marketValue) {
-    return null;
-  }
-
-  return Math.abs(marketValue / shares);
-}
-
-function getDisplayCurrentPrice(position: any) {
-  const marketData = position.security?.marketData?.[0];
-
-  if (isRealMarketData(marketData) && marketData?.currentPrice != null) {
-    return Number(marketData.currentPrice);
-  }
-
-  if (position.source === "WELLS_FARGO") {
-    return getWellsImpliedPrice(position);
-  }
-
-  return null;
-}
-
 function formatPrice(value: number | null | undefined) {
-  if (value == null || Number.isNaN(value)) {
-    return "—";
-  }
+  if (value == null || Number.isNaN(value)) return "—";
 
   return value.toLocaleString("en-US", {
     style: "currency",
@@ -75,6 +50,17 @@ function formatPrice(value: number | null | undefined) {
     maximumFractionDigits: 2,
   });
 }
+
+function formatPercent(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return "—";
+
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
+
+
+
+
 
 
 function pnlClass(value: number | null | undefined) {
@@ -210,10 +196,12 @@ function PositionGrid({
         </div>
 
         {positions.map((position) => {
-          const marketData = position.security.marketData?.[0];
-          const displayCurrentPrice = getDisplayCurrentPrice(position);
+
           const latestComment = position.comments?.[0];
           const openFlag = position.flags?.[0];
+          const currentPrice = getDisplayCurrentPrice(position);
+          const wap = getDisplayWap(position);
+          const totalPctChange = getDisplayTotalPctChange(position);
 
           return (
             <div
@@ -240,7 +228,7 @@ function PositionGrid({
 
               
               <div className="font-medium">
-                {formatPrice(displayCurrentPrice)}
+                {formatPrice(currentPrice)}
               </div>
 
 
@@ -262,15 +250,13 @@ function PositionGrid({
 
               <div>{formatNumber(position.shares)}</div>
 
-              <div>{position.wap != null ? `$${position.wap.toFixed(2)}` : "—"}</div>
+              <div>{formatPrice(wap)}</div>
 
-              <div className={`font-semibold ${pnlClass(position.totalPctChange)}`}>
-                {position.totalPctChange != null
-                  ? `${position.totalPctChange >= 0 ? "+" : ""}${
-                      position.totalPctChange
-                    }%`
-                  : "—"}
+              
+              <div className={`font-semibold ${pnlClass(totalPctChange)}`}>
+                {formatPercent(totalPctChange)}
               </div>
+
 
               <div>
                <button
@@ -322,11 +308,14 @@ function TickerDetailPanel({
 }) {
   if (!position) return null;
 
+
   const security = position.security;
-  const marketData = security.marketData?.[0];
   const openFlag = position.flags?.[0];
   const latestComment = position.comments?.[0];
-  const displayCurrentPrice = getDisplayCurrentPrice(position);
+  const currentPrice = getDisplayCurrentPrice(position);
+  const wap = getDisplayWap(position);
+  const totalPctChange = getDisplayTotalPctChange(position);
+
 
   return (
     <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-xl">
@@ -363,15 +352,15 @@ function TickerDetailPanel({
             <p className="text-xs text-slate-500">Current Price</p>
             
             <p className="mt-1 font-semibold text-slate-950">
-              {formatPrice(displayCurrentPrice)}
+              {formatPrice(currentPrice)}
             </p>
 
           </div>
 
           <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">WAP / Point</p>
+            <p className="text-xs text-slate-500">WAP / Point</p>                      
             <p className="mt-1 font-semibold text-slate-950">
-              {position.wap != null ? `$${position.wap.toFixed(2)}` : "—"}
+              {formatPrice(wap)}
             </p>
           </div>
 
@@ -383,13 +372,9 @@ function TickerDetailPanel({
           </div>
 
           <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Total % Change</p>
-            <p className={`mt-1 font-semibold ${pnlClass(position.totalPctChange)}`}>
-              {position.totalPctChange != null
-                ? `${position.totalPctChange >= 0 ? "+" : ""}${
-                    position.totalPctChange
-                  }%`
-                : "—"}
+            <p className="text-xs text-slate-500">Total % Change</p>           
+            <p className={`mt-1 font-semibold ${pnlClass(totalPctChange)}`}>
+              {formatPercent(totalPctChange)}
             </p>
           </div>
         </div>
@@ -1002,14 +987,22 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
         activeFilter === "All" ||
         (activeFilter === "Long" && position.side === "LONG") ||
         (activeFilter === "Short" && position.side === "SHORT") ||
-        (activeFilter === "Winners" && (position.totalPctChange ?? 0) >= 0) ||
-        (activeFilter === "Losers" && (position.totalPctChange ?? 0) < 0) ||
+        (activeFilter === "Winners" &&
+          (getDisplayTotalPctChange(position) ?? 0) >= 0) ||
+        (activeFilter === "Losers" &&
+          (getDisplayTotalPctChange(position) ?? 0) < 0) ||
         (activeFilter === "Flagged" && position.flags?.length > 0) ||
         position.security?.sector?.toLowerCase().includes(activeFilter.toLowerCase());
 
       return matchesQuery && matchesFilter;
     })
-    .sort((a, b) => (b.totalPctChange ?? 0) - (a.totalPctChange ?? 0));
+    
+    .sort(
+      (a, b) =>
+        (getDisplayTotalPctChange(b) ?? 0) -
+        (getDisplayTotalPctChange(a) ?? 0)
+    );
+
 }, [localPositions, query, activeFilter]);
 
 const longPositions = useMemo(
@@ -1022,26 +1015,14 @@ const shortPositions = useMemo(
   [filteredPositions]
 );
 
-  const totalMarketValue = localPositions.reduce(
-    (sum, position) => sum + (position.marketValue ?? 0),
-    0
-  );
+ 
+const {
+  totalMarketValue,
+  totalUnrealizedPnl,
+  dayPnl,
+  commentedItems,
+} = getDashboardStats(localPositions);
 
-  const weightedPnlProxy = localPositions.reduce(
-    (sum, position) =>
-      sum + ((position.marketValue ?? 0) * (position.totalPctChange ?? 0)) / 100,
-    0
-  );
-
-  const dayPnl = localPositions.reduce(
-    (sum, position) =>
-      sum + ((position.marketValue ?? 0) * (position.dayPctChange ?? 0)) / 100,
-    0
-  );
-
-  const commentedItems = localPositions.filter(
-    (position) => position.comments?.length > 0
-  ).length;
 
   async function handleSaveComment(payload: {
   securityId: string;
@@ -1215,7 +1196,7 @@ async function handleSaveFlag(payload: {
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">FMP market data</Badge>
+              <Badge tone="green">Wells-derived metrics</Badge>
               <CurrentUserPill />
             </div>
           </header>
@@ -1244,11 +1225,13 @@ async function handleSaveFlag(payload: {
                     value={formatMoney(totalMarketValue)}
                     sub={`${localPositions.length} active positions`}
                   />
+                  
                   <StatCard
-                    label="Position P&L Proxy"
-                    value={formatMoney(weightedPnlProxy)}
-                    sub="Weighted by total % change"
+                    label="Unrealized P&L"
+                    value={formatMoney(totalUnrealizedPnl)}
+                    sub="From Wells tax lot data"
                   />
+
                   <StatCard
                     label="Day P&L"
                     value={formatMoney(dayPnl)}
