@@ -8,12 +8,14 @@ import {
   canCreateFlags,
 } from "@/lib/client-permissions";
 
-
 import {
   getDashboardStats,
+  getDisplayCostBasis,
   getDisplayCurrentPrice,
+  getDisplayMarketValue,
   getDisplayPortfolioPct,
   getDisplayTotalPctChange,
+  getDisplayUnrealizedPnl,
   getDisplayWap,
 } from "@/lib/dashboard/position-metrics";
 
@@ -512,6 +514,7 @@ function TickerDetailPanel({
     </aside>
   );
 }
+
 function MarketDataModal({
   position,
   onClose,
@@ -519,12 +522,16 @@ function MarketDataModal({
   position: any | null;
   onClose: () => void;
 }) {
+
   if (!position) return null;
 
   const security = position.security;
   const marketData = security.marketData?.[0];
+ 
+
 
   const rows = [
+
     ["VWAP", marketData?.vwap != null ? `$${marketData.vwap.toFixed(2)}` : "N/A"],
     [
       "52 Week High",
@@ -1334,10 +1341,14 @@ async function handleSaveFlag(payload: {
             />
 
 
+           
+         
             <MarketDataModal
               position={marketDataPosition}
               onClose={() => setMarketDataPosition(null)}
             />
+
+
             <CommentModal
               position={commentPosition}
               onClose={() => setCommentPosition(null)}

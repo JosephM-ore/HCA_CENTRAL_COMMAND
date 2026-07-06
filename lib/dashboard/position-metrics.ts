@@ -15,6 +15,30 @@ function getNumber(value: unknown) {
 
   return numberValue;
 }
+export function getDisplayCostBasis(position: DashboardMetricPosition) {
+  if (position.source !== "WELLS_FARGO") {
+    return null;
+  }
+
+  return getNumber(position.costBasis);
+}
+
+export function getDisplayMarketValue(position: DashboardMetricPosition) {
+  if (position.source !== "WELLS_FARGO") {
+    return null;
+  }
+
+  return getNumber(position.marketValue);
+}
+
+export function getDisplayUnrealizedPnl(position: DashboardMetricPosition) {
+  if (position.source !== "WELLS_FARGO") {
+    return null;
+  }
+
+  return getWellsUnrealizedPnl(position);
+}
+
 export function getDisplayPortfolioPct(
   position: DashboardMetricPosition,
   positions: DashboardMetricPosition[]
