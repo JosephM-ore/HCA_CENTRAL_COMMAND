@@ -56,7 +56,35 @@ export default async function WatchlistPage() {
     ],
   });
 
-  const serializedEntries = JSON.parse(JSON.stringify(entries));
+  const portfolioSecurities = await prisma.security.findMany({
+    where: {
+      positions: {
+        some: {
+          status: "ACTIVE",
+          source: "WELLS_FARGO",
+        },
+      },
+    },
+    orderBy: {
+      ticker: "asc",
+    },
+    select: {
+      id: true,
+      ticker: true,
+      name: true,
+      sector: true,
+    },
+  });
 
-  return <WatchlistClient initialEntries={serializedEntries} />;
+  const serializedEntries = JSON.parse(JSON.stringify(entries));
+  const serializedPortfolioSecurities = JSON.parse(
+    JSON.stringify(portfolioSecurities)
+  );
+
+  return (
+    <WatchlistClient
+      initialEntries={serializedEntries}
+      portfolioSecurities={serializedPortfolioSecurities}
+    />
+  );
 }

@@ -7,8 +7,10 @@ import {
   canEditWatchlist,
 } from "@/lib/client-permissions";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
+
 type WatchlistClientProps = {
   initialEntries: any[];
+  portfolioSecurities: any[];
 };
 
 function Badge({
@@ -508,10 +510,13 @@ function WatchlistDetailPanel({
     </aside>
   );
 }
+
+
 function AddStockModal({
   open,
   onClose,
   onAdd,
+  portfolioSecurities,
 }: {
   open: boolean;
   onClose: () => void;
@@ -521,7 +526,10 @@ function AddStockModal({
     targetPrice: string;
     comment: string;
   }) => Promise<void>;
+  portfolioSecurities: any[];
 }) {
+
+
   const [ticker, setTicker] = useState("");
   const [side, setSide] = useState("LONG");
   const [targetPrice, setTargetPrice] = useState("");
@@ -589,6 +597,28 @@ function AddStockModal({
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
             placeholder="Ticker, e.g. AMD"
           />
+
+          {portfolioSecurities.length ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Current Portfolio
+              </p>
+
+              <div className="flex max-h-32 flex-wrap gap-2 overflow-auto">
+                {portfolioSecurities.map((security: any) => (
+                  <button
+                    key={security.id}
+                    type="button"
+                    onClick={() => setTicker(security.ticker)}
+                    className="rounded-xl bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+                    title={security.name}
+                  >
+                    {security.ticker}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <select
             value={side}
@@ -901,6 +931,7 @@ function CommentModal({
 }
 export default function WatchlistClient({
   initialEntries,
+  portfolioSecurities,
 }: WatchlistClientProps) {
   const [entries, setEntries] = useState<any[]>(initialEntries);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -1289,11 +1320,14 @@ async function handleRemoveEntry(entry: any) {
       </div>
 
 
+            
       <AddStockModal
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         onAdd={handleAddEntry}
+        portfolioSecurities={portfolioSecurities}
       />
+
       <EditWatchlistModal
         entry={editingEntry}
         onClose={() => setEditingEntry(null)}

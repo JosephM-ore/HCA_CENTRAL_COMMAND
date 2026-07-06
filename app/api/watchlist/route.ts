@@ -3,6 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canEditWatchlist } from "@/lib/permissions";
 
+function formatPriceForComment(value: number | null) {
+  if (value == null) return "—";
+
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+
 export async function GET() {
   try {
     const entries = await prisma.watchlistEntry.findMany({
@@ -165,57 +177,75 @@ export async function POST(request: Request) {
       },
     });
 
-    let entryWithComment = entry;
+    if (parsedTargetPrice != null) {
+  await prisma.comment.create({
+    data: {
+      securityId: security.id,
+      watchlistEntryId: entry.id,
+      authorId: author.id,
+      tag: "PT",
+      content: `Original price target set to ${formatPriceForComment(
+        parsedTargetPrice
+      )}.`,
+    },
+  });
+}
 
-    if (comment && comment.trim()) {
-      await prisma.comment.create({
-        data: {
-          securityId: security.id,
-          watchlistEntryId: entry.id,
-          authorId: author.id,
-          tag: "COMMENT",
-          content: comment.trim(),
-        },
-      });
+if (comment && comment.trim()) {
+  await prisma.comment.create({
+    data: {
+      securityId: security.id,
+      watchlistEntryId: entry.id,
+      authorId: author.id,
+      tag: "COMMENT",
+      content: comment.trim(),
+    },
+  });
+}
 
-      entryWithComment = await prisma.watchlistEntry.findUniqueOrThrow({
-        where: {
-          id: entry.id,
-        },
-        include: {
-          security: {
-            include: {
-              marketData: {
-                take: 1,
-                orderBy: {
-                  updatedAt: "desc",
-                },
-              },
-            },
-          },
-          comments: {
-            include: {
-              author: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  role: true,
-                },
-              },
-            },
-            orderBy: {
-              createdAt: "desc",
-            },
-          },
-          flags: {
-            where: {
-              status: "OPEN",
-            },
+const entryWithComment = await prisma.watchlistEntry.findUniqueOrThrow({
+  where: {
+    id: entry.id,
+  },
+  include: {
+    security: {
+      include: {
+        marketData: {
+          take: 1,
+          orderBy: {
+            updatedAt: "desc",
           },
         },
-      });
-    }
+      },
+    },
+    comments: {
+      where: {
+        archivedAt: null,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    },
+    flags: {
+      where: {
+        status: "OPEN",
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    },
+  },
+});
 
     await prisma.auditLog.create({
       data: {

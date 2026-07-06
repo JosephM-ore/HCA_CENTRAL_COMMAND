@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { canEditWatchlist } from "@/lib/permissions";
 
 function parseTargetPrice(value: unknown) {
   if (value === null || value === undefined || value === "") {
@@ -25,6 +27,24 @@ function parseNotes(value: unknown) {
   return textValue.length > 0 ? textValue : null;
 }
 
+function formatPriceForComment(value: number | null) {
+  if (value == null) return "—";
+
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function targetPriceChanged(oldValue: number | null, newValue: number | null) {
+  if (oldValue == null && newValue == null) return false;
+  if (oldValue == null || newValue == null) return true;
+
+  return Math.abs(oldValue - newValue) > 0.000001;
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -33,11 +53,38 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
+    
+    const author = await getCurrentUser();
+
+    if (!author) {
+      return NextResponse.json(
+        {
+          error: "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!canEditWatchlist(author.role)) {
+      return NextResponse.json(
+        {
+          error: "You do not have permission to edit the watchlist.",
+        },
+        { status: 403 }
+      );
+    }
+
+
+   
     const existingEntry = await prisma.watchlistEntry.findUnique({
       where: {
         id,
       },
+      include: {
+        security: true,
+      },
     });
+
 
     if (!existingEntry) {
       return NextResponse.json(
@@ -76,44 +123,93 @@ export async function PATCH(
     }
 
     const notes = parseNotes(body.notes);
+    const didTargetPriceChange = targetPriceChanged(
+      existingEntry.targetPrice,
+      targetPrice
+    );
 
-    const updatedEntry = await prisma.watchlistEntry.update({
-      where: {
-        id,
+    const ptChangeComment = parseNotes(body.ptChangeComment);
+
+    if (didTargetPriceChange && !ptChangeComment) {
+      return NextResponse.json(
+        {
+          error: "Changing price target requires a PT change comment.",
+        },
+        { status: 400 }
+      );
+    }
+
+    
+await prisma.watchlistEntry.update({
+  where: {
+    id,
+  },
+  data: {
+    side,
+    targetPrice,
+    notes,
+  },
+});
+
+if (didTargetPriceChange) {
+  await prisma.comment.create({
+    data: {
+      securityId: existingEntry.securityId,
+      watchlistEntryId: existingEntry.id,
+      authorId: author.id,
+      tag: "PT",
+      content: `Price target changed from ${formatPriceForComment(
+        existingEntry.targetPrice
+      )} to ${formatPriceForComment(targetPrice)}. Reason: ${ptChangeComment}`,
+    },
+  });
+}
+
+  const updatedEntry = await prisma.watchlistEntry.findUniqueOrThrow({
+    where: {
+      id,
+    },
+    include: {
+      security: {
+        include: {
+          marketData: {
+            orderBy: {
+              updatedAt: "desc",
+            },
+            take: 1,
+          },
+        },
       },
-      data: {
-        side,
-        targetPrice,
-        notes,
-      },
-      include: {
-        security: {
-          include: {
-            marketData: {
-              orderBy: {
-                updatedAt: "desc",
-              },
-              take: 1,
+      comments: {
+        where: {
+          archivedAt: null,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
             },
           },
         },
-        comments: {
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 5,
-        },
-        flags: {
-          where: {
-            status: "OPEN",
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 5,
+        orderBy: {
+          createdAt: "desc",
         },
       },
-    });
+      flags: {
+        where: {
+          status: "OPEN",
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      },
+    },
+  });
+
 
     return NextResponse.json({
       watchlistEntry: updatedEntry,
@@ -137,6 +233,25 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const author = await getCurrentUser();
+
+    if (!author) {
+      return NextResponse.json(
+        {
+          error: "Authentication required.",
+        },
+        { status: 401 }
+      );
+    }
+
+    if (!canEditWatchlist(author.role)) {
+      return NextResponse.json(
+        {
+          error: "You do not have permission to edit the watchlist.",
+        },
+        { status: 403 }
+      );
+    }
 
     const existingEntry = await prisma.watchlistEntry.findUnique({
       where: {
