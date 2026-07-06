@@ -680,6 +680,7 @@ function EditWatchlistModal({
     side: string;
     targetPrice: string;
     notes: string;
+    ptChangeComment: string;
   }) => Promise<void>;
 }) {
   const [side, setSide] = useState("LONG");
@@ -687,42 +688,53 @@ function EditWatchlistModal({
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [ptChangeComment, setPtChangeComment] = useState("");
+  const originalTargetPrice = entry?.targetPrice != null ? String(entry.targetPrice) : "";
+  const targetPriceChanged = String(targetPrice || "") !== originalTargetPrice;
 
+  
   useEffect(() => {
     if (!entry) return;
 
     setSide(entry.side || "LONG");
-    setTargetPrice(
-      entry.targetPrice != null ? String(entry.targetPrice) : ""
-    );
+    setTargetPrice(entry.targetPrice != null ? String(entry.targetPrice) : "");
     setNotes(entry.notes || "");
+    setPtChangeComment("");
     setError("");
   }, [entry]);
 
+
   if (!entry) return null;
 
-  async function handleSave() {
-    setError("");
-    setIsSaving(true);
+    async function handleSave() {
+      setError("");
 
-    try {
-      await onSave(entry, {
-        side,
-        targetPrice,
-        notes,
-      });
+      if (targetPriceChanged && !ptChangeComment.trim()) {
+        setError("Please enter a reason for changing the price target.");
+        return;
+      }
 
-      onClose();
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to update watchlist item."
-      );
-    } finally {
-      setIsSaving(false);
+      setIsSaving(true);
+
+      try {
+        await onSave(entry, {
+          side,
+          targetPrice,
+          notes,
+          ptChangeComment,
+        });
+
+        onClose();
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Failed to update watchlist item."
+        );
+      } finally {
+        setIsSaving(false);
+      }
     }
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
@@ -761,6 +773,20 @@ function EditWatchlistModal({
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
             placeholder="Buy PT / Short PT"
           />
+
+          {targetPriceChanged ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+              <label className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Reason for PT Change Required
+              </label>
+              <textarea
+                value={ptChangeComment}
+                onChange={(event) => setPtChangeComment(event.target.value)}
+                className="mt-2 h-24 w-full resize-none rounded-2xl border border-amber-200 bg-white p-4 text-sm outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="Explain why the price target is changing..."
+              />
+            </div>
+          ) : null}
 
           <textarea
             value={notes}
@@ -1049,14 +1075,17 @@ const shortEntries = useMemo(
       })
     );
   }
+
   async function handleSaveEdit(
-  entry: any,
-  payload: {
-    side: string;
-    targetPrice: string;
-    notes: string;
-  }
-) {
+    entry: any,
+    payload: {
+      side: string;
+      targetPrice: string;
+      notes: string;
+      ptChangeComment: string;
+    }
+  ) {
+
   const response = await fetch(`/api/watchlist/${entry.id}`, {
     method: "PATCH",
     headers: {
@@ -1099,9 +1128,7 @@ async function handleRemoveEntry(entry: any) {
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || data.detail || "Failed to remove watchlist item.");
-    }
+    
 
     if (!response.ok) {
   throw new Error(data.error || data.detail || "Failed to remove watchlist item.");
