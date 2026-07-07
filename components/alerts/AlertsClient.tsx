@@ -51,6 +51,16 @@ function getContextLabel(flag: any) {
   return "Security";
 }
 
+function parseFlagMetadata(flag: any) {
+  if (!flag.metadataJson) return null;
+
+  try {
+    return JSON.parse(flag.metadataJson);
+  } catch {
+    return null;
+  }
+}
+
 function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return "—";
 
@@ -117,7 +127,12 @@ function AlertCard({
           </p>
 
           <p className="mt-2 text-xs text-slate-400">
-            Created {formatDateTime(flag.createdAt)} by{" "}
+            Created{" "}
+            <LocalDateTime
+              value={flag.createdAt}
+              className="text-xs text-slate-400"
+            />{" "}
+            by{" "}
             {flag.createdBy?.name || flag.createdBy?.email || "Unknown"}
           </p>
         </div>
@@ -148,7 +163,149 @@ function AlertCard({
     </div>
   );
 }
+function TradeReconciliationAlertCard({
+  flag,
+  onResolve,
+  canResolve,
+}: {
+  flag: any;
+  onResolve: (flagId: string) => Promise<void>;
+  canResolve: boolean;
+}) {
+  const metadata = parseFlagMetadata(flag);
+  const differences = metadata?.differences || {};
+  const isResolved = flag.status === "RESOLVED";
 
+  return (
+    <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="amber">Trade Reconciliation</Badge>
+
+            <Badge tone={priorityTone(flag.priority) as any}>
+              {flag.priority}
+            </Badge>
+
+            <Badge tone={statusTone(flag.status) as any}>
+              {flag.status}
+            </Badge>
+
+            <Badge>{getContextLabel(flag)}</Badge>
+          </div>
+
+          <h3 className="mt-3 text-lg font-semibold text-slate-950">
+            {flag.security?.ticker || metadata?.ticker || "N/A"} trade needs review
+          </h3>
+
+          <p className="mt-1 text-sm leading-6 text-slate-700">
+            {flag.description ||
+              "Manual trade and Wells transaction appear similar but differ. Review required."}
+          </p>
+
+          <p className="mt-2 text-xs text-slate-500">
+            Created{" "}
+            <LocalDateTime
+              value={flag.createdAt}
+              className="text-xs text-slate-500"
+            />{" "}
+            by {flag.createdBy?.name || flag.createdBy?.email || "Unknown"}
+          </p>
+        </div>
+
+        {isResolved ? (
+          <button
+            disabled
+            className="shrink-0 cursor-not-allowed rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-400"
+          >
+            Resolved
+          </button>
+        ) : canResolve ? (
+          <button
+            onClick={() => onResolve(flag.id)}
+            className="shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Resolve
+          </button>
+        ) : (
+          <button
+            disabled
+            className="shrink-0 cursor-not-allowed rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-400"
+          >
+            Read Only
+          </button>
+        )}
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-2xl bg-white p-4 ring-1 ring-amber-100">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Manual Trade
+          </p>
+
+          <div className="mt-3 space-y-2 text-slate-700">
+            <div className="flex justify-between gap-4">
+              <span>Trade ID</span>
+              <span className="truncate font-semibold text-slate-950">
+                {metadata?.manualTradeId || "—"}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span>Shares</span>
+              <span className="font-semibold text-slate-950">
+                {differences.manualShares ?? "—"}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span>Avg Price</span>
+              <span className="font-semibold text-slate-950">
+                {differences.manualAvgPrice ?? "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white p-4 ring-1 ring-amber-100">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Wells Trade
+          </p>
+
+          <div className="mt-3 space-y-2 text-slate-700">
+            <div className="flex justify-between gap-4">
+              <span>Trade ID</span>
+              <span className="truncate font-semibold text-slate-950">
+                {metadata?.wellsTradeId || "—"}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span>Shares</span>
+              <span className="font-semibold text-slate-950">
+                {differences.wellsShares ?? "—"}
+              </span>
+            </div>
+
+            <div className="flex justify-between gap-4">
+              <span>Avg Price</span>
+              <span className="font-semibold text-slate-950">
+                {differences.wellsAvgPrice ?? "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {metadata?.reason ? (
+        <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-slate-700 ring-1 ring-amber-100">
+          <span className="font-semibold text-slate-950">Reason:</span>{" "}
+          {metadata.reason}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 export default function AlertsClient({ initialFlags }: AlertsClientProps) {
   const [query, setQuery] = useState("");
   const [flags, setFlags] = useState<any[]>(initialFlags);
@@ -173,6 +330,7 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
     return flags.filter((flag) => {
       const searchable = [
         flag.security?.ticker,
+        flag.metadataJson,
         flag.security?.name,
         flag.flagType,
         flag.description,
@@ -373,14 +531,23 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
               </div>
               <div className="space-y-3">
                 {filteredFlags.length ? (
-                  filteredFlags.map((flag) => (
-                    <AlertCard
-                      key={flag.id}
-                      flag={flag}
-                      onResolve={handleResolveFlag}
-                      canResolve={userCanResolveFlags}
-                    />
-                  ))
+                  filteredFlags.map((flag) =>
+                    flag.flagType === "Trade Reconciliation Review" ? (
+                      <TradeReconciliationAlertCard
+                        key={flag.id}
+                        flag={flag}
+                        onResolve={handleResolveFlag}
+                        canResolve={userCanResolveFlags}
+                      />
+                    ) : (
+                      <AlertCard
+                        key={flag.id}
+                        flag={flag}
+                        onResolve={handleResolveFlag}
+                        canResolve={userCanResolveFlags}
+                      />
+                    )
+                  )
                 ) : (
                   <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
                     No alerts matched your search.

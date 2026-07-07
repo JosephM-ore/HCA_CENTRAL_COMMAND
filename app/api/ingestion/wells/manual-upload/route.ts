@@ -13,6 +13,41 @@ function isRawPdfContent(content: string): boolean {
   return content.trimStart().startsWith("%PDF-");
 }
 
+
+async function getSystemFlagUserId() {
+  const adminUser = await prisma.user.findFirst({
+    where: {
+      role: "ADMIN",
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  if (adminUser) return adminUser.id;
+
+  const complianceUser = await prisma.user.findFirst({
+    where: {
+      role: "COMPLIANCE",
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  if (complianceUser) return complianceUser.id;
+
+  const anyUser = await prisma.user.findFirst({
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  return anyUser?.id ?? null;
+}
+
+
+
 async function completeIngestionRun(params: {
   id: string;
   status: string;
@@ -483,12 +518,27 @@ export async function POST(request: Request) {
               : undefined,
             ingestionRunId: ingestionRun.id,
           };
+
+          const existingWellsTrade = trade.sourceRowHash
+            ? await prisma.trade.findFirst({
+                where: {
+                  sourceRowHash: trade.sourceRowHash,
+                  source: "WELLS_FARGO",
+                },
+              })
+            : null;
+
           const pendingManualTrades = await prisma.trade.findMany({
             where: {
               securityId: security.id,
               source: "MANUAL",
               reconciliationStatus: "MANUAL_PENDING",
               isHidden: false,
+              ...(matchingPosition?.id
+                ? {
+                    positionId: matchingPosition.id,
+                  }
+                : {}),
             },
           });
 
@@ -503,16 +553,32 @@ export async function POST(request: Request) {
           });
 
           if (matchResult.status === "EXACT") {
-            const officialTrade = await prisma.trade.create({
-              data: {
-                ...tradeData,
-                source: "WELLS_FARGO",
-                reconciliationStatus: "MATCHED",
-                reconciledAt: new Date(),
-                matchedTradeId: matchResult.trade.id,
-                reconciliationNotes: matchResult.reason,
-              },
-            });
+            const officialTrade = existingWellsTrade
+              ? await prisma.trade.update({
+                  where: {
+                    id: existingWellsTrade.id,
+                  },
+                  data: {
+                    ...tradeData,
+                    source: "WELLS_FARGO",
+                    reconciliationStatus: "MATCHED",
+                    reconciledAt: new Date(),
+                    matchedTradeId: matchResult.trade.id,
+                    reconciliationNotes: matchResult.reason,
+                    isHidden: false,
+                  },
+                })
+              : await prisma.trade.create({
+                  data: {
+                    ...tradeData,
+                    source: "WELLS_FARGO",
+                    reconciliationStatus: "MATCHED",
+                    reconciledAt: new Date(),
+                    matchedTradeId: matchResult.trade.id,
+                    reconciliationNotes: matchResult.reason,
+                    isHidden: false,
+                  },
+                });
 
             await prisma.trade.update({
               where: {
@@ -527,21 +593,41 @@ export async function POST(request: Request) {
               },
             });
 
-            tradesCreated += 1;
-            tradesUpdated += 1;
+            if (existingWellsTrade) {
+              tradesUpdated += 2;
+            } else {
+              tradesCreated += 1;
+              tradesUpdated += 1;
+            }
+
             continue;
           }
 
           if (matchResult.status === "SIMILAR") {
-            const officialTrade = await prisma.trade.create({
-              data: {
-                ...tradeData,
-                source: "WELLS_FARGO",
-                reconciliationStatus: "REVIEW_REQUIRED",
-                matchedTradeId: matchResult.trade.id,
-                reconciliationNotes: matchResult.reason,
-              },
-            });
+            const officialTrade = existingWellsTrade
+              ? await prisma.trade.update({
+                  where: {
+                    id: existingWellsTrade.id,
+                  },
+                  data: {
+                    ...tradeData,
+                    source: "WELLS_FARGO",
+                    reconciliationStatus: "REVIEW_REQUIRED",
+                    matchedTradeId: matchResult.trade.id,
+                    reconciliationNotes: matchResult.reason,
+                    isHidden: false,
+                  },
+                })
+              : await prisma.trade.create({
+                  data: {
+                    ...tradeData,
+                    source: "WELLS_FARGO",
+                    reconciliationStatus: "REVIEW_REQUIRED",
+                    matchedTradeId: matchResult.trade.id,
+                    reconciliationNotes: matchResult.reason,
+                    isHidden: false,
+                  },
+                });
 
             await prisma.trade.update({
               where: {
@@ -554,37 +640,76 @@ export async function POST(request: Request) {
               },
             });
 
-            const systemUser = await prisma.user.findFirst({
-              where: {
-                role: "ADMIN",
-              },
-            });
+            const flagUserId = await getSystemFlagUserId();
 
-            if (systemUser) {
-              await prisma.flag.create({
-                data: {
+            if (flagUserId) {
+              const existingReviewFlag = await prisma.flag.findFirst({
+                where: {
                   securityId: security.id,
                   positionId: matchingPosition?.id,
-                  flagType: "Trade Reconciliation Review",
-                  priority: "HIGH",
                   status: "OPEN",
-                  description:
-                    "Manual trade and Wells transaction appear similar but differ. Review required.",
-                  createdById: systemUser.id,
-                  metadataJson: JSON.stringify({
-                    manualTradeId: matchResult.trade.id,
-                    wellsTradeId: officialTrade.id,
-                    reason: matchResult.reason,
-                    differences: matchResult.differences,
-                  }),
+                  flagType: "Trade Reconciliation Review",
+                  metadataJson: {
+                    contains: matchResult.trade.id,
+                  },
                 },
               });
+
+              if (!existingReviewFlag) {
+                await prisma.flag.create({
+                  data: {
+                    securityId: security.id,
+                    positionId: matchingPosition?.id,
+                    flagType: "Trade Reconciliation Review",
+                    priority: "HIGH",
+                    status: "OPEN",
+                    description:
+                      "Manual trade and Wells transaction appear similar but differ. Review required.",
+                    createdById: flagUserId,
+                    metadataJson: JSON.stringify({
+                      manualTradeId: matchResult.trade.id,
+                      wellsTradeId: officialTrade.id,
+                      wellsTransactionId: trade.transactionId,
+                      ticker: trade.ticker,
+                      tradeType: trade.tradeType,
+                      reason: matchResult.reason,
+                      differences: matchResult.differences,
+                    }),
+                  },
+                });
+              }
+            } else {
+              failures.push(
+                `Could not create reconciliation flag for ${
+                  trade.ticker || trade.securityName
+                }: no user found.`
+              );
             }
 
-            tradesCreated += 1;
+            if (existingWellsTrade) {
+              tradesUpdated += 2;
+            } else {
+              tradesCreated += 1;
+              tradesUpdated += 1;
+            }
+
+            continue;
+          }
+
+          if (existingWellsTrade) {
+            await prisma.trade.update({
+              where: {
+                id: existingWellsTrade.id,
+              },
+              data: tradeData,
+            });
+
             tradesUpdated += 1;
             continue;
           }
+
+
+         
 
           const existingTrade = await prisma.trade.findFirst({
             where: {

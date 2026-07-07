@@ -49,7 +49,12 @@ export async function POST(request: Request) {
     const securityId = String(body.securityId || "").trim();
     const positionId = body.positionId ? String(body.positionId) : null;
     const tradeType = parseTradeType(body.tradeType);
-    const shares = parseNumber(body.shares, "Shares");
+    const rawShares = parseNumber(body.shares, "Shares");
+
+    const shares =
+      tradeType === "SELL" || tradeType === "SHORT"
+        ? -Math.abs(rawShares)
+        : Math.abs(rawShares);
     const avgPrice = parseNumber(body.avgPrice, "Average price");
     const dateTraded = body.dateTraded ? new Date(body.dateTraded) : new Date();
     const comment = body.comment ? String(body.comment).trim() : null;

@@ -517,7 +517,7 @@ function TickerDetailPanel({
 
                   <span>{formatPrice(trade.avgPrice)}</span>
 
-                  <span>
+                  <span className="flex flex-col items-start gap-1">
                     {trade.source === "MANUAL" ? (
                       <Badge tone="amber">Manual</Badge>
                     ) : trade.source === "WELLS_FARGO" ? (
@@ -525,6 +525,14 @@ function TickerDetailPanel({
                     ) : (
                       <Badge tone="slate">{trade.source || "Unknown"}</Badge>
                     )}
+
+                    {trade.reconciliationStatus === "REVIEW_REQUIRED" ? (
+                      <Badge tone="red">Review</Badge>
+                    ) : trade.reconciliationStatus === "MANUAL_PENDING" ? (
+                      <Badge tone="amber">Pending</Badge>
+                    ) : trade.reconciliationStatus === "MATCHED" ? (
+                      <Badge tone="blue">Matched</Badge>
+                    ) : null}
                   </span>
 
                   <span
@@ -1655,7 +1663,7 @@ async function handleSaveFlag(payload: {
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search ticker, company, side, sector, comments, flags..."
+                    placeholder="Search ticker, company, side, sector, flags..."
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
@@ -1688,9 +1696,7 @@ async function handleSaveFlag(payload: {
                     Showing {filteredPositions.length} of {localPositions.length}
                   </span>
 
-                  <button className="rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">
-                    Sort: Total % Change
-                  </button>
+                  
                 </div>
                 </div>
 
