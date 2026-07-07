@@ -339,7 +339,7 @@ function TickerDetailPanel({
     useEffect(() => {
     setShowAllTrades(false);
   }, [position?.id]);
-  
+
   if (!position) return null;
 
   const security = position.security;
@@ -493,12 +493,12 @@ function TickerDetailPanel({
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 text-xs">
             <div className="grid grid-cols-6 gap-2 bg-slate-50 px-3 py-3 font-semibold uppercase tracking-wide text-slate-500">
-              <span>Ticker</span>
               <span>Date Traded</span>
               <span>Type</span>
               <span>Shares</span>
               <span>Avg Price</span>
               <span>Source</span>
+              <span>Note</span>
             </div>
 
             
@@ -509,8 +509,6 @@ function TickerDetailPanel({
                   key={trade.id}
                   className="grid grid-cols-6 items-center gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
                 >
-                  <span className="font-semibold">{security.ticker}</span>
-
                   <span>{formatDate(trade.dateTraded)}</span>
 
                   <span>{trade.tradeType || "—"}</span>
@@ -527,6 +525,13 @@ function TickerDetailPanel({
                     ) : (
                       <Badge tone="slate">{trade.source || "Unknown"}</Badge>
                     )}
+                  </span>
+
+                  <span
+                    title={trade.comment || ""}
+                    className="truncate text-slate-500"
+                  >
+                    {trade.comment || "—"}
                   </span>
                 </div>
               ))
