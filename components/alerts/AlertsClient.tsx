@@ -55,7 +55,6 @@ function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return "—";
 
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
     month: "numeric",
     day: "numeric",
     year: "numeric",

@@ -86,7 +86,6 @@ function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return "—";
 
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
     month: "numeric",
     day: "numeric",
     year: "numeric",
@@ -94,7 +93,6 @@ function formatDateTime(value: string | Date | null | undefined) {
     minute: "2-digit",
   }).format(new Date(value));
 }
-
 function pctClass(value: number | null | undefined) {
   if (value == null) return "text-slate-500";
   return value >= 0 ? "text-emerald-600" : "text-rose-600";

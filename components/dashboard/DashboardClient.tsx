@@ -104,7 +104,6 @@ function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return "—";
 
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
     month: "numeric",
     day: "numeric",
     year: "numeric",
@@ -112,6 +111,7 @@ function formatDateTime(value: string | Date | null | undefined) {
     minute: "2-digit",
   }).format(new Date(value));
 }
+
 
 function Badge({
   children,
