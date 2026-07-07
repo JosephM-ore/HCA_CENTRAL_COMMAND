@@ -175,8 +175,10 @@ function WatchlistGrid({
         {entries.map((entry) => {
           const currentPrice = getWatchlistCurrentPrice(entry);
           const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
-          const openFlag = entry.flags?.[0];
-          const latestComment = entry.comments?.[0];
+          const openFlag = entry.flags?.[0];         
+          const latestComment = entry.comments?.find(
+            (comment: any) => comment.tag !== "PT"
+          );
 
           return (
             <div
@@ -399,6 +401,14 @@ function WatchlistDetailPanel({
   const currentPrice = getWatchlistCurrentPrice(entry);
   const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
 
+  const comments =
+  entry.comments?.filter((comment: any) => comment.tag !== "PT") || [];
+
+  const ptComments =
+    entry.comments?.filter((comment: any) => comment.tag === "PT") || [];
+
+  const latestComment = comments[0] ?? null;
+
   return (
       <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-xl">      
       <div className="border-b border-slate-200 p-5">
@@ -487,9 +497,83 @@ function WatchlistDetailPanel({
         </section>
 
         <section className="mt-5">
-          <h3 className="mb-3 font-semibold text-slate-950">Latest Comment</h3>
+          <h3 className="mb-3 font-semibold text-slate-950">Comment Section</h3>
+
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            {entry.comments?.[0]?.content || "No comment added yet."}
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Latest Comment
+            </div>
+            <div>
+              {latestComment?.content || "No comment added yet."}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <h3 className="mb-3 font-semibold text-slate-950">Comment Timeline</h3>
+
+          <div className="space-y-3">
+            {comments.length ? (
+              comments.map((comment: any) => (
+                <div
+                  key={comment.id}
+                  className="rounded-2xl border border-slate-200 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <Badge tone="blue">{comment.tag}</Badge>
+                    <span className="text-xs text-slate-400">
+                      {formatDateTime(comment.createdAt)}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm text-slate-700">
+                    {comment.content}
+                  </p>
+
+                  <p className="mt-2 text-xs text-slate-400">
+                    by {comment.author?.name || comment.author?.email || "Unknown"}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">
+                No comments yet.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="mt-5">
+          <h3 className="mb-3 font-semibold text-slate-950">PT History</h3>
+
+          <div className="space-y-3">
+            {ptComments.length ? (
+              ptComments.map((comment: any) => (
+                <div
+                  key={comment.id}
+                  className="rounded-2xl border border-blue-100 bg-blue-50 p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <Badge tone="blue">PT</Badge>
+                    <span className="text-xs text-slate-400">
+                      {formatDateTime(comment.createdAt)}
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-sm text-slate-700">
+                    {comment.content}
+                  </p>
+
+                  <p className="mt-2 text-xs text-slate-400">
+                    by {comment.author?.name || comment.author?.email || "Unknown"}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-500">
+                No PT history yet.
+              </div>
+            )}
           </div>
         </section>
 
@@ -988,7 +1072,8 @@ export default function WatchlistClient({
   if (!normalizedQuery) return entries;
 
   return entries.filter((entry) => {
-    const latestComment = entry.comments?.[0]?.content || "";
+    const commentText =
+    entry.comments?.map((comment: any) => comment.content).join(" ") || "";
     const flagText =
       entry.flags?.map((flag: any) => flag.flagType).join(" ") || "";
 
@@ -999,7 +1084,7 @@ export default function WatchlistClient({
       entry.side,
       entry.targetPrice,
       entry.notes,
-      latestComment,
+      commentText,
       flagText,
     ]
       .filter(Boolean)
@@ -1074,6 +1159,18 @@ const shortEntries = useMemo(
         };
       })
     );
+
+    setSelectedEntry((currentEntry: any | null) => {
+      if (!currentEntry || currentEntry.id !== payload.watchlistEntryId) {
+        return currentEntry;
+      }
+
+      return {
+        ...currentEntry,
+        comments: [newComment, ...(currentEntry.comments || [])],
+      };
+    });
+
   }
 
   async function handleSaveEdit(
