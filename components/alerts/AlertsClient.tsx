@@ -163,15 +163,21 @@ function AlertCard({
     </div>
   );
 }
+
 function TradeReconciliationAlertCard({
   flag,
   onResolve,
+  onAcceptWells,
+  onKeepManual,
   canResolve,
 }: {
   flag: any;
   onResolve: (flagId: string) => Promise<void>;
+  onAcceptWells: (flagId: string) => Promise<void>;
+  onKeepManual: (flagId: string) => Promise<void>;
   canResolve: boolean;
 }) {
+
   const metadata = parseFlagMetadata(flag);
   const differences = metadata?.differences || {};
   const isResolved = flag.status === "RESOLVED";
@@ -221,12 +227,28 @@ function TradeReconciliationAlertCard({
             Resolved
           </button>
         ) : canResolve ? (
-          <button
-            onClick={() => onResolve(flag.id)}
-            className="shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            Resolve
-          </button>
+          <div className="flex shrink-0 flex-col gap-2">
+            <button
+              onClick={() => onAcceptWells(flag.id)}
+              className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              Accept Wells
+            </button>
+
+            <button
+              onClick={() => onKeepManual(flag.id)}
+              className="rounded-2xl border border-amber-200 bg-white px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100"
+            >
+              Keep Manual
+            </button>
+
+            <button
+              onClick={() => onResolve(flag.id)}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Resolve Only
+            </button>
+          </div>
         ) : (
           <button
             disabled
@@ -323,11 +345,15 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
     loadCurrentUser();
   }, []);
   const filteredFlags = useMemo(() => {
-  const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = query.trim().toLowerCase();
 
-    if (!normalizedQuery) return flags;
+    const sortedFlags = [...flags].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 
-    return flags.filter((flag) => {
+    if (!normalizedQuery) return sortedFlags;
+
+    return sortedFlags.filter((flag) => {
       const searchable = [
         flag.security?.ticker,
         flag.metadataJson,
@@ -352,6 +378,54 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
   const highPriority = flags.filter((flag) => flag.priority === "HIGH");
   const resolvedFlags = flags.filter((flag) => flag.status === "RESOLVED");
   const userCanResolveFlags = canCreateFlags(currentUser?.role);
+
+  async function handleAcceptWells(flagId: string) {
+    const response = await fetch(
+      `/api/trade-reconciliation/${flagId}/accept-wells`,
+      {
+        method: "POST",
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to accept Wells trade.");
+    }
+
+    const resolvedFlag = data.flag;
+
+    setFlags((currentFlags) =>
+      currentFlags.map((flag) =>
+        flag.id === resolvedFlag.id ? resolvedFlag : flag
+      )
+    );
+  }
+
+  async function handleKeepManual(flagId: string) {
+    const response = await fetch(
+      `/api/trade-reconciliation/${flagId}/keep-manual`,
+      {
+        method: "POST",
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to keep manual trade.");
+    }
+
+    const resolvedFlag = data.flag;
+
+    setFlags((currentFlags) =>
+      currentFlags.map((flag) =>
+        flag.id === resolvedFlag.id ? resolvedFlag : flag
+      )
+    );
+  }
+
+
 
   async function handleResolveFlag(flagId: string) {
   const response = await fetch(`/api/flags/${flagId}/resolve`, {
@@ -532,13 +606,15 @@ export default function AlertsClient({ initialFlags }: AlertsClientProps) {
               <div className="space-y-3">
                 {filteredFlags.length ? (
                   filteredFlags.map((flag) =>
-                    flag.flagType === "Trade Reconciliation Review" ? (
-                      <TradeReconciliationAlertCard
-                        key={flag.id}
-                        flag={flag}
-                        onResolve={handleResolveFlag}
-                        canResolve={userCanResolveFlags}
-                      />
+                    flag.flagType === "Trade Reconciliation Review" ? (                      
+                    <TradeReconciliationAlertCard
+                      key={flag.id}
+                      flag={flag}
+                      onResolve={handleResolveFlag}
+                      onAcceptWells={handleAcceptWells}
+                      onKeepManual={handleKeepManual}
+                      canResolve={userCanResolveFlags}
+                    />
                     ) : (
                       <AlertCard
                         key={flag.id}

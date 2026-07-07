@@ -20,14 +20,13 @@ export default async function AlertsPage() {
       },
     },
   },
+  
   orderBy: [
-    {
-      priority: "desc",
-    },
     {
       createdAt: "desc",
     },
   ],
+
 });
 
   const serializedFlags = JSON.parse(JSON.stringify(flags));
