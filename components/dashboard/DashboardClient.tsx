@@ -351,7 +351,7 @@ function TickerDetailPanel({
 
 
   return (
-    <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-xl">
+    <aside className="flex h-full w-[560px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-xl">
       <div className="border-b border-slate-200 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -469,55 +469,61 @@ function TickerDetailPanel({
       </div>
       
       <div className="flex-1 overflow-auto p-5">
-        <div className="mb-3">
-          <h3 className="font-semibold text-slate-950">
-            Trade History From Ticker Click
-          </h3>
-        </div>
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-950">
+              Trade History From Ticker Click
+            </h3>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 text-xs">
-          <div className="grid grid-cols-6 gap-2 bg-slate-50 px-3 py-3 font-semibold uppercase tracking-wide text-slate-500">
-            <span>Ticker</span>
-            <span>Date Traded</span>
-            <span>Shares Traded</span>
-            <span>Avg Price</span>
-            <span>PT History</span>
-            <span>Comment</span>
+            <span className="text-xs text-slate-400">
+              {position.trades?.length || 0} trades
+            </span>
           </div>
 
-          {position.trades?.length ? (
-            position.trades.map((trade: any) => (
-              <div
-                key={trade.id}
-                className="grid grid-cols-6 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
-              >
-                <span className="font-semibold">
-                  {security.ticker}
-                  {trade.source === "MANUAL" ? (
-                    <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
-                      Manual
-                    </span>
-                  ) : trade.source === "WELLS_FARGO" ? (
-                    <span className="ml-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                      Wells
-                    </span>
-                  ) : null}
-                </span>
-                <span>
-                  {formatDate(trade.dateTraded)}
-                </span>
-                <span>{formatNumber(trade.shares)}</span>
-                <span>${trade.avgPrice.toFixed(2)}</span>
-                <span>{trade.ptHistory || "—"}</span>
-                <span className="truncate text-slate-500">
-                  {trade.comment || "—"}
-                </span>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 text-xs">
+            <div className="grid grid-cols-6 gap-2 bg-slate-50 px-3 py-3 font-semibold uppercase tracking-wide text-slate-500">
+              <span>Ticker</span>
+              <span>Date Traded</span>
+              <span>Type</span>
+              <span>Shares</span>
+              <span>Avg Price</span>
+              <span>Source</span>
+            </div>
+
+            {position.trades?.length ? (
+              position.trades.map((trade: any) => (
+                <div
+                  key={trade.id}
+                  className="grid grid-cols-6 items-center gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
+                >
+                  <span className="font-semibold">{security.ticker}</span>
+
+                  <span>{formatDate(trade.dateTraded)}</span>
+
+                  <span>{trade.tradeType || "—"}</span>
+
+                  <span>{formatNumber(trade.shares)}</span>
+
+                  <span>{formatPrice(trade.avgPrice)}</span>
+
+                  <span>
+                    {trade.source === "MANUAL" ? (
+                      <Badge tone="amber">Manual</Badge>
+                    ) : trade.source === "WELLS_FARGO" ? (
+                      <Badge tone="green">Wells</Badge>
+                    ) : (
+                      <Badge tone="slate">{trade.source || "Unknown"}</Badge>
+                    )}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-4 text-slate-500">
+                No trade history yet.
               </div>
-            ))
-          ) : (
-            <div className="px-3 py-4 text-slate-500">No trade history yet.</div>
-          )}
-        </div>
+            )}
+          </div>
+        </section>
 
         <section className="mt-5">
           <h3 className="mb-3 font-semibold text-slate-950">Comment Section</h3>
