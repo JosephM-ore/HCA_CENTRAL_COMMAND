@@ -525,20 +525,7 @@ function TickerDetailPanel({
           </div>
         </section>
 
-        <section className="mt-5">
-          <h3 className="mb-3 font-semibold text-slate-950">Comment Section</h3>
-
-          <div className="space-y-3">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Latest Comment
-              </div>
-              <div>
-                {latestComment?.content || "No comment added yet."}
-              </div>
-            </div>
-          </div>
-        </section>
+        
 
         <section className="mt-5">
           <h3 className="mb-3 font-semibold text-slate-950">Comment Timeline</h3>
@@ -1304,9 +1291,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
 
   return localPositions
     .filter((position) => {
-      const latestComment = position.comments?.find(
-            (comment: any) => comment.tag !== "PT"
-          );
+      
 
           
       const flagText = position.flags?.map((flag: any) => flag.flagType).join(" ") || "";
@@ -1316,7 +1301,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
         position.security?.name,
         position.security?.sector,
         position.side,
-        latestComment,
+        
         flagText,
       ]
         .filter(Boolean)
