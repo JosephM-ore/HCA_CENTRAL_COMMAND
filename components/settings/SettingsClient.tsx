@@ -797,7 +797,10 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                         </span>
                       </p>
                       <p className="mt-1">
-                        Started: {formatDateTime(latestIngestionRun.startedAt)}
+                        Started:{" "}
+                        <LocalDateTime
+                          value={latestIngestionRun.startedAt}
+                        />
                       </p>
                       <p className="mt-1">
                         Message: {latestIngestionRun.message || "—"}
