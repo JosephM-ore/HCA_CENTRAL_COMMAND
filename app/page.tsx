@@ -38,11 +38,14 @@ export default async function HomePage() {
         },
       },
       trades: {
+        where: {
+          isHidden: false,
+        },
         orderBy: {
           dateTraded: "desc",
         },
       },
-      comments: {
+            comments: {
         where: {
           archivedAt: null,
         },

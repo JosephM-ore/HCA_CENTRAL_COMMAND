@@ -319,6 +319,7 @@ function TickerDetailPanel({
   onMarketData,
   onFlag,
   onLots,
+  onAddTrade,
   canComment,
   canFlag,
 }: {
@@ -328,6 +329,7 @@ function TickerDetailPanel({
   onMarketData: (position: any) => void;
   onFlag: (position: any) => void;
   onLots: (position: any) => void;
+  onAddTrade: (position: any) => void;
   canComment: boolean;
   canFlag: boolean;
 }) {
@@ -457,6 +459,12 @@ function TickerDetailPanel({
             Lots
           </button>
 
+          <button
+            onClick={() => onAddTrade(position)}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Add Trade
+          </button>
         </div>
       </div>
       
@@ -483,7 +491,18 @@ function TickerDetailPanel({
                 key={trade.id}
                 className="grid grid-cols-6 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
               >
-                <span className="font-semibold">{security.ticker}</span>
+                <span className="font-semibold">
+                  {security.ticker}
+                  {trade.source === "MANUAL" ? (
+                    <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                      Manual
+                    </span>
+                  ) : trade.source === "WELLS_FARGO" ? (
+                    <span className="ml-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                      Wells
+                    </span>
+                  ) : null}
+                </span>
                 <span>
                   {formatDate(trade.dateTraded)}
                 </span>
@@ -766,6 +785,180 @@ function MarketDataModal({
                 : "N/A"}
             </span>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddTradeModal({
+  position,
+  onClose,
+  onSave,
+}: {
+  position: any | null;
+  onClose: () => void;
+  onSave: (payload: {
+    securityId: string;
+    positionId: string;
+    tradeType: string;
+    dateTraded: string;
+    shares: string;
+    avgPrice: string;
+    comment: string;
+  }) => Promise<void>;
+}) {
+  const [tradeType, setTradeType] = useState("BUY");
+  const [dateTraded, setDateTraded] = useState("");
+  const [shares, setShares] = useState("");
+  const [avgPrice, setAvgPrice] = useState("");
+  const [comment, setComment] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!position) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    setDateTraded(today);
+    setTradeType(position.side === "SHORT" ? "SHORT" : "BUY");
+    setShares("");
+    setAvgPrice("");
+    setComment("");
+    setError("");
+  }, [position]);
+
+  if (!position) return null;
+
+  const estimatedNotional =
+    Number.isFinite(Number(shares)) && Number.isFinite(Number(avgPrice))
+      ? Number(shares) * Number(avgPrice)
+      : null;
+
+  async function handleSave() {
+    setError("");
+
+    if (!shares.trim()) {
+      setError("Shares are required.");
+      return;
+    }
+
+    if (!avgPrice.trim()) {
+      setError("Average price is required.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await onSave({
+        securityId: position.securityId,
+        positionId: position.id,
+        tradeType,
+        dateTraded,
+        shares,
+        avgPrice,
+        comment,
+      });
+
+      onClose();
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to add manual trade."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Add Manual Trade
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {position.security.ticker} • {position.security.name}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <select
+            value={tradeType}
+            onChange={(event) => setTradeType(event.target.value)}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+          >
+            <option value="BUY">Buy</option>
+            <option value="SELL">Sell</option>
+            <option value="SHORT">Sell Short</option>
+            <option value="COVER">Cover Short</option>
+          </select>
+
+          <input
+            type="date"
+            value={dateTraded}
+            onChange={(event) => setDateTraded(event.target.value)}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+          />
+
+          <input
+            value={shares}
+            onChange={(event) => setShares(event.target.value)}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            placeholder="Shares"
+          />
+
+          <input
+            value={avgPrice}
+            onChange={(event) => setAvgPrice(event.target.value)}
+            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            placeholder="Average price"
+          />
+
+          <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600">
+            Estimated notional:{" "}
+            <span className="font-semibold text-slate-950">
+              {estimatedNotional != null ? formatMoney(estimatedNotional) : "—"}
+            </span>
+          </div>
+
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            className="h-28 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            placeholder="Optional trade note..."
+          />
+        </div>
+
+        {error ? (
+          <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving ? "Saving..." : "Add Trade"}
+          </button>
         </div>
       </div>
     </div>
@@ -1082,6 +1275,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [taxLotsPosition, setTaxLotsPosition] = useState<any | null>(null);
+  const [manualTradePosition, setManualTradePosition] = useState<any | null>(null);
 
   const userCanCreateComments = canCreateComments(currentUser?.role);
   const userCanCreateFlags = canCreateFlags(currentUser?.role);
@@ -1165,6 +1359,53 @@ const {
   commentedItems,
 } = getDashboardStats(localPositions);
 
+  async function handleSaveManualTrade(payload: {
+    securityId: string;
+    positionId: string;
+    tradeType: string;
+    dateTraded: string;
+    shares: string;
+    avgPrice: string;
+    comment: string;
+  }) {
+    const response = await fetch("/api/trades/manual", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to add manual trade.");
+    }
+
+    const newTrade = data.trade;
+
+    setLocalPositions((currentPositions) =>
+      currentPositions.map((position) => {
+        if (position.id !== payload.positionId) return position;
+
+        return {
+          ...position,
+          trades: [newTrade, ...(position.trades || [])],
+        };
+      })
+    );
+
+    setSelectedPosition((currentPosition: any | null) => {
+      if (!currentPosition || currentPosition.id !== payload.positionId) {
+        return currentPosition;
+      }
+
+      return {
+        ...currentPosition,
+        trades: [newTrade, ...(currentPosition.trades || [])],
+      };
+    });
+  }
 
   async function handleSaveComment(payload: {
   securityId: string;
@@ -1462,6 +1703,7 @@ async function handleSaveFlag(payload: {
 
             
            
+            
             <TickerDetailPanel
               position={selectedPosition}
               onClose={() => setSelectedPosition(null)}
@@ -1469,8 +1711,16 @@ async function handleSaveFlag(payload: {
               onMarketData={setMarketDataPosition}
               onFlag={setFlagPosition}
               onLots={setTaxLotsPosition}
+              onAddTrade={setManualTradePosition}
               canComment={userCanCreateComments}
               canFlag={userCanCreateFlags}
+            />
+
+                          
+            <AddTradeModal
+              position={manualTradePosition}
+              onClose={() => setManualTradePosition(null)}
+              onSave={handleSaveManualTrade}
             />
 
                   
