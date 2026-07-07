@@ -4,6 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { detectWellsReportType } from "@/lib/ingestion/wells-detect-report";
 import { parseWellsTaxLotCsv } from "@/lib/ingestion/wells-tax-lot";
 import { matchManualTrade } from "@/lib/reconciliation/trade-reconciliation";
+import {
+  createTradeReconciliationFlag,
+  getSystemFlagUserId,
+} from "@/lib/reconciliation/trade-reconciliation-service";
+import {
+  RECONCILIATION_STATUS,
+  TRADE_SOURCES,
+} from "@/lib/reconciliation/trade-reconciliation-constants";
+
 
 function normalizeFilename(filename: string): string {
   return filename.replace(/\s+/g, "_").trim();
@@ -14,37 +23,6 @@ function isRawPdfContent(content: string): boolean {
 }
 
 
-async function getSystemFlagUserId() {
-  const adminUser = await prisma.user.findFirst({
-    where: {
-      role: "ADMIN",
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
-
-  if (adminUser) return adminUser.id;
-
-  const complianceUser = await prisma.user.findFirst({
-    where: {
-      role: "COMPLIANCE",
-    },
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
-
-  if (complianceUser) return complianceUser.id;
-
-  const anyUser = await prisma.user.findFirst({
-    orderBy: {
-      createdAt: "asc",
-    },
-  });
-
-  return anyUser?.id ?? null;
-}
 
 
 
@@ -642,49 +620,26 @@ export async function POST(request: Request) {
 
             const flagUserId = await getSystemFlagUserId();
 
-            if (flagUserId) {
-              const existingReviewFlag = await prisma.flag.findFirst({
-                where: {
+              if (flagUserId) {
+                await createTradeReconciliationFlag({
                   securityId: security.id,
                   positionId: matchingPosition?.id,
-                  status: "OPEN",
-                  flagType: "Trade Reconciliation Review",
-                  metadataJson: {
-                    contains: matchResult.trade.id,
-                  },
-                },
-              });
-
-              if (!existingReviewFlag) {
-                await prisma.flag.create({
-                  data: {
-                    securityId: security.id,
-                    positionId: matchingPosition?.id,
-                    flagType: "Trade Reconciliation Review",
-                    priority: "HIGH",
-                    status: "OPEN",
-                    description:
-                      "Manual trade and Wells transaction appear similar but differ. Review required.",
-                    createdById: flagUserId,
-                    metadataJson: JSON.stringify({
-                      manualTradeId: matchResult.trade.id,
-                      wellsTradeId: officialTrade.id,
-                      wellsTransactionId: trade.transactionId,
-                      ticker: trade.ticker,
-                      tradeType: trade.tradeType,
-                      reason: matchResult.reason,
-                      differences: matchResult.differences,
-                    }),
-                  },
+                  createdById: flagUserId,
+                  manualTradeId: matchResult.trade.id,
+                  wellsTradeId: officialTrade.id,
+                  wellsTransactionId: trade.transactionId,
+                  ticker: trade.ticker,
+                  tradeType: trade.tradeType,
+                  reason: matchResult.reason,
+                  differences: matchResult.differences,
                 });
+              } else {
+                failures.push(
+                  `Could not create reconciliation flag for ${
+                    trade.ticker || trade.securityName
+                  }: no user found.`
+                );
               }
-            } else {
-              failures.push(
-                `Could not create reconciliation flag for ${
-                  trade.ticker || trade.securityName
-                }: no user found.`
-              );
-            }
 
             if (existingWellsTrade) {
               tradesUpdated += 2;
