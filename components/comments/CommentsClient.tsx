@@ -1,5 +1,5 @@
 "use client";
-
+import LocalDateTime from "@/components/common/LocalDateTime";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
@@ -287,9 +287,10 @@ export default function CommentsClient({
                           ) : null}
                         </div>
 
-                        <span className="text-xs text-slate-400">
-                          {formatDateTime(comment.createdAt)}
-                        </span>
+                        <LocalDateTime
+                          value={comment.createdAt}
+                          className="text-xs text-slate-400"
+                        />
                       </div>
 
                       <p className="mt-3 text-sm leading-6 text-slate-700">

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import LocalDateTime from "@/components/common/LocalDateTime";
 import { useEffect, useMemo, useState } from "react";
 import {
   canCreateComments,
@@ -514,9 +515,10 @@ function WatchlistDetailPanel({
                 >
                   <div className="flex items-center justify-between">
                     <Badge tone="blue">{comment.tag}</Badge>
-                    <span className="text-xs text-slate-400">
-                      {formatDateTime(comment.createdAt)}
-                    </span>
+                    <LocalDateTime
+                      value={comment.createdAt}
+                      className="text-xs text-slate-400"
+                    />
                   </div>
 
                   <p className="mt-3 text-sm text-slate-700">
@@ -548,10 +550,11 @@ function WatchlistDetailPanel({
                 >
                   <div className="flex items-center justify-between">
                     <Badge tone="blue">PT</Badge>
-                    <span className="text-xs text-slate-400">
-                      {formatDateTime(comment.createdAt)}
-                    </span>
-                  </div>
+                    <LocalDateTime
+                        value={comment.createdAt}
+                        className="text-xs text-slate-400"
+                      />
+                    </div>
 
                   <p className="mt-3 text-sm text-slate-700">
                     {comment.content}

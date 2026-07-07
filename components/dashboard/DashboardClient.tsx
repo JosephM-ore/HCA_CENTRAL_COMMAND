@@ -1,5 +1,5 @@
 "use client";
-
+import LocalDateTime from "@/components/common/LocalDateTime";
 import { useEffect, useMemo, useState } from "react";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 
@@ -567,9 +567,10 @@ function TickerDetailPanel({
                 >
                   <div className="flex items-center justify-between">
                     <Badge tone="blue">{comment.tag}</Badge>
-                    <span className="text-xs text-slate-400">
-                      {formatDateTime(comment.createdAt)}
-                    </span>
+                    <LocalDateTime
+                      value={comment.createdAt}
+                      className="text-xs text-slate-400"
+                    />
                   </div>
 
                   <p className="mt-3 text-sm text-slate-700">
