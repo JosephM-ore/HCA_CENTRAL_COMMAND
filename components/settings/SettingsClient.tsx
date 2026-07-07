@@ -462,11 +462,14 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                     </div>
                 </SettingsCard>
 
-                <SettingsCard
-                  eyebrow="Data Operations"
-                  title="Data Refresh"
-                  description="Current prices are refreshed from Finnhub and stored in the local market data cache. Wells remains the source for position economics and SEC EDGAR remains the source for fundamentals."
-                >
+                
+                <div className="lg:col-span-2">
+                  <SettingsCard
+                    eyebrow="Data Operations"
+                    title="Data Refresh"
+                    description="Current prices are refreshed from Finnhub and stored in the local market data cache. Wells remains the source for position economics and SEC EDGAR remains the source for fundamentals."
+                  >
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -808,53 +811,12 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                     </div>
                   ) : null}
                 </SettingsCard>
-
-                <SettingsCard
-                  eyebrow="Workflow"
-                  title="Trader Shortcuts"
-                  description="Future keyboard shortcuts can support quick search, new comment, flag creation, ticker panel close, and command-palette style navigation."
-                >
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                      <span className="font-semibold">/</span> Search
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                      <span className="font-semibold">N</span> New comment
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                      <span className="font-semibold">F</span> Flag ticker
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2">
-                      <span className="font-semibold">Esc</span> Close panel
-                    </div>
-                  </div>
-                </SettingsCard>
-              </div>
-
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Future Integration Stubs
-                    </p>
-                    <h3 className="mt-2 text-lg font-semibold text-slate-950">
-                      Wells Fargo, FMP Expansion, and Bank SSO
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">                
-                      The MVP keeps these integrations as placeholders. Wells Fargo
-                      will later ingest official reports, FMP can be expanded with
-                      additional market-data endpoints or a paid plan, and bank SSO
-                      will replace local username/password authentication.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Badge tone="amber">Wells Fargo Stub</Badge>
-                    <Badge tone="blue">FMP Expansion</Badge>
-                    <Badge tone="slate">SSO Future</Badge>
-                  </div>
                 </div>
+
+                
               </div>
+
+              
             </div>
           </div>
         </section>
