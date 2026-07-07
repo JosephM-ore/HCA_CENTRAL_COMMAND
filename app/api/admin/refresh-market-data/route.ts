@@ -14,12 +14,23 @@ export async function POST() {
   try {
     let securities = await prisma.security.findMany({
       where: {
-        positions: {
-          some: {
-            status: "ACTIVE",
-            source: "WELLS_FARGO",
+        OR: [
+          {
+            positions: {
+              some: {
+                status: "ACTIVE",
+                source: "WELLS_FARGO",
+              },
+            },
           },
-        },
+          {
+            watchlistEntries: {
+              some: {
+                archivedAt: null,
+              },
+            },
+          },
+        ],
       },
       orderBy: {
         ticker: "asc",
