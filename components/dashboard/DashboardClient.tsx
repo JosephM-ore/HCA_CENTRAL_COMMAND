@@ -1294,9 +1294,7 @@ function FlagModal({
 export default function DashboardClient({ positions }: DashboardClientProps) {
   const [localPositions, setLocalPositions] = useState<any[]>(positions);
 
-  const [selectedPosition, setSelectedPosition] = useState<any | null>(
-    positions[0] ?? null
-  );
+  const [selectedPosition, setSelectedPosition] = useState<any | null>(null);
 
   const [marketDataPosition, setMarketDataPosition] = useState<any | null>(null);
   const [commentPosition, setCommentPosition] = useState<any | null>(null);
