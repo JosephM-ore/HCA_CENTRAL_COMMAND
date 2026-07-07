@@ -454,7 +454,50 @@ function TickerDetailPanel({
           </button>
         </div>
       </div>
+      <section className="mt-5">
+        <h3 className="mb-3 font-semibold text-slate-950">
+          Tax Lot Breakdown
+        </h3>
 
+        <div className="overflow-hidden rounded-2xl border border-slate-200 text-xs">
+          <div className="grid grid-cols-8 gap-2 bg-slate-50 px-3 py-3 font-semibold uppercase tracking-wide text-slate-500">
+            <span>Lot Date</span>
+            <span>Qty</span>
+            <span>Unit Cost</span>
+            <span>Mkt Price</span>
+            <span>Cost</span>
+            <span>Mkt Value</span>
+            <span>U/P&L</span>
+            <span>ROI</span>
+          </div>
+
+          {position.taxLots?.length ? (
+            position.taxLots.map((lot: any) => (
+              <div
+                key={lot.id}
+                className="grid grid-cols-8 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
+              >
+                <span>{formatDate(lot.taxLotDate)}</span>
+                <span>{formatNumber(lot.quantity)}</span>
+                <span>{formatPrice(lot.unitCost)}</span>
+                <span>{formatPrice(lot.marketPrice)}</span>
+                <span>{formatMoney(lot.costBasis)}</span>
+                <span>{formatMoney(lot.marketValue)}</span>
+                <span className={pnlClass(lot.unrealizedPnl)}>
+                  {formatMoney(lot.unrealizedPnl)}
+                </span>
+                <span className={pnlClass(lot.roi)}>
+                  {lot.roi != null ? `${lot.roi.toFixed(1)}%` : "—"}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="px-3 py-4 text-slate-500">
+              No tax lot breakdown yet.
+            </div>
+          )}
+        </div>
+      </section>
       <div className="flex-1 overflow-auto p-5">
         <div className="mb-3">
           <h3 className="font-semibold text-slate-950">
@@ -1120,7 +1163,7 @@ const {
   });
 }
 
-function handleOpenComment(position: any) {
+function handleOpenComment(position: any) {``
   setSelectedPosition(position);
   setCommentPosition(position);
 }

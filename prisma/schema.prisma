@@ -53,6 +53,7 @@ model Security {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  taxLots          TaxLot[]
   positions        Position[]
   trades           Trade[]
   watchlistEntries WatchlistEntry[]
@@ -97,10 +98,52 @@ model Position {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  taxLots          TaxLot[]
   trades          Trade[]
   comments        Comment[]
   flags           Flag[]
 }
+
+
+model TaxLot {
+  id               String   @id @default(cuid())
+
+  securityId       String
+  security         Security @relation(fields: [securityId], references: [id])
+
+  positionId       String?
+  position         Position? @relation(fields: [positionId], references: [id])
+
+  accountNumber    String?
+  taxLotId         String?
+  taxLotDate       DateTime?
+
+  quantity         Float?
+  unitCost         Float?
+  marketPrice      Float?
+  costBasis        Float?
+  marketValue      Float?
+  unrealizedPnl    Float?
+  roi              Float?
+  holdingPeriod    String?
+  daysToLongTerm   String?
+
+  source           String?
+  sourceFileName   String?
+  sourceRowHash    String   @unique
+  sourceReportDate DateTime?
+  ingestionRunId   String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([securityId])
+  @@index([positionId])
+  @@index([taxLotDate])
+  @@index([sourceReportDate])
+}
+
+
 
 model Trade {
   id          String   @id @default(cuid())

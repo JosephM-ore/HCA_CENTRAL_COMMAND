@@ -11,6 +11,7 @@ export default async function HomePage() {
     },
   });
 
+
   const positions = await prisma.position.findMany({
     where: {
       status: "ACTIVE",
@@ -29,6 +30,11 @@ export default async function HomePage() {
               updatedAt: "desc",
             },
           },
+        },
+      },
+      taxLots: {
+        orderBy: {
+          taxLotDate: "asc",
         },
       },
       trades: {
@@ -72,6 +78,7 @@ export default async function HomePage() {
       },
     ],
   });
+
 
   const serializedPositions = JSON.parse(JSON.stringify(positions));
 

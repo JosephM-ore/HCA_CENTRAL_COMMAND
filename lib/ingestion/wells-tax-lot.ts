@@ -21,11 +21,36 @@ export type WellsTaxLotPosition = {
   ingestionRunId?: string;
 };
 
+
+export type WellsTaxLot = {
+  accountNumber: string;
+  ticker: string;
+  securityName: string;
+  productType?: string;
+  taxLotId?: string;
+  taxLotDate?: string;
+  quantity: number;
+  unitCost?: number;
+  marketPrice?: number;
+  costBasis: number;
+  marketValue: number;
+  unrealizedPnl: number;
+  roi?: number;
+  holdingPeriod?: string;
+  daysToLongTerm?: string;
+  sourceReportDate?: string;
+  sourceFileName?: string;
+  sourceRowHash: string;
+};
+
+
 export type WellsTaxLotParseResult = {
   rows: WellsTaxLotPosition[];
   positions: WellsTaxLotPosition[];
+  taxLots: WellsTaxLot[];
   failures: string[];
 };
+
 
 type NormalizedCsvRow = Record<string, string>;
 
@@ -104,7 +129,7 @@ export function parseWellsTaxLotCsv(
 
   const rows: WellsTaxLotPosition[] = [];
   const failures: string[] = [];
-
+  const taxLots: WellsTaxLot[] = [];
   const grouped = new Map<
     string,
     {
@@ -165,20 +190,57 @@ export function parseWellsTaxLotCsv(
       continue;
     }
 
-    const unrealizedPnl = unrealizedPriceGainLoss + unrealizedFxGainLoss;
-    const wap = shares !== 0 ? Math.abs(costBasis / shares) : 0;
+    const validShares: number = shares;
+    const validMarketValue: number = marketValue;
+    const validCostBasis: number = costBasis;
+    const validUnrealizedPriceGainLoss: number = unrealizedPriceGainLoss;
+
+    const unrealizedPnl = validUnrealizedPriceGainLoss + unrealizedFxGainLoss;
+    const wap =
+      validShares !== 0 ? Math.abs(validCostBasis / validShares) : 0;
+
+    const taxLotId = getValue(row, "TaxLotID") || undefined;
+    const unitCost =
+      parseNumber(getValue(row, "LocalUnitCost")) ??
+      parseNumber(getValue(row, "ReportingUnitCost"));
+    const marketPrice = parseNumber(getValue(row, "LocalMarketPrice"));
+    const roi = parseNumber(getValue(row, "ROI"));
+    const holdingPeriod = getValue(row, "HoldingPeriod") || undefined;
+    const daysToLongTerm =
+      getValue(row, "DaysToLongTermLT", "DaysToLongTerm(LT)") || undefined;
+
+    taxLots.push({
+      accountNumber,
+      ticker,
+      securityName,
+      productType,
+      taxLotId,
+      taxLotDate: openedAt,
+      quantity: validShares,
+      unitCost,
+      marketPrice,
+      costBasis: validCostBasis,
+      marketValue: validMarketValue,
+      unrealizedPnl,
+      roi,
+      holdingPeriod,
+      daysToLongTerm,
+      sourceReportDate,
+      sourceFileName,
+      sourceRowHash: rowHash,
+    });
 
     const taxLotPosition: WellsTaxLotPosition = {
       accountNumber,
       ticker,
       securityName,
       productType,
-      shares,
-      marketValue,
-      costBasis,
+      shares: validShares,
+      marketValue: validMarketValue,
+      costBasis: validCostBasis,
       unrealizedPnl,
       wap,
-      side: shares < 0 ? "SHORT" : "LONG",
+      side: validShares < 0 ? "SHORT" : "LONG",
       openedAt,
       status: "ACTIVE",
       source: "WELLS_FARGO",
@@ -199,14 +261,17 @@ export function parseWellsTaxLotCsv(
     const existing = grouped.get(groupKey);
 
     if (existing) {
-      existing.shares += shares;
-      existing.marketValue += marketValue;
-      existing.costBasis += costBasis;
+      existing.shares += validShares;
+      existing.marketValue += validMarketValue;
+      existing.costBasis += validCostBasis;
       existing.unrealizedPnl += unrealizedPnl;
       existing.rowHashes.push(rowHash);
 
       if (openedAt) {
-        if (!existing.openedAt || new Date(openedAt) < new Date(existing.openedAt)) {
+        if (
+          !existing.openedAt ||
+          new Date(openedAt) < new Date(existing.openedAt)
+        ) {
           existing.openedAt = openedAt;
         }
       }
@@ -218,9 +283,9 @@ export function parseWellsTaxLotCsv(
         ticker,
         securityName,
         productType,
-        shares,
-        marketValue,
-        costBasis,
+        shares: validShares,
+        marketValue: validMarketValue,
+        costBasis: validCostBasis,
         unrealizedPnl,
         sourceReportDate,
         sourceFileName,
@@ -228,6 +293,7 @@ export function parseWellsTaxLotCsv(
         rowHashes: [rowHash],
       });
     }
+
   }
 
   const positions: WellsTaxLotPosition[] = Array.from(grouped.values()).map(
@@ -253,9 +319,12 @@ export function parseWellsTaxLotCsv(
     })
   );
 
+ 
   return {
     rows,
     positions,
+    taxLots,
     failures,
   };
+
 }

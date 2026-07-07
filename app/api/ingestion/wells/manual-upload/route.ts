@@ -154,14 +154,21 @@ export async function POST(request: Request) {
     let positionsUpdated = 0;
     let tradesCreated = 0;
     let tradesUpdated = 0;
+    
+    let taxLotsCreated = 0;
+    let taxLotsUpdated = 0;
+
     const failures: string[] = [];
 
     if (reportType === "TAX_LOT_POSITION_PNL") {
+      
       const {
         rows,
         positions,
+        taxLots,
         failures: parseFailures,
       } = parseWellsTaxLotCsv(rawContent, fileName);
+
 
       rowsProcessed += rows.length;
       rowsFailed += parseFailures.length;
@@ -254,6 +261,107 @@ export async function POST(request: Request) {
           positionsCreated += 1;
         }
       }
+
+      for (const taxLot of taxLots) {
+        if (!taxLot.accountNumber) {
+          rowsFailed += 1;
+          failures.push(`Missing accountNumber for tax lot ${taxLot.securityName}`);
+          continue;
+        }
+
+        if (!taxLot.ticker) {
+          rowsFailed += 1;
+          failures.push(`Missing ticker for tax lot ${taxLot.securityName}`);
+          continue;
+        }
+
+        let security = await prisma.security.findUnique({
+          where: {
+            ticker: taxLot.ticker,
+          },
+        });
+
+        if (!security) {
+          security = await prisma.security.create({
+            data: {
+              ticker: taxLot.ticker,
+              name: taxLot.securityName,
+              securityType: taxLot.productType ?? null,
+            },
+          });
+
+          securitiesCreated += 1;
+        } else {
+          await prisma.security.update({
+            where: {
+              id: security.id,
+            },
+            data: {
+              name: security.name || taxLot.securityName,
+              securityType: security.securityType || taxLot.productType || null,
+            },
+          });
+
+          securitiesUpdated += 1;
+        }
+
+        const matchingPosition = await prisma.position.findFirst({
+          where: {
+            securityId: security.id,
+            accountNumber: taxLot.accountNumber,
+            source: "WELLS_FARGO",
+            status: "ACTIVE",
+          },
+        });
+
+        const existingTaxLot = await prisma.taxLot.findUnique({
+          where: {
+            sourceRowHash: taxLot.sourceRowHash,
+          },
+        });
+
+        const taxLotData = {
+          securityId: security.id,
+          positionId: matchingPosition?.id ?? null,
+          accountNumber: taxLot.accountNumber,
+          taxLotId: taxLot.taxLotId ?? null,
+          taxLotDate: taxLot.taxLotDate ? new Date(taxLot.taxLotDate) : null,
+          quantity: taxLot.quantity,
+          unitCost: taxLot.unitCost ?? null,
+          marketPrice: taxLot.marketPrice ?? null,
+          costBasis: taxLot.costBasis,
+          marketValue: taxLot.marketValue,
+          unrealizedPnl: taxLot.unrealizedPnl,
+          roi: taxLot.roi ?? null,
+          holdingPeriod: taxLot.holdingPeriod ?? null,
+          daysToLongTerm: taxLot.daysToLongTerm ?? null,
+          source: "WELLS_FARGO",
+          sourceFileName: taxLot.sourceFileName ?? null,
+          sourceRowHash: taxLot.sourceRowHash,
+          sourceReportDate: taxLot.sourceReportDate
+            ? new Date(taxLot.sourceReportDate)
+            : null,
+          ingestionRunId: ingestionRun.id,
+        };
+
+        if (existingTaxLot) {
+          await prisma.taxLot.update({
+            where: {
+              id: existingTaxLot.id,
+            },
+            data: taxLotData,
+          });
+
+          taxLotsUpdated += 1;
+        } else {
+          await prisma.taxLot.create({
+            data: taxLotData,
+          });
+
+          taxLotsCreated += 1;
+        }
+      }
+
     }
 
     if (reportType === "TRANSACTION_ACTIVITY") {
@@ -426,6 +534,8 @@ export async function POST(request: Request) {
       tradesCreated,
       tradesUpdated,
       failures,
+      taxLotsCreated,
+      taxLotsUpdated,
     });
   } catch (error) {
     console.error(error);
