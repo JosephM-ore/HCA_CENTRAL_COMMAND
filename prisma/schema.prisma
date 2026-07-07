@@ -176,6 +176,16 @@ model Trade {
   ptHistory   String?
   comment     String?
 
+  
+  reconciliationStatus String? // MANUAL_PENDING, MATCHED, REVIEW_REQUIRED, SUPERSEDED_BY_WELLS, UNMATCHED
+  reconciliationGroupId String?
+  matchedTradeId String?
+  reconciledAt DateTime?
+  reconciliationNotes String?
+  manualEnteredById String?
+  isHidden Boolean @default(false)
+
+
   createdAt   DateTime @default(now())
 }
 
@@ -249,6 +259,8 @@ model Flag {
 
   createdAt         DateTime @default(now())
   resolvedAt        DateTime?
+
+  metadataJson String?
 }
 
 model MarketDataCache {
