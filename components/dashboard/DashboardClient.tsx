@@ -507,15 +507,6 @@ function TickerDetailPanel({
                 {latestComment?.content || "No comment added yet."}
               </div>
             </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Latest PT Comment
-              </div>
-              <div>
-                {latestPtComment?.content || "No PT comment added yet."}
-              </div>
-            </div>
           </div>
         </section>
 
@@ -1027,10 +1018,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
             (comment: any) => comment.tag !== "PT"
           );
 
-          const latestPtComment = position.comments?.find(
-            (comment: any) => comment.tag === "PT"
-          );
-
+          
       const flagText = position.flags?.map((flag: any) => flag.flagType).join(" ") || "";
 
       const searchable = [
