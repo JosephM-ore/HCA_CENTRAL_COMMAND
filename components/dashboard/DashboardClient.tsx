@@ -227,6 +227,7 @@ function PositionGrid({
           const totalPctChange = getDisplayTotalPctChange(position);
           const portfolioPct = getDisplayPortfolioPct(position, portfolioPositions);
           const dayPctChange = getDisplayDayPctChange(position);
+          
 
           return (
             <div
@@ -333,8 +334,13 @@ function TickerDetailPanel({
   canComment: boolean;
   canFlag: boolean;
 }) {
-  if (!position) return null;
+  const [showAllTrades, setShowAllTrades] = useState(false);
 
+    useEffect(() => {
+    setShowAllTrades(false);
+  }, [position?.id]);
+  
+  if (!position) return null;
 
   const security = position.security;
   const openFlag = position.flags?.[0];
@@ -343,11 +349,16 @@ function TickerDetailPanel({
     (comment: any) => comment.tag !== "PT"
   );
 
-
-
   const currentPrice = getDisplayCurrentPrice(position);
   const wap = getDisplayWap(position);
   const totalPctChange = getDisplayTotalPctChange(position);
+ 
+
+  const visibleTrades = showAllTrades
+    ? position.trades || []
+    : (position.trades || []).slice(0, 5);
+
+  const hiddenTradeCount = Math.max((position.trades?.length || 0) - 5, 0);
 
 
   return (
@@ -476,7 +487,7 @@ function TickerDetailPanel({
             </h3>
 
             <span className="text-xs text-slate-400">
-              {position.trades?.length || 0} trades
+              {visibleTrades.length} of {position.trades?.length || 0} trades
             </span>
           </div>
 
@@ -490,8 +501,10 @@ function TickerDetailPanel({
               <span>Source</span>
             </div>
 
-            {position.trades?.length ? (
-              position.trades.map((trade: any) => (
+            
+            {visibleTrades.length ? (
+              visibleTrades.map((trade: any) => (
+
                 <div
                   key={trade.id}
                   className="grid grid-cols-6 items-center gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
@@ -522,6 +535,16 @@ function TickerDetailPanel({
                 No trade history yet.
               </div>
             )}
+            {hiddenTradeCount > 0 ? (
+              <button
+                onClick={() => setShowAllTrades((current) => !current)}
+                className="w-full border-t border-slate-100 px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                {showAllTrades
+                  ? "Show fewer trades"
+                  : `Show all trades (${hiddenTradeCount} more)`}
+              </button>
+            ) : null}
           </div>
         </section>
 
