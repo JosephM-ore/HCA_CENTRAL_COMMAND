@@ -3,6 +3,7 @@ import { parseWellsTransactionActivityCsv } from "@/lib/ingestion/wells-transact
 import { prisma } from "@/lib/prisma";
 import { detectWellsReportType } from "@/lib/ingestion/wells-detect-report";
 import { parseWellsTaxLotCsv } from "@/lib/ingestion/wells-tax-lot";
+import { matchManualTrade } from "@/lib/reconciliation/trade-reconciliation";
 
 function normalizeFilename(filename: string): string {
   return filename.replace(/\s+/g, "_").trim();
@@ -482,6 +483,108 @@ export async function POST(request: Request) {
               : undefined,
             ingestionRunId: ingestionRun.id,
           };
+          const pendingManualTrades = await prisma.trade.findMany({
+            where: {
+              securityId: security.id,
+              source: "MANUAL",
+              reconciliationStatus: "MANUAL_PENDING",
+              isHidden: false,
+            },
+          });
+
+          const matchResult = matchManualTrade({
+            manualTrades: pendingManualTrades,
+            wellsTrade: {
+              tradeType: trade.tradeType,
+              dateTraded: new Date(trade.tradeDate),
+              shares: trade.quantity,
+              avgPrice: trade.price ?? 0,
+            },
+          });
+
+          if (matchResult.status === "EXACT") {
+            const officialTrade = await prisma.trade.create({
+              data: {
+                ...tradeData,
+                source: "WELLS_FARGO",
+                reconciliationStatus: "MATCHED",
+                reconciledAt: new Date(),
+                matchedTradeId: matchResult.trade.id,
+                reconciliationNotes: matchResult.reason,
+              },
+            });
+
+            await prisma.trade.update({
+              where: {
+                id: matchResult.trade.id,
+              },
+              data: {
+                reconciliationStatus: "SUPERSEDED_BY_WELLS",
+                matchedTradeId: officialTrade.id,
+                reconciledAt: new Date(),
+                isHidden: true,
+                reconciliationNotes: matchResult.reason,
+              },
+            });
+
+            tradesCreated += 1;
+            tradesUpdated += 1;
+            continue;
+          }
+
+          if (matchResult.status === "SIMILAR") {
+            const officialTrade = await prisma.trade.create({
+              data: {
+                ...tradeData,
+                source: "WELLS_FARGO",
+                reconciliationStatus: "REVIEW_REQUIRED",
+                matchedTradeId: matchResult.trade.id,
+                reconciliationNotes: matchResult.reason,
+              },
+            });
+
+            await prisma.trade.update({
+              where: {
+                id: matchResult.trade.id,
+              },
+              data: {
+                reconciliationStatus: "REVIEW_REQUIRED",
+                matchedTradeId: officialTrade.id,
+                reconciliationNotes: matchResult.reason,
+              },
+            });
+
+            const systemUser = await prisma.user.findFirst({
+              where: {
+                role: "ADMIN",
+              },
+            });
+
+            if (systemUser) {
+              await prisma.flag.create({
+                data: {
+                  securityId: security.id,
+                  positionId: matchingPosition?.id,
+                  flagType: "Trade Reconciliation Review",
+                  priority: "HIGH",
+                  status: "OPEN",
+                  description:
+                    "Manual trade and Wells transaction appear similar but differ. Review required.",
+                  createdById: systemUser.id,
+                  metadataJson: JSON.stringify({
+                    manualTradeId: matchResult.trade.id,
+                    wellsTradeId: officialTrade.id,
+                    reason: matchResult.reason,
+                    differences: matchResult.differences,
+                  }),
+                },
+              });
+            }
+
+            tradesCreated += 1;
+            tradesUpdated += 1;
+            continue;
+          }
 
           const existingTrade = await prisma.trade.findFirst({
             where: {
