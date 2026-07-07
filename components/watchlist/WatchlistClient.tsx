@@ -489,12 +489,7 @@ function WatchlistDetailPanel({
       </div>
 
       <div className="flex-1 overflow-auto p-5">
-        <section>
-          <h3 className="mb-3 font-semibold text-slate-950">Notes</h3>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            {entry.notes || "No notes added yet."}
-          </div>
-        </section>
+
 
         <section className="mt-5">
           <h3 className="mb-3 font-semibold text-slate-950">Comment Section</h3>
