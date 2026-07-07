@@ -318,6 +318,7 @@ function TickerDetailPanel({
   onComment,
   onMarketData,
   onFlag,
+  onLots,
   canComment,
   canFlag,
 }: {
@@ -326,6 +327,7 @@ function TickerDetailPanel({
   onComment: (position: any) => void;
   onMarketData: (position: any) => void;
   onFlag: (position: any) => void;
+  onLots: (position: any) => void;
   canComment: boolean;
   canFlag: boolean;
 }) {
@@ -339,9 +341,7 @@ function TickerDetailPanel({
     (comment: any) => comment.tag !== "PT"
   );
 
-  const latestPtComment = position.comments?.find(
-    (comment: any) => comment.tag === "PT"
-  );
+
 
   const currentPrice = getDisplayCurrentPrice(position);
   const wap = getDisplayWap(position);
@@ -449,55 +449,17 @@ function TickerDetailPanel({
             Capital IQ
           </button>
 
-          <button className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            Export
+          
+          <button
+            onClick={() => onLots(position)}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Lots
           </button>
+
         </div>
       </div>
-      <section className="mt-5">
-        <h3 className="mb-3 font-semibold text-slate-950">
-          Tax Lot Breakdown
-        </h3>
-
-        <div className="overflow-hidden rounded-2xl border border-slate-200 text-xs">
-          <div className="grid grid-cols-8 gap-2 bg-slate-50 px-3 py-3 font-semibold uppercase tracking-wide text-slate-500">
-            <span>Lot Date</span>
-            <span>Qty</span>
-            <span>Unit Cost</span>
-            <span>Mkt Price</span>
-            <span>Cost</span>
-            <span>Mkt Value</span>
-            <span>U/P&L</span>
-            <span>ROI</span>
-          </div>
-
-          {position.taxLots?.length ? (
-            position.taxLots.map((lot: any) => (
-              <div
-                key={lot.id}
-                className="grid grid-cols-8 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
-              >
-                <span>{formatDate(lot.taxLotDate)}</span>
-                <span>{formatNumber(lot.quantity)}</span>
-                <span>{formatPrice(lot.unitCost)}</span>
-                <span>{formatPrice(lot.marketPrice)}</span>
-                <span>{formatMoney(lot.costBasis)}</span>
-                <span>{formatMoney(lot.marketValue)}</span>
-                <span className={pnlClass(lot.unrealizedPnl)}>
-                  {formatMoney(lot.unrealizedPnl)}
-                </span>
-                <span className={pnlClass(lot.roi)}>
-                  {lot.roi != null ? `${lot.roi.toFixed(1)}%` : "—"}
-                </span>
-              </div>
-            ))
-          ) : (
-            <div className="px-3 py-4 text-slate-500">
-              No tax lot breakdown yet.
-            </div>
-          )}
-        </div>
-      </section>
+      
       <div className="flex-1 overflow-auto p-5">
         <div className="mb-3">
           <h3 className="font-semibold text-slate-950">
@@ -588,6 +550,90 @@ function TickerDetailPanel({
         </section>
       </div>
     </aside>
+  );
+}
+
+function TaxLotsModal({
+  position,
+  onClose,
+}: {
+  position: any | null;
+  onClose: () => void;
+}) {
+  if (!position) return null;
+
+  const security = position.security;
+  const lots = position.taxLots || [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="flex max-h-[85vh] w-full max-w-6xl flex-col rounded-3xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 p-6">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Tax Lot Breakdown
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {security.ticker} • {security.name}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="overflow-auto p-6">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 text-xs">
+            <div className="grid min-w-[1050px] grid-cols-10 gap-2 bg-slate-50 px-3 py-3 font-semibold uppercase tracking-wide text-slate-500">
+              <span>Lot Date</span>
+              <span>Tax Lot ID</span>
+              <span>Qty</span>
+              <span>Unit Cost</span>
+              <span>Mkt Price</span>
+              <span>Cost</span>
+              <span>Mkt Value</span>
+              <span>U/P&L</span>
+              <span>ROI</span>
+              <span>Days to LT</span>
+            </div>
+
+            {lots.length ? (
+              lots.map((lot: any) => (
+                <div
+                  key={lot.id}
+                  className="grid min-w-[1050px] grid-cols-10 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
+                >
+                  <span>{formatDate(lot.taxLotDate)}</span>
+                  <span className="truncate text-slate-500">
+                    {lot.taxLotId || "—"}
+                  </span>
+                  <span>{formatNumber(lot.quantity)}</span>
+                  <span>{formatPrice(lot.unitCost)}</span>
+                  <span>{formatPrice(lot.marketPrice)}</span>
+                  <span>{formatMoney(lot.costBasis)}</span>
+                  <span>{formatMoney(lot.marketValue)}</span>
+                  <span className={pnlClass(lot.unrealizedPnl)}>
+                    {formatMoney(lot.unrealizedPnl)}
+                  </span>
+                  <span className={pnlClass(lot.roi)}>
+                    {lot.roi != null ? `${lot.roi.toFixed(1)}%` : "—"}
+                  </span>
+                  <span>{lot.daysToLongTerm || "—"}</span>
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-4 text-slate-500">
+                No tax lot breakdown yet.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1035,6 +1081,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [taxLotsPosition, setTaxLotsPosition] = useState<any | null>(null);
 
   const userCanCreateComments = canCreateComments(currentUser?.role);
   const userCanCreateFlags = canCreateFlags(currentUser?.role);
@@ -1163,7 +1210,7 @@ const {
   });
 }
 
-function handleOpenComment(position: any) {``
+function handleOpenComment(position: any) {
   setSelectedPosition(position);
   setCommentPosition(position);
 }
@@ -1414,19 +1461,19 @@ async function handleSaveFlag(payload: {
             </div>
 
             
+           
             <TickerDetailPanel
               position={selectedPosition}
               onClose={() => setSelectedPosition(null)}
               onComment={handleOpenComment}
               onMarketData={setMarketDataPosition}
               onFlag={setFlagPosition}
+              onLots={setTaxLotsPosition}
               canComment={userCanCreateComments}
               canFlag={userCanCreateFlags}
             />
 
-
-           
-         
+                  
             <MarketDataModal
               position={marketDataPosition}
               onClose={() => setMarketDataPosition(null)}
@@ -1438,6 +1485,11 @@ async function handleSaveFlag(payload: {
               onClose={() => setCommentPosition(null)}
               onSave={handleSaveComment}
             />
+            <TaxLotsModal
+              position={taxLotsPosition}
+              onClose={() => setTaxLotsPosition(null)}
+            />
+
             <FlagModal
               position={flagPosition}
               onClose={() => setFlagPosition(null)}
