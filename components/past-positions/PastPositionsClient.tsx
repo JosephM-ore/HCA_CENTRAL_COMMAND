@@ -120,6 +120,43 @@ function formatPercent(value: number | null | undefined) {
   return `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(1)}%`;
 }
 
+function formatNumber(value: number | null | undefined) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatDate(value: string | Date | null | undefined) {
+  if (!value) return "—";
+
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getDaysHeld(position: any) {
+  if (!position.openedAt || !position.closedAt) return null;
+
+  const opened = new Date(position.openedAt).getTime();
+  const closed = new Date(position.closedAt).getTime();
+
+  if (Number.isNaN(opened) || Number.isNaN(closed)) return null;
+
+  return Math.max(0, Math.round((closed - opened) / 86_400_000));
+}
+
+function getLatestComment(position: any) {
+  return position.comments?.[0]?.content ?? position.exitRationale ?? null;
+}
+
+function getOpenFlagCount(position: any) {
+  return position.flags?.filter((flag: any) => flag.status === "OPEN").length ?? 0;
+}
+
 function formatMoney(value: number | null | undefined) {
   if (value == null) return "—";
 
@@ -290,14 +327,21 @@ function PastPositionsGrid({
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <SectionBar />
 
-      <div className="grid grid-cols-7 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-        <div>Ticker</div>
-        <div className="col-span-2">Company Name</div>
-        <div>Price Bought/Sold</div>
-        <div>Price Sold/Covered</div>
-        <div>Total % Change</div>
-        <div>Comment Section</div>
-      </div>
+      
+    <div className="grid grid-cols-12 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+      <div>Ticker</div>
+      <div className="col-span-2">Company</div>
+      <div>Side</div>
+      <div>Opened</div>
+      <div>Closed</div>
+      <div>Days</div>
+      <div>Entry</div>
+      <div>Exit</div>
+      <div>Total %</div>
+      <div>P&L</div>
+      <div>Review</div>
+    </div>
+
       {positions.length === 0 ? (
           <div className="px-4 py-10 text-center text-sm text-slate-500">
             No closed positions found. Past positions appear when a Wells position is
@@ -322,44 +366,109 @@ function PastPositionsGrid({
         return (
           <div
             key={position.id}
-            className="grid grid-cols-7 items-center border-b border-slate-100 px-4 py-3 text-xs hover:bg-slate-50"
+            className="border-b border-slate-100 px-4 py-3 text-xs hover:bg-slate-50"
           >
-            <div className="font-semibold text-slate-950">
-              {position.security.ticker}
-            </div>
+            <div className="grid grid-cols-12 items-center gap-2">
+              <div className="font-semibold text-slate-950">
+                {position.security.ticker}
+              </div>
 
-            <div className="col-span-2 text-slate-600">
-              {position.security.name}
-            </div>
+              <div className="col-span-2 truncate text-slate-600">
+                {position.security.name}
+              </div>
 
-            <div>{entryLabel}</div>
-
-            <div>{exitLabel}</div>
-
-            <div className={`font-semibold ${pnlClass(totalPctChange)}`}>
-              {formatPercent(totalPctChange)}
-            </div>
-
-            <div>
-              {canComment ? (
-                <button
-                  onClick={() => onComment(position)}
-                  className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
+              <div>
+                <span
+                  className={
+                    position.side === "SHORT"
+                      ? "rounded-full bg-rose-50 px-2 py-1 font-semibold text-rose-700 ring-1 ring-rose-200"
+                      : "rounded-full bg-emerald-50 px-2 py-1 font-semibold text-emerald-700 ring-1 ring-emerald-200"
+                  }
                 >
-                  Comment
-                </button>
-              ) : (
-                <span className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-400">
-                  Read Only
+                  {position.side}
                 </span>
-              )}
+              </div>
+
+              <div className="text-slate-600">
+                {formatDate(position.openedAt)}
+              </div>
+
+              <div className="text-slate-600">
+                {formatDate(position.closedAt)}
+              </div>
+
+              <div className="text-slate-600">
+                {getDaysHeld(position) != null ? `${getDaysHeld(position)}d` : "—"}
+              </div>
+
+              <div className="font-medium text-slate-900">
+                {formatMoney(entryPrice)}
+              </div>
+
+              <div className="font-medium text-slate-900">
+                {formatMoney(exitPrice)}
+              </div>
+
+              <div className={`font-semibold ${pnlClass(totalPctChange)}`}>
+                {formatPercent(totalPctChange)}
+              </div>
+
+              <div className={`font-semibold ${pnlClass(position.unrealizedPnl)}`}>
+                {formatMoney(position.unrealizedPnl)}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {getOpenFlagCount(position) > 0 ? (
+                  <span className="rounded-full bg-amber-50 px-2 py-1 font-medium text-amber-700 ring-1 ring-amber-200">
+                    {getOpenFlagCount(position)} flag
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-slate-100 px-2 py-1 font-medium text-slate-500">
+                    No flags
+                  </span>
+                )}
+
+                {canComment ? (
+                  <button
+                    onClick={() => onComment(position)}
+                    className="rounded-xl bg-blue-50 px-2 py-1 font-medium text-blue-700 hover:bg-blue-100"
+                  >
+                    Comment
+                  </button>
+                ) : (
+                  <span className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-400">
+                    Read Only
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="col-span-7 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              <span className="font-semibold text-slate-700">
-                Exit rationale:
-              </span>{" "}
-              {position.exitRationale || position.comments?.[0]?.content || "No exit rationale recorded."}
+            <div className="mt-2 grid grid-cols-12 gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              <div className="col-span-3">
+                <span className="font-semibold text-slate-700">Final shares:</span>{" "}
+                {formatNumber(position.shares)}
+              </div>
+
+              <div className="col-span-3">
+                <span className="font-semibold text-slate-700">Cost basis:</span>{" "}
+                {formatMoney(position.costBasis)}
+              </div>
+
+              <div className="col-span-3">
+                <span className="font-semibold text-slate-700">Trades:</span>{" "}
+                {(position.trades?.length ?? 0) +
+                  (position.security?.trades?.length ?? 0)}
+              </div>
+
+              <div className="col-span-3">
+                <span className="font-semibold text-slate-700">Comments:</span>{" "}
+                {position.comments?.length ?? 0}
+              </div>
+
+              <div className="col-span-12 pt-1">
+                <span className="font-semibold text-slate-700">Exit rationale:</span>{" "}
+                {getLatestComment(position) ?? "No exit rationale recorded."}
+              </div>
             </div>
           </div>
         );
@@ -564,7 +673,7 @@ const closedPositions = useMemo(() => {
                     {closedPositions.length}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Historical completed names
+                    Closed Wells-sourced positions
                   </p>
                 </div>
 
@@ -576,7 +685,7 @@ const closedPositions = useMemo(() => {
                     {winners}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Positive realized proxy
+                    Positive closed-position return
                   </p>
                 </div>
 
@@ -588,7 +697,7 @@ const closedPositions = useMemo(() => {
                     {losers}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Negative realized proxy
+                    Negative closed-position return
                   </p>
                 </div>
               </div>
