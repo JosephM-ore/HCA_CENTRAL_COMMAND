@@ -80,18 +80,47 @@ function SettingsCard({
   );
 }
 
-function formatDateTime(value: string | Date | null | undefined) {
-  if (!value) return "—";
+function DataOperationStep({
+  step,
+  title,
+  description,
+  details,
+  children,
+}: {
+  step: string;
+  title: string;
+  description: string;
+  details: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+              {step}
+            </span>
 
-  return new Intl.DateTimeFormat("en-US", {
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+            <h3 className="text-sm font-semibold text-slate-950">
+              {title}
+            </h3>
+          </div>
+
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            {description}
+          </p>
+
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            {details}
+          </p>
+        </div>
+
+        <div className="shrink-0">{children}</div>
+      </div>
+    </div>
+  );
 }
-
 
 export default function SettingsClient({
   auditLogCount,
@@ -99,22 +128,24 @@ export default function SettingsClient({
   users,
 }: SettingsClientProps) {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [isRefreshingMarketData, setIsRefreshingMarketData] = useState(false);
-  const [marketDataRefreshResult, setMarketDataRefreshResult] = useState<any | null>(null);
-  const [marketDataRefreshError, setMarketDataRefreshError] = useState("");
-  const [isRefreshingFundamentals, setIsRefreshingFundamentals] = useState(false);
-  const [fundamentalsRefreshResult, setFundamentalsRefreshResult] = useState<any | null>(null);
-  const [fundamentalsRefreshError, setFundamentalsRefreshError] = useState("");
+
   const [isUploadingWells, setIsUploadingWells] = useState(false);
   const [wellsUploadResult, setWellsUploadResult] = useState<any | null>(null);
   const [wellsUploadError, setWellsUploadError] = useState("");
 
+  const [isRefreshingMarketData, setIsRefreshingMarketData] = useState(false);
+  const [marketDataRefreshResult, setMarketDataRefreshResult] =
+    useState<any | null>(null);
+  const [marketDataRefreshError, setMarketDataRefreshError] = useState("");
+
+  const [isRefreshingSecEnrichment, setIsRefreshingSecEnrichment] =
+    useState(false);
+  const [secEnrichmentRefreshResult, setSecEnrichmentRefreshResult] =
+    useState<any | null>(null);
+  const [secEnrichmentRefreshError, setSecEnrichmentRefreshError] = useState("");
   
-const [isRefreshingCiks, setIsRefreshingCiks] = useState(false);
-const [cikRefreshResult, setCikRefreshResult] = useState<any | null>(null);
-const [cikRefreshError, setCikRefreshError] = useState("");
-
-
+ 
+  
     useEffect(() => {
       async function loadCurrentUser() {
         const response = await fetch("/api/auth/me");
@@ -128,40 +159,7 @@ const [cikRefreshError, setCikRefreshError] = useState("");
       loadCurrentUser();
     }, []);
 
-    async function handleRefreshCiks() {
-      setIsRefreshingCiks(true);
-      setCikRefreshResult(null);
-      setCikRefreshError("");
-
-      try {
-        const response = await fetch("/api/admin/refresh-ciks", {
-          method: "POST",
-          credentials: "include",
-        });
-
-        const text = await response.text();
-
-        let data: any = null;
-
-        try {
-          data = JSON.parse(text);
-        } catch {
-          throw new Error(text || "Unexpected CIK refresh response.");
-        }
-
-        if (!response.ok) {
-          throw new Error(data.error || data.detail || "CIK refresh failed.");
-        }
-
-        setCikRefreshResult(data);
-      } catch (error) {
-        setCikRefreshError(
-          error instanceof Error ? error.message : "CIK refresh failed."
-        );
-      } finally {
-        setIsRefreshingCiks(false);
-      }
-    }
+    
 
     async function handleWellsUpload(event: React.ChangeEvent<HTMLInputElement>) {
   const file = event.target.files?.[0];
@@ -242,40 +240,70 @@ const [cikRefreshError, setCikRefreshError] = useState("");
           setIsRefreshingMarketData(false);
         }
       }
-      async function handleRefreshFundamentals() {
-        setIsRefreshingFundamentals(true);
-        setFundamentalsRefreshResult(null);
-        setFundamentalsRefreshError("");
+      async function handleRefreshSecEnrichment() {
+  setIsRefreshingSecEnrichment(true);
+  setSecEnrichmentRefreshResult(null);
+  setSecEnrichmentRefreshError("");
 
-        try {
-          const response = await fetch("/api/admin/refresh-fundamentals", {
-            method: "POST",
-            credentials: "include",
-          });
+  try {
+    const cikResponse = await fetch("/api/admin/refresh-ciks", {
+      method: "POST",
+      credentials: "include",
+    });
 
-          const text = await response.text();
+    const cikText = await cikResponse.text();
 
-          let data: any = null;
+    let cikData: any = null;
 
-          try {
-            data = JSON.parse(text);
-          } catch {
-            throw new Error(text || "Unexpected refresh response.");
-          }
+    try {
+      cikData = JSON.parse(cikText);
+    } catch {
+      throw new Error(cikText || "Unexpected SEC CIK refresh response.");
+    }
 
-          if (!response.ok) {
-            throw new Error(data.error || data.detail || "Fundamentals refresh failed.");
-          }
+    if (!cikResponse.ok) {
+      throw new Error(
+        cikData.error || cikData.detail || "SEC CIK refresh failed."
+      );
+    }
 
-          setFundamentalsRefreshResult(data);
-        } catch (error) {
-          setFundamentalsRefreshError(
-            error instanceof Error ? error.message : "Fundamentals refresh failed."
-          );
-        } finally {
-          setIsRefreshingFundamentals(false);
-        }
-      }
+    const fundamentalsResponse = await fetch("/api/admin/refresh-fundamentals", {
+      method: "POST",
+      credentials: "include",
+    });
+
+    const fundamentalsText = await fundamentalsResponse.text();
+
+    let fundamentalsData: any = null;
+
+    try {
+      fundamentalsData = JSON.parse(fundamentalsText);
+    } catch {
+      throw new Error(
+        fundamentalsText || "Unexpected SEC fundamentals refresh response."
+      );
+    }
+
+    if (!fundamentalsResponse.ok) {
+      throw new Error(
+        fundamentalsData.error ||
+          fundamentalsData.detail ||
+          "SEC fundamentals refresh failed."
+      );
+    }
+
+    setSecEnrichmentRefreshResult({
+      cik: cikData,
+      fundamentals: fundamentalsData,
+    });
+  } catch (error) {
+    setSecEnrichmentRefreshError(
+      error instanceof Error ? error.message : "SEC enrichment refresh failed."
+    );
+  } finally {
+    setIsRefreshingSecEnrichment(false);
+  }
+}
     const userCanViewAuditLogs = canViewAuditLogs(currentUser?.role);
   
   
@@ -467,16 +495,16 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                   <SettingsCard
                     eyebrow="Data Operations"
                     title="Data Refresh"
-                    description="Current prices are refreshed from Finnhub and stored in the local market data cache. Wells remains the source for position economics and SEC EDGAR remains the source for fundamentals."
+                    description="Run these operations in order. Wells uploads establish positions, tax lots, trades, and closed-position detection. SEC enrichment resolves CIKs and refreshes fundamentals. Current price refresh updates live market data only."
                   >
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Market Data
+                        Data Source Order
                       </p>
                       <p className="mt-2 text-sm font-semibold text-slate-900">
-                        Finnhub provider
+                        Wells → SEC → Finnhub
                       </p>
                     </div>
 
@@ -489,22 +517,16 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                       </p>
                     </div>
                   </div>
-                  
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-950">
-                          Wells CSV Upload
-                        </h3>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          Upload Wells tax lot or transaction activity CSV files. Upload the
-                          TaxLotDailyTD file first to refresh positions, then upload the
-                          ActTDDaily file to populate trade history.
-                        </p>
-                      </div>
 
+                  <div className="mt-4 space-y-4">
+                    <DataOperationStep
+                      step="1"
+                      title="Wells CSV Upload"
+                      description="Upload Wells files first. TaxLotDailyTD refreshes positions, tax lots, and closed-position detection. ActTDDaily refreshes trade history and reconciliation."
+                      details="Updates: positions, past-position detection, tax lots, trades, and trade reconciliation. Does not update current prices or SEC fundamentals."
+                    >
                       {userCanViewAuditLogs ? (
-                        <label className="shrink-0 cursor-pointer rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                        <label className="cursor-pointer rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
                           {isUploadingWells ? "Uploading..." : "Upload Wells CSV"}
                           <input
                             type="file"
@@ -515,14 +537,14 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                           />
                         </label>
                       ) : (
-                        <div className="shrink-0 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
+                        <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
                           Admin / Compliance only
                         </div>
                       )}
-                    </div>
+                    </DataOperationStep>
 
                     {wellsUploadResult ? (
-                      <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+                      <div className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
                         <p className="font-semibold">
                           Wells upload complete: {wellsUploadResult.reportType || "N/A"}
                         </p>
@@ -558,6 +580,11 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                             {wellsUploadResult.positionsUpdated ?? "N/A"}
                           </span>
 
+                          <span>Positions closed</span>
+                          <span className="font-semibold">
+                            {wellsUploadResult.positionsClosed ?? "N/A"}
+                          </span>
+
                           <span>Trades created</span>
                           <span className="font-semibold">
                             {wellsUploadResult.tradesCreated ?? "N/A"}
@@ -572,13 +599,13 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                     ) : null}
 
                     {wellsUploadError ? (
-                      <div className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
+                      <div className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
                         {wellsUploadError}
                       </div>
                     ) : null}
 
                     {wellsUploadResult?.failures?.length ? (
-                      <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-amber-200 bg-amber-50">
+                      <div className="max-h-56 overflow-auto rounded-2xl border border-amber-200 bg-amber-50">
                         {wellsUploadResult.failures.map((failure: string, index: number) => (
                           <div
                             key={`${failure}-${index}`}
@@ -589,116 +616,89 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                         ))}
                       </div>
                     ) : null}
-                  </div>
-                  
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-950">
-                          SEC CIK Refresh
-                        </h3>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          Resolve SEC CIK identifiers for securities before refreshing SEC
-                          fundamentals.
-                        </p>
-                      </div>
 
+                    <DataOperationStep
+                      step="2"
+                      title="SEC Enrichment Refresh"
+                      description="Runs SEC CIK refresh first, then SEC fundamentals refresh. Use this after new tickers appear from Wells or Watchlist, or when fundamentals look stale."
+                      details="Updates: Security.cik and SEC-derived fundamental fields in MarketDataCache. Does not update prices, positions, tax lots, or trade history."
+                    >
                       {userCanViewAuditLogs ? (
                         <button
-                          onClick={handleRefreshCiks}
-                          disabled={isRefreshingCiks}
-                          className="shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={handleRefreshSecEnrichment}
+                          disabled={isRefreshingSecEnrichment}
+                          className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {isRefreshingCiks ? "Refreshing..." : "Refresh SEC CIKs"}
+                          {isRefreshingSecEnrichment
+                            ? "Refreshing..."
+                            : "Refresh SEC Enrichment"}
                         </button>
                       ) : (
-                        <div className="shrink-0 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
+                        <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
                           Admin / Compliance only
                         </div>
                       )}
-                    </div>
+                    </DataOperationStep>
 
-                    {cikRefreshResult ? (
-                      <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
-                        CIK refresh complete. Updated:{" "}
-                        <span className="font-semibold">
-                          {cikRefreshResult.updatedCount ??
-                            cikRefreshResult.updated ??
-                            cikRefreshResult.updatedSymbols ??
-                            "N/A"}
-                        </span>
-                        . Failed:{" "}
-                        <span className="font-semibold">
-                          {cikRefreshResult.failedCount ??
-                            cikRefreshResult.failed ??
-                            cikRefreshResult.failedSymbols ??
-                            "N/A"}
-                        </span>
-                        .
+                    {secEnrichmentRefreshResult ? (
+                      <div className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+                        <p className="font-semibold">SEC enrichment refresh complete.</p>
+
+                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <span>CIKs updated</span>
+                          <span className="font-semibold">
+                            {secEnrichmentRefreshResult.cik?.updatedCount ?? "N/A"}
+                          </span>
+
+                          <span>CIKs failed</span>
+                          <span className="font-semibold">
+                            {secEnrichmentRefreshResult.cik?.failedCount ?? "N/A"}
+                          </span>
+
+                          <span>Fundamentals updated</span>
+                          <span className="font-semibold">
+                            {secEnrichmentRefreshResult.fundamentals?.updatedCount ?? "N/A"}
+                          </span>
+
+                          <span>Fundamentals failed</span>
+                          <span className="font-semibold">
+                            {secEnrichmentRefreshResult.fundamentals?.failedCount ?? "N/A"}
+                          </span>
+                        </div>
                       </div>
                     ) : null}
 
-                    {cikRefreshError ? (
-                      <div className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
-                        {cikRefreshError}
+                    {secEnrichmentRefreshError ? (
+                      <div className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
+                        {secEnrichmentRefreshError}
                       </div>
                     ) : null}
 
-                    {cikRefreshResult?.results?.length ? (
-                      <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-slate-200">
-                        {cikRefreshResult.results.map((result: any) => (
-                          <div
-                            key={result.ticker}
-                            className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-xs last:border-b-0"
-                          >
-                            <span className="font-semibold text-slate-700">
-                              {result.ticker}
-                            </span>
-
-                            <span
-                              className={
-                                result.status === "UPDATED"
-                                  ? "text-emerald-600"
-                                  : "text-amber-600"
-                              }
-                            >
-                              {result.status}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-950">
-                          Finnhub Current Price Refresh
-                        </h3>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                          Refresh live current prices from Finnhub. Other portfolio metrics continue to come from Wells position data and SEC fundamentals.
-                        </p>
-                      </div>
-
+                    <DataOperationStep
+                      step="3"
+                      title="Current Price Refresh"
+                      description="Refreshes current prices and day-change data from Finnhub for active Wells positions and active watchlist securities."
+                      details="Updates: current price, day change, day %, volume, and market-data fields. Does not update Wells economics, tax lots, trades, or SEC fundamentals."
+                    >
                       {userCanViewAuditLogs ? (
                         <button
                           onClick={handleRefreshMarketData}
                           disabled={isRefreshingMarketData}
-                          className="shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                         {isRefreshingMarketData ? "Refreshing..." : "Refresh Current Prices"}
+                          {isRefreshingMarketData
+                            ? "Refreshing..."
+                            : "Refresh Current Prices"}
                         </button>
                       ) : (
-                        <div className="shrink-0 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
+                        <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
                           Admin / Compliance only
                         </div>
                       )}
-                    </div>
+                    </DataOperationStep>
 
                     {marketDataRefreshResult ? (
-                      <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+                      <div className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
                         Current price refresh complete. Updated:{" "}
                         <span className="font-semibold">
                           {marketDataRefreshResult.updatedCount}
@@ -712,13 +712,13 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                     ) : null}
 
                     {marketDataRefreshError ? (
-                      <div className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
+                      <div className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
                         {marketDataRefreshError}
                       </div>
                     ) : null}
 
                     {marketDataRefreshResult?.results?.length ? (
-                      <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-slate-200">
+                      <div className="max-h-56 overflow-auto rounded-2xl border border-slate-200">
                         {marketDataRefreshResult.results.map((result: any) => (
                           <div
                             key={result.ticker}
@@ -742,74 +742,24 @@ const [cikRefreshError, setCikRefreshError] = useState("");
                       </div>
                     ) : null}
 
-                    <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <h3 className="text-sm font-semibold text-slate-950">SEC Fundamentals</h3>
-                          <p className="mt-1 text-sm leading-6 text-slate-500">
-                            Refresh accounting and filing-derived metrics from SEC EDGAR Company Facts.
-                          </p>
-                        </div>
-
-                        {userCanViewAuditLogs ? (
-                          <button
-                            onClick={handleRefreshFundamentals}
-                            disabled={isRefreshingFundamentals}
-                            className="shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isRefreshingFundamentals ? "Refreshing..." : "Refresh SEC Fundamentals"}
-                          </button>
-                        ) : (
-                          <div className="shrink-0 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
-                            Admin / Compliance only
-                          </div>
-                        )}
+                    {latestIngestionRun ? (
+                      <div className="rounded-2xl border border-slate-200 p-3 text-xs text-slate-500">
+                        <p>
+                          Latest source:{" "}
+                          <span className="font-semibold text-slate-700">
+                            {latestIngestionRun.source}
+                          </span>
+                        </p>
+                        <p className="mt-1">
+                          Started:{" "}
+                          <LocalDateTime value={latestIngestionRun.startedAt} />
+                        </p>
+                        <p className="mt-1">
+                          Message: {latestIngestionRun.message || "—"}
+                        </p>
                       </div>
-
-                      {fundamentalsRefreshResult ? (
-                        <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
-                          SEC refresh complete. Updated: <span className="font-semibold">{fundamentalsRefreshResult.updatedCount}</span>. Failed: <span className="font-semibold">{fundamentalsRefreshResult.failedCount}</span>.
-                        </div>
-                      ) : null}
-
-                      {fundamentalsRefreshError ? (
-                        <div className="mt-4 rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
-                          {fundamentalsRefreshError}
-                        </div>
-                      ) : null}
-
-                      {fundamentalsRefreshResult?.results?.length ? (
-                        <div className="mt-4 max-h-56 overflow-auto rounded-2xl border border-slate-200">
-                          {fundamentalsRefreshResult.results.map((result: any) => (
-                            <div key={result.ticker} className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-xs last:border-b-0">
-                              <span className="font-semibold text-slate-700">{result.ticker}</span>
-                              <span className={result.status === "UPDATED" ? "text-emerald-600" : "text-amber-600"}>{result.status}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
+                    ) : null}
                   </div>
-
-                  {latestIngestionRun ? (
-                    <div className="mt-3 rounded-2xl border border-slate-200 p-3 text-xs text-slate-500">
-                      <p>
-                        Source:{" "}
-                        <span className="font-semibold text-slate-700">
-                          {latestIngestionRun.source}
-                        </span>
-                      </p>
-                      <p className="mt-1">
-                        Started:{" "}
-                        <LocalDateTime
-                          value={latestIngestionRun.startedAt}
-                        />
-                      </p>
-                      <p className="mt-1">
-                        Message: {latestIngestionRun.message || "—"}
-                      </p>
-                    </div>
-                  ) : null}
                 </SettingsCard>
                 </div>
 
