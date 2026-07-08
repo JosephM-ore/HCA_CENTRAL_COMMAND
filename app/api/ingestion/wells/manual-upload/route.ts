@@ -165,10 +165,10 @@ export async function POST(request: Request) {
     let securitiesCreated = 0;
     let securitiesUpdated = 0;
     let positionsCreated = 0;
+    let positionsClosed = 0;
     let positionsUpdated = 0;
     let tradesCreated = 0;
     let tradesUpdated = 0;
-    
     let taxLotsCreated = 0;
     let taxLotsUpdated = 0;
 
@@ -184,11 +184,17 @@ export async function POST(request: Request) {
       } = parseWellsTaxLotCsv(rawContent, fileName);
 
 
+      
       rowsProcessed += rows.length;
       rowsFailed += parseFailures.length;
       failures.push(...parseFailures);
 
+      const activeWellsPositionKeys = new Set<string>();
+      const accountsInPositionSnapshot = new Set<string>();
+      const positionSnapshotDates: Date[] = [];
+
       for (const position of positions) {
+
         if (!position.accountNumber) {
           rowsFailed += 1;
           failures.push(
@@ -231,6 +237,15 @@ export async function POST(request: Request) {
           securitiesUpdated += 1;
         }
 
+        const sourceReportDate = position.sourceReportDate
+          ? new Date(position.sourceReportDate)
+          : new Date();
+
+        activeWellsPositionKeys.add(`${security.id}:${position.accountNumber}`);
+        accountsInPositionSnapshot.add(position.accountNumber);
+        positionSnapshotDates.push(sourceReportDate);
+
+
         const positionData = {
           securityId: security.id,
           source: "WELLS_FARGO",
@@ -238,9 +253,7 @@ export async function POST(request: Request) {
           custodian: "Wells Fargo",
           costBasis: position.costBasis,
           unrealizedPnl: position.unrealizedPnl,
-          sourceReportDate: position.sourceReportDate
-            ? new Date(position.sourceReportDate)
-            : new Date(),
+          sourceReportDate,
           sourceFileName: position.sourceFileName,
           sourceRowHash: position.sourceRowHash,
           ingestionRunId: ingestionRun.id,
@@ -273,6 +286,56 @@ export async function POST(request: Request) {
           });
 
           positionsCreated += 1;
+        }
+      }
+
+      const latestSnapshotDate =
+        positionSnapshotDates.length > 0
+          ? new Date(
+              Math.max(...positionSnapshotDates.map((date) => date.getTime()))
+            )
+          : new Date();
+
+      if (activeWellsPositionKeys.size > 0 && accountsInPositionSnapshot.size > 0) {
+        const previouslyActivePositions = await prisma.position.findMany({
+          where: {
+            source: "WELLS_FARGO",
+            status: "ACTIVE",
+            accountNumber: {
+              in: Array.from(accountsInPositionSnapshot),
+            },
+          },
+          select: {
+            id: true,
+            securityId: true,
+            accountNumber: true,
+          },
+        });
+
+        for (const existingPosition of previouslyActivePositions) {
+          if (!existingPosition.accountNumber) continue;
+
+          const positionKey = `${existingPosition.securityId}:${existingPosition.accountNumber}`;
+
+          if (activeWellsPositionKeys.has(positionKey)) {
+            continue;
+          }
+
+          await prisma.position.update({
+            where: {
+              id: existingPosition.id,
+            },
+            data: {
+              status: "CLOSED",
+              closedAt: latestSnapshotDate,
+              portfolioPct: 0,
+              sourceReportDate: latestSnapshotDate,
+              sourceFileName: fileName,
+              ingestionRunId: ingestionRun.id,
+            },
+          });
+
+          positionsClosed += 1;
         }
       }
 
@@ -714,6 +777,7 @@ export async function POST(request: Request) {
       securitiesUpdated,
       positionsCreated,
       positionsUpdated,
+      positionsClosed,
       tradesCreated,
       tradesUpdated,
       failures,
