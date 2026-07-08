@@ -17,11 +17,27 @@ export default async function PastPositionsPage() {
               updatedAt: "desc",
             },
           },
+          trades: {
+            where: {
+              isHidden: false,
+            },
+            orderBy: {
+              dateTraded: "desc",
+            },
+          },
         },
       },
       trades: {
+        where: {
+          isHidden: false,
+        },
         orderBy: {
           dateTraded: "desc",
+        },
+      },
+      taxLots: {
+        orderBy: {
+          taxLotDate: "desc",
         },
       },
       comments: {
@@ -51,9 +67,14 @@ export default async function PastPositionsPage() {
         },
       },
     },
-    orderBy: {
-      closedAt: "desc",
-    },
+    orderBy: [
+      {
+        closedAt: "desc",
+      },
+      {
+        updatedAt: "desc",
+      },
+    ],
   });
 
   const serializedPositions = JSON.parse(JSON.stringify(positions));

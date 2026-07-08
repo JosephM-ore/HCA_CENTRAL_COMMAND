@@ -33,6 +33,93 @@ function Badge({
   );
 }
 
+function getVisibleTrades(position: any) {
+  const positionTrades = position.trades ?? [];
+  const securityTrades = position.security?.trades ?? [];
+
+  const byId = new Map<string, any>();
+
+  [...positionTrades, ...securityTrades].forEach((trade) => {
+    if (!trade?.id) return;
+    if (trade.isHidden) return;
+    byId.set(trade.id, trade);
+  });
+
+  return Array.from(byId.values()).sort((a, b) => {
+    return (
+      new Date(a.dateTraded).getTime() - new Date(b.dateTraded).getTime()
+    );
+  });
+}
+
+function isBuyTrade(trade: any) {
+  const type = String(trade.tradeType ?? "").toUpperCase();
+  return type.includes("BUY") || type.includes("COVER");
+}
+
+function isSellTrade(trade: any) {
+  const type = String(trade.tradeType ?? "").toUpperCase();
+  return type.includes("SELL") || type.includes("SHORT");
+}
+
+function getEntryTrade(position: any) {
+  const trades = getVisibleTrades(position);
+
+  if (position.side === "SHORT") {
+    return trades.find((trade) => isSellTrade(trade)) ?? trades[0] ?? null;
+  }
+
+  return trades.find((trade) => isBuyTrade(trade)) ?? trades[0] ?? null;
+}
+
+function getExitTrade(position: any) {
+  const trades = getVisibleTrades(position);
+
+  if (position.side === "SHORT") {
+    return [...trades].reverse().find((trade) => isBuyTrade(trade)) ?? trades.at(-1) ?? null;
+  }
+
+  return [...trades].reverse().find((trade) => isSellTrade(trade)) ?? trades.at(-1) ?? null;
+}
+
+function getEntryPrice(position: any) {
+  const entryTrade = getEntryTrade(position);
+  return entryTrade?.avgPrice ?? position.wap ?? null;
+}
+
+function getExitPrice(position: any) {
+  const exitTrade = getExitTrade(position);
+
+  if (exitTrade?.avgPrice != null) {
+    return exitTrade.avgPrice;
+  }
+
+  return null;
+}
+
+function getTotalPctChange(position: any) {
+  if (position.totalPctChange != null) {
+    return position.totalPctChange;
+  }
+
+  const entryPrice = getEntryPrice(position);
+  const exitPrice = getExitPrice(position);
+
+  if (!entryPrice || !exitPrice) return null;
+
+  if (position.side === "SHORT") {
+    return ((entryPrice - exitPrice) / entryPrice) * 100;
+  }
+
+  return ((exitPrice - entryPrice) / entryPrice) * 100;
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+
+  return `${Number(value) >= 0 ? "+" : ""}${Number(value).toFixed(1)}%`;
+}
+
 function formatMoney(value: number | null | undefined) {
   if (value == null) return "—";
 
@@ -211,13 +298,16 @@ function PastPositionsGrid({
         <div>Total % Change</div>
         <div>Comment Section</div>
       </div>
-
+      {positions.length === 0 ? (
+          <div className="px-4 py-10 text-center text-sm text-slate-500">
+            No closed positions found. Past positions appear when a Wells position is
+            marked CLOSED during position ingestion.
+          </div>
+        ) : null}
       {positions.map((position) => {
-        const entryPrice = position.wap;
-        const exitValuePerShare =
-          position.shares && position.marketValue
-            ? position.marketValue / position.shares
-            : null;
+        const entryPrice = getEntryPrice(position);
+        const exitPrice = getExitPrice(position);
+        const totalPctChange = getTotalPctChange(position);
 
         const entryLabel =
           position.side === "SHORT"
@@ -226,8 +316,8 @@ function PastPositionsGrid({
 
         const exitLabel =
           position.side === "SHORT"
-            ? `${formatMoney(exitValuePerShare)} Covered`
-            : `${formatMoney(exitValuePerShare)} Sold`;
+            ? `${formatMoney(exitPrice)} Covered`
+            : `${formatMoney(exitPrice)} Sold`;
 
         return (
           <div
@@ -246,10 +336,8 @@ function PastPositionsGrid({
 
             <div>{exitLabel}</div>
 
-            <div className={`font-semibold ${pnlClass(position.totalPctChange)}`}>
-              {position.totalPctChange != null
-                ? `${position.totalPctChange >= 0 ? "+" : ""}${position.totalPctChange.toFixed(1)}%`
-                : "—"}
+            <div className={`font-semibold ${pnlClass(totalPctChange)}`}>
+              {formatPercent(totalPctChange)}
             </div>
 
             <div>
@@ -328,13 +416,17 @@ const closedPositions = useMemo(() => {
     });
 }, [positions, query]);
 
-  const winners = closedPositions.filter(
-    (position) => (position.totalPctChange ?? 0) >= 0
-  ).length;
+  
+  const winners = closedPositions.filter((position) => {
+    const pctChange = getTotalPctChange(position);
+    return pctChange != null && pctChange >= 0;
+  }).length;
 
-  const losers = closedPositions.filter(
-    (position) => (position.totalPctChange ?? 0) < 0
-  ).length;
+  const losers = closedPositions.filter((position) => {
+    const pctChange = getTotalPctChange(position);
+    return pctChange != null && pctChange < 0;
+  }).length;
+
 
   const userCanCreateComments = canCreateComments(currentUser?.role);
 
@@ -447,7 +539,7 @@ const closedPositions = useMemo(() => {
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">Live data mock</Badge>
+              <Badge tone="blue">Closed Positions</Badge>
               <CurrentUserPill />
             </div>
           </header>
