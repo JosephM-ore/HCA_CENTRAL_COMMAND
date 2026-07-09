@@ -765,7 +765,6 @@ function EditWatchlistModal({
 }) {
   const [side, setSide] = useState("LONG");
   const [targetPrice, setTargetPrice] = useState("");
-  const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [ptChangeComment, setPtChangeComment] = useState("");
@@ -778,7 +777,6 @@ function EditWatchlistModal({
 
     setSide(entry.side || "LONG");
     setTargetPrice(entry.targetPrice != null ? String(entry.targetPrice) : "");
-    setNotes(entry.notes || "");
     setPtChangeComment("");
     setError("");
   }, [entry]);
@@ -800,7 +798,7 @@ function EditWatchlistModal({
         await onSave(entry, {
           side,
           targetPrice,
-          notes,
+          notes: entry.notes || "",
           ptChangeComment,
         });
 
@@ -847,12 +845,21 @@ function EditWatchlistModal({
             <option value="SHORT">Short Watchlist</option>
           </select>
 
-          <input
-            value={targetPrice}
-            onChange={(event) => setTargetPrice(event.target.value)}
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-            placeholder="Buy PT / Short PT"
-          />
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Change PT
+            </label>
+            <input
+              value={targetPrice}
+              onChange={(event) => setTargetPrice(event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+              placeholder={
+                entry.side === "SHORT"
+                  ? "Enter new Short PT"
+                  : "Enter new Buy PT"
+              }
+            />
+          </div>
 
           {targetPriceChanged ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
@@ -868,12 +875,7 @@ function EditWatchlistModal({
             </div>
           ) : null}
 
-          <textarea
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            className="h-28 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-            placeholder="Watchlist notes..."
-          />
+          
         </div>
 
         {error ? (
@@ -954,7 +956,6 @@ function CommentModal({
 
   const categories = [
     ["COMMENT", "Comment"],
-    ["PT", "PT"],
     ["THESIS", "Thesis"],
     ["RISK", "Risk"],
     ["CATALYST", "Catalyst"],
