@@ -83,7 +83,8 @@ function AlertCard({
   onResolve: (flagId: string) => Promise<void>;
   canResolve: boolean;
 }) {
-
+  const [confirming, setConfirming] = useState(false);
+  const [isResolving, setIsResolving] = useState(false);
   const isOpen = flag.status === "OPEN";
 
   const iconClass =
@@ -92,7 +93,28 @@ function AlertCard({
       : flag.priority === "MEDIUM"
       ? "bg-amber-50 text-amber-600"
       : "bg-slate-50 text-slate-500";
+    
+      useEffect(() => {
+    if (!confirming) {
+      return;
+    }
 
+    const timeout = setTimeout(() => {
+      setConfirming(false);
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [confirming]);
+
+    async function handleConfirmResolve() {
+    try {
+      setIsResolving(true);
+      await onResolve(flag.id);
+    } finally {
+      setIsResolving(false);
+      setConfirming(false);
+    }
+  }
   return (
     <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex min-w-0 items-center gap-4">
@@ -146,12 +168,39 @@ function AlertCard({
             Resolved
           </button>
         ) : canResolve ? (
-          <button
-            onClick={() => onResolve(flag.id)}
-            className="ml-4 shrink-0 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            Resolve
-          </button>
+          <div className="ml-4 shrink-0">
+            {isResolving ? (
+              <button
+                disabled
+                className="cursor-not-allowed rounded-2xl bg-slate-400 px-4 py-2 text-sm font-medium text-white"
+              >
+                Resolving...
+              </button>
+            ) : confirming ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleConfirmResolve}
+                  className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  Confirm Resolve
+                </button>
+
+                <button
+                  onClick={() => setConfirming(false)}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirming(true)}
+                className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Resolve
+              </button>
+            )}
+          </div>
         ) : (
           <button
             disabled

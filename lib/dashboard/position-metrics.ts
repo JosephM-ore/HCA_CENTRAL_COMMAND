@@ -1,4 +1,11 @@
-type DashboardMetricPosition = {
+export type MarketData = {
+  currentPrice?: number | string | null;
+  dayChange?: number | string | null;
+  dayPctChange?: number | string | null;
+  marketDataSource?: string | null;
+};
+
+export type DashboardMetricPosition = {
   source?: string | null;
   shares?: number | string | null;
   marketValue?: number | string | null;
@@ -6,23 +13,50 @@ type DashboardMetricPosition = {
   unrealizedPnl?: number | string | null;
   comments?: unknown[] | null;
   security?: {
-  marketData?: Array<{
-    currentPrice?: number | string | null;
-    dayPctChange?: number | string | null;
-    marketDataSource?: string | null;
-  }> | null;
-} | null;
+    marketData?: MarketData[] | null;
+  } | null;
 };
-function getNumber(value: unknown) {
-  const numberValue = Number(value);
 
-  if (!Number.isFinite(numberValue)) {
+function getNumber(value: unknown): number | null {
+  if (value == null) {
     return null;
   }
 
-  return numberValue;
+  const num = Number(value);
+
+  return Number.isFinite(num) ? num : null;
 }
-export function getDisplayCostBasis(position: DashboardMetricPosition) {
+
+function getMarketData(
+  position: DashboardMetricPosition
+): MarketData | null {
+  return position.security?.marketData?.[0] ?? null;
+}
+
+function isRealQuoteSource(
+  source: string | null | undefined
+): boolean {
+  return source === "FINNHUB";
+}
+
+function safeDivide(
+  numerator: number | null,
+  denominator: number | null
+): number | null {
+  if (
+    numerator == null ||
+    denominator == null ||
+    denominator === 0
+  ) {
+    return null;
+  }
+
+  return numerator / denominator;
+}
+
+export function getDisplayCostBasis(
+  position: DashboardMetricPosition
+): number | null {
   if (position.source !== "WELLS_FARGO") {
     return null;
   }
@@ -30,7 +64,9 @@ export function getDisplayCostBasis(position: DashboardMetricPosition) {
   return getNumber(position.costBasis);
 }
 
-export function getDisplayMarketValue(position: DashboardMetricPosition) {
+export function getDisplayMarketValue(
+  position: DashboardMetricPosition
+): number | null {
   if (position.source !== "WELLS_FARGO") {
     return null;
   }
@@ -38,7 +74,15 @@ export function getDisplayMarketValue(position: DashboardMetricPosition) {
   return getNumber(position.marketValue);
 }
 
-export function getDisplayUnrealizedPnl(position: DashboardMetricPosition) {
+export function getWellsUnrealizedPnl(
+  position: DashboardMetricPosition
+): number | null {
+  return getNumber(position.unrealizedPnl);
+}
+
+export function getDisplayUnrealizedPnl(
+  position: DashboardMetricPosition
+): number | null {
   if (position.source !== "WELLS_FARGO") {
     return null;
   }
@@ -46,140 +90,190 @@ export function getDisplayUnrealizedPnl(position: DashboardMetricPosition) {
   return getWellsUnrealizedPnl(position);
 }
 
-export function getDisplayPortfolioPct(
-  position: DashboardMetricPosition,
-  positions: DashboardMetricPosition[]
-) {
-  const positionMarketValue = getNumber(position.marketValue);
-
-  if (!positionMarketValue) {
-    return null;
-  }
-
-  const grossMarketValue = positions.reduce(
-    (sum, currentPosition) =>
-      sum + Math.abs(getNumber(currentPosition.marketValue) ?? 0),
-    0
-  );
-
-  if (!grossMarketValue) {
-    return null;
-  }
-
-  return (Math.abs(positionMarketValue) / grossMarketValue) * 100;
-}
-export function getWellsImpliedPrice(position: any) {
+export function getWellsImpliedPrice(
+  position: DashboardMetricPosition
+): number | null {
   const shares = getNumber(position.shares);
   const marketValue = getNumber(position.marketValue);
 
-  if (!shares || !marketValue) {
-    return null;
-  }
+  const price = safeDivide(marketValue, shares);
 
-  return Math.abs(marketValue / shares);
+  return price == null ? null : Math.abs(price);
 }
 
-export function getWellsWap(position: any) {
+export function getWellsWap(
+  position: DashboardMetricPosition
+): number | null {
   const shares = getNumber(position.shares);
   const costBasis = getNumber(position.costBasis);
 
-  if (!shares || !costBasis) {
-    return null;
-  }
+  const wap = safeDivide(costBasis, shares);
 
-  return Math.abs(costBasis / shares);
+  return wap == null ? null : Math.abs(wap);
 }
 
-export function getWellsTotalPctChange(position: any) {
+export function getWellsTotalPctChange(
+  position: DashboardMetricPosition
+): number | null {
   const unrealizedPnl = getNumber(position.unrealizedPnl);
   const costBasis = getNumber(position.costBasis);
 
-  if (unrealizedPnl == null || !costBasis) {
+  if (
+    unrealizedPnl == null ||
+    costBasis == null ||
+    costBasis === 0
+  ) {
     return null;
   }
 
   return (unrealizedPnl / Math.abs(costBasis)) * 100;
 }
 
-export function getWellsUnrealizedPnl(position: any) {
-  const unrealizedPnl = getNumber(position.unrealizedPnl);
-
-  if (unrealizedPnl == null) {
-    return null;
-  }
-
-  return unrealizedPnl;
+export function getDisplayWap(
+  position: DashboardMetricPosition
+): number | null {
+  return position.source === "WELLS_FARGO"
+    ? getWellsWap(position)
+    : null;
 }
 
-
-function isRealQuoteSource(source: string | null | undefined) {
-  return source === "FINNHUB";
-}
-export function getDisplayDayPctChange(position: DashboardMetricPosition) {
-  const marketData = position.security?.marketData?.[0];
-
-  if (marketData?.marketDataSource !== "FINNHUB") {
-    return null;
-  }
-
-  const dayPctChange = getNumber((marketData as any).dayPctChange);
-
-  if (dayPctChange == null) {
-    return null;
-  }
-
-  return dayPctChange;
+export function getDisplayTotalPctChange(
+  position: DashboardMetricPosition
+): number | null {
+  return position.source === "WELLS_FARGO"
+    ? getWellsTotalPctChange(position)
+    : null;
 }
 
-export function getDisplayCurrentPrice(position: DashboardMetricPosition) {
-  const marketData = position.security?.marketData?.[0];
+export function getDisplayCurrentPrice(
+  position: DashboardMetricPosition
+): number | null {
+  const marketData = getMarketData(position);
+
+  const quotePrice = getNumber(marketData?.currentPrice);
 
   if (
     isRealQuoteSource(marketData?.marketDataSource) &&
-    marketData?.currentPrice != null
+    quotePrice != null
   ) {
-    return getNumber(marketData.currentPrice);
+    return quotePrice;
   }
 
-  return null;
-}
-
-export function getDisplayWap(position: any) {
+  // Only fall back to Wells implied price for Wells positions
   if (position.source === "WELLS_FARGO") {
-    return getWellsWap(position);
+    return getWellsImpliedPrice(position);
   }
 
   return null;
 }
 
-export function getDisplayTotalPctChange(position: any) {
-  if (position.source === "WELLS_FARGO") {
-    return getWellsTotalPctChange(position);
+
+export function getDisplayDayPctChange(
+  position: DashboardMetricPosition
+): number | null {
+  const marketData = getMarketData(position);
+
+  if (!isRealQuoteSource(marketData?.marketDataSource)) {
+    return null;
+  }
+
+  return getNumber(marketData?.dayPctChange);
+}
+
+export function getDisplayDayPnl(
+  position: DashboardMetricPosition
+): number | null {
+  const marketData = getMarketData(position);
+
+  if (!isRealQuoteSource(marketData?.marketDataSource)) {
+    return null;
+  }
+
+  const shares = getNumber(position.shares);
+  const dayChange = getNumber(marketData?.dayChange);
+
+  // preferred calculation
+  if (shares != null && dayChange != null) {
+    return shares * dayChange;
+  }
+
+  // fallback approximation
+  const marketValue = getNumber(position.marketValue);
+  const dayPctChange = getNumber(marketData?.dayPctChange);
+
+  if (marketValue != null && dayPctChange != null) {
+    return marketValue * (dayPctChange / 100);
   }
 
   return null;
 }
 
-export function getDashboardStats(positions: any[]) {
-  const totalMarketValue = positions.reduce(
-    (sum, position) => sum + Math.abs(getNumber(position.marketValue) ?? 0),
+export function getDisplayPortfolioPct(
+  position: DashboardMetricPosition,
+  positions: DashboardMetricPosition[]
+): number | null {
+  const positionMarketValue = getNumber(
+    position.marketValue
+  );
+
+  if (positionMarketValue == null) {
+    return null;
+  }
+
+  const grossMarketValue = positions.reduce(
+    (sum, currentPosition) => {
+      const marketValue = getNumber(
+        currentPosition.marketValue
+      );
+
+      return sum + Math.abs(marketValue ?? 0);
+    },
     0
   );
 
+  if (grossMarketValue === 0) {
+    return null;
+  }
+
+  return (
+    (Math.abs(positionMarketValue) / grossMarketValue) *
+    100
+  );
+}
+
+export function getDashboardStats(
+  positions: DashboardMetricPosition[]
+) {
+  const totalMarketValue = positions.reduce(
+    (sum, position) => {
+      const marketValue = getNumber(
+        position.marketValue
+      );
+
+      return sum + Math.abs(marketValue ?? 0);
+    },
+    0
+  );
 
   const totalUnrealizedPnl = positions.reduce(
-    (sum, position) => sum + (getWellsUnrealizedPnl(position) ?? 0),
+    (sum, position) =>
+      sum + (getDisplayUnrealizedPnl(position) ?? 0),
     0
   );
 
-  const dayPnl = null;
+  const dayPnl = positions.reduce(
+    (sum, position) =>
+      sum + (getDisplayDayPnl(position) ?? 0),
+    0
+  );
 
   const commentedItems = positions.filter(
-    (position) => position.comments?.length > 0
+    (position) =>
+      (position.comments?.length ?? 0) > 0
   ).length;
 
   return {
-    totalMarketValue,
+    totalMarketValue, // gross exposure
     totalUnrealizedPnl,
     dayPnl,
     commentedItems,

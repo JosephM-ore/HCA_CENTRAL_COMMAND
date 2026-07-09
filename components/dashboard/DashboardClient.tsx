@@ -89,27 +89,17 @@ function pnlClass(value: number | null | undefined) {
   return value >= 0 ? "text-emerald-600" : "text-rose-600";
 }
 
-function formatDate(value: string | Date | null | undefined) {
-  if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
+function DateDisplay({
+  value,
+  className,
+}: {
+  value: string | Date | null | undefined;
+  className?: string;
+}) {
+  if (!value) return <span className={className}>—</span>;
 
-function formatDateTime(value: string | Date | null | undefined) {
-  if (!value) return "—";
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return <LocalDateTime value={value} className={className} />;
 }
 
 
@@ -509,7 +499,7 @@ function TickerDetailPanel({
                   key={trade.id}
                   className="grid grid-cols-6 items-center gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
                 >
-                  <span>{formatDate(trade.dateTraded)}</span>
+                  <DateDisplay value={trade.dateTraded} />
 
                   <span>{trade.tradeType || "—"}</span>
 
@@ -656,7 +646,7 @@ function TaxLotsModal({
                   key={lot.id}
                   className="grid min-w-[1050px] grid-cols-10 gap-2 border-b border-slate-100 px-3 py-3 last:border-b-0"
                 >
-                  <span>{formatDate(lot.taxLotDate)}</span>
+                  <DateDisplay value={lot.taxLotDate} />
                   <span className="truncate text-slate-500">
                     {lot.taxLotId || "—"}
                   </span>
@@ -801,19 +791,24 @@ function MarketDataModal({
             <span className="font-medium text-slate-700">Data Quality</span>
             <span className="text-right font-semibold text-slate-950">
               {marketData?.dataQuality ?? "N/A"}
-            </span>
+            </span>           
             <span className="font-medium text-slate-700">Last Market Refresh</span>
             <span className="text-right font-semibold text-slate-950">
-              {marketData?.lastMarketDataRefreshAt
-                ? formatDateTime(marketData.lastMarketDataRefreshAt)
-                : "N/A"}
+              {marketData?.lastMarketDataRefreshAt ? (
+                <LocalDateTime value={marketData.lastMarketDataRefreshAt} />
+              ) : (
+                "N/A"
+              )}
             </span>
             <span className="font-medium text-slate-700">Last Fundamentals Refresh</span>
             <span className="text-right font-semibold text-slate-950">
-              {marketData?.lastFundamentalsRefreshAt
-                ? formatDateTime(marketData.lastFundamentalsRefreshAt)
-                : "N/A"}
+              {marketData?.lastFundamentalsRefreshAt ? (
+                <LocalDateTime value={marketData.lastFundamentalsRefreshAt} />
+              ) : (
+                "N/A"
+              )}
             </span>
+
           </div>
         </div>
       </div>
@@ -1643,10 +1638,10 @@ async function handleSaveFlag(payload: {
                     sub="From Wells tax lot data"
                   />
 
-                  <StatCard
+                 <StatCard
                     label="Day P&L"
                     value={formatMoney(dayPnl)}
-                    sub="Estimated intraday move"
+                    sub="Estimated from Finnhub day change"
                   />
                   <StatCard
                     label="Commented Items"
