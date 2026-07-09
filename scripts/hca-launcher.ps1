@@ -215,4 +215,181 @@ $form.Controls.Add($takeoverButton)
 
 $logsButton = New-Object System.Windows.Forms.Button
 $logsButton.Text = "View Logs"
-$logsButton.Location = New-Object System.Drawing.Point(220
+$logsButton.Location = New-Object System.Drawing.Point(220, 390)
+$logsButton.Size = New-Object System.Drawing.Size(175, 40)
+$form.Controls.Add($logsButton)
+
+$closeButton = New-Object System.Windows.Forms.Button
+$closeButton.Text = "Close Launcher"
+$closeButton.Location = New-Object System.Drawing.Point(412, 390)
+$closeButton.Size = New-Object System.Drawing.Size(175, 40)
+$form.Controls.Add($closeButton)
+
+$footerLabel = New-Object System.Windows.Forms.Label
+$footerLabel.Text = "If this machine is hosting HCA, click Stop Hosting before shutting down."
+$footerLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+$footerLabel.AutoSize = $true
+$footerLabel.Location = New-Object System.Drawing.Point(28, 450)
+$form.Controls.Add($footerLabel)
+
+$currentOpenUrl = ""
+
+function Refresh-LauncherStatus {
+    $state = Get-ActiveHostState
+    $localUrl = Get-LocalUrl
+    $machine = $env:COMPUTERNAME
+
+    $lines = @()
+    $lines += "Current machine: $machine"
+    $lines += "Local URL:       $localUrl"
+    $lines += "Shared root:     $SharedRoot"
+    $lines += ""
+
+    $currentOpenUrl = ""
+
+    if (-not $state) {
+        $lines += "Status:          NOT RUNNING"
+        $lines += "Active host:     none"
+        $lines += ""
+        $lines += "Click Start / Open HCA to become the active host."
+        $script:currentOpenUrl = $localUrl
+
+        $stopButton.Enabled = $false
+        $backupButton.Enabled = $false
+        $takeoverButton.Enabled = $false
+        $openButton.Enabled = $false
+    } elseif ($state.status -eq "RUNNING") {
+        $activeHost = [string]$state.activeHost
+        $activeUrl = [string]$state.url
+        $isHealthy = $false
+
+        if ($activeUrl) {
+            $isHealthy = Test-HcaHealth -Url $activeUrl
+        }
+
+        $lines += "Status:          RUNNING"
+        $lines += "Active host:     $activeHost"
+        $lines += "Active URL:      $activeUrl"
+        $lines += "Health check:    $isHealthy"
+        $lines += "Git commit:      $($state.gitCommit)"
+        $lines += ""
+
+        if ($isHealthy) {
+            $lines += "HCA is already running. Use Open App."
+            $script:currentOpenUrl = $activeUrl
+            $openButton.Enabled = $true
+            $takeoverButton.Enabled = $false
+        } else {
+            $lines += "Previous active host is not reachable."
+            $lines += "Do not start normally unless takeover is intentional."
+            $script:currentOpenUrl = $activeUrl
+            $openButton.Enabled = $false
+            $takeoverButton.Enabled = $true
+        }
+
+        if ($activeHost -eq $machine) {
+            $stopButton.Enabled = $true
+            $backupButton.Enabled = $true
+        } else {
+            $stopButton.Enabled = $false
+            $backupButton.Enabled = $false
+        }
+    } elseif ($state.status -eq "STOPPED") {
+        $lines += "Status:          STOPPED"
+        $lines += "Last host:       $($state.lastActiveHost)"
+        $lines += "Last URL:        $($state.lastUrl)"
+        $lines += "Stopped at:      $($state.stoppedAt)"
+        $lines += "Last backup:     $($state.lastBackupPath)"
+        $lines += ""
+        $lines += "Click Start / Open HCA to pull the latest backup and host locally."
+
+        $script:currentOpenUrl = $localUrl
+        $openButton.Enabled = $false
+        $stopButton.Enabled = $false
+        $backupButton.Enabled = $false
+        $takeoverButton.Enabled = $false
+    } else {
+        $lines += "Status:          ERROR"
+        $lines += "Message:         $($state.message)"
+        $lines += ""
+        $lines += "Fix active-host.json or contact Joseph."
+
+        $openButton.Enabled = $false
+        $stopButton.Enabled = $false
+        $backupButton.Enabled = $false
+        $takeoverButton.Enabled = $false
+    }
+
+    $statusBox.Text = ($lines -join :NewLine)
+}
+
+$startButton.Add_Click({
+    Invoke-HcaScript -ScriptPath $StartScriptPath -DisplayName "Start / Open HCA"
+})
+
+$openButton.Add_Click({
+    Open-Url -Url $script:currentOpenUrl
+})
+
+$refreshButton.Add_Click({
+    Refresh-LauncherStatus
+})
+
+$stopButton.Add_Click({
+    $dialogResult = [System.Windows.Forms.MessageBox]::Show(
+        "Stop Hosting will back up the local database and stop HCA on this machine.`n`nContinue?",
+        "Stop HCA Hosting",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Question
+    )
+
+    if ($dialogResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+        Invoke-HcaScript -ScriptPath $StopScriptPath -DisplayName "Stop Hosting"
+    }
+})
+
+$backupButton.Add_Click({
+    Invoke-HcaScript -ScriptPath $BackupScriptPath -DisplayName "Backup Now" -Arguments @("-Reason", "launcher")
+})
+
+$updateButton.Add_Click({
+    Invoke-HcaScript -ScriptPath $UpdateScriptPath -DisplayName "Check For Updates"
+})
+
+$takeoverButton.Add_Click({
+    $dialogResult = [System.Windows.Forms.MessageBox]::Show(
+        "Emergency Takeover should only be used if the previous active host is unavailable.`n`nThis machine will become the active host using the latest shared backup.`n`nContinue?",
+        "Emergency Takeover",
+        [System.Windows.Forms.MessageBoxButtons]::YesNo,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    )
+
+    if ($dialogResult -eq [System.Windows.Forms.DialogResult]::Yes) {
+        Invoke-HcaScript -ScriptPath $TakeoverScriptPath -DisplayName "Emergency Takeover"
+    }
+})
+
+$logsButton.Add_Click({
+    if (Test-Path $HostEventsLogPath) {
+        Start-Process notepad.exe $HostEventsLogPath
+    } else {
+        [System.Windows.Forms.MessageBox]::Show(
+            "Log file does not exist yet:`n`n$HostEventsLogPath",
+            "HCA Central Command",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Information
+        ) | Out-Null
+    }
+})
+
+$closeButton.Add_Click({
+    $form.Close()
+})
+
+$form.Add_Shown({
+    Refresh-LauncherStatus
+})
+
+Write-HostEvent "LAUNCHER opened."
+
+[void]$form.ShowDialog()
