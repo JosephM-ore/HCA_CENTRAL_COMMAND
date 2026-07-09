@@ -76,6 +76,8 @@ export default function CommentsClient({
 }: CommentsClientProps) {
   const [query, setQuery] = useState("");
   const [localComments, setLocalComments] = useState<any[]>(initialComments);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [deleteCommentError, setDeleteCommentError] = useState("");
   const [generalNoteContent, setGeneralNoteContent] = useState("");
   const [isSavingGeneralNote, setIsSavingGeneralNote] = useState(false);
   const [generalNoteError, setGeneralNoteError] = useState("");
@@ -154,6 +156,40 @@ export default function CommentsClient({
       );
     } finally {
       setIsSavingGeneralNote(false);
+    }
+  }
+
+  async function handleDeleteComment(comment: any) {
+    const confirmed = window.confirm(
+      "Delete this comment? This will remove it from the comments timeline."
+    );
+
+    if (!confirmed) return;
+
+    setDeletingCommentId(comment.id);
+    setDeleteCommentError("");
+
+    try {
+      const response = await fetch(`/api/comments/${comment.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete comment.");
+      }
+
+      setLocalComments((current) =>
+        current.filter((currentComment) => currentComment.id !== comment.id)
+      );
+    } catch (error) {
+      setDeleteCommentError(
+        error instanceof Error ? error.message : "Failed to delete comment."
+      );
+    } finally {
+      setDeletingCommentId(null);
     }
   }
 
@@ -341,6 +377,11 @@ return (
             </div>
             </div>
 
+            {deleteCommentError ? (
+              <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                {deleteCommentError}
+              </div>
+            ) : null}
             <div className="rounded-2xl border border-slate-200 bg-white p-3">
               <input
                 value={query}
@@ -388,10 +429,41 @@ return (
                           )}
                         </div>
 
-                        <LocalDateTime
-                          value={comment.createdAt}
-                          className="text-xs text-slate-400"
-                        />
+                        <div className="flex items-center gap-2">
+                          <LocalDateTime
+                            value={comment.createdAt}
+                            className="text-xs text-slate-400"
+                          />
+
+                          <button
+                          type="button"
+                          onClick={() => handleDeleteComment(comment)}
+                          disabled={deletingCommentId === comment.id}
+                          title="Delete comment"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-rose-600 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingCommentId === comment.id ? (
+                            <span className="text-xs font-semibold">...</span>
+                          ) : (
+                            <svg
+                              viewBox="0 0 24 24"
+                              aria-hidden="true"
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M3 6h18" />
+                              <path d="M8 6V4h8v2" />
+                              <path d="M6 6l1 15h10l1-15" />
+                              <path d="M10 11v6" />
+                              <path d="M14 11v6" />
+                            </svg>
+                          )}
+                        </button>
+</div>
                       </div>
 
                       <p className="mt-3 text-sm leading-6 text-slate-700">
