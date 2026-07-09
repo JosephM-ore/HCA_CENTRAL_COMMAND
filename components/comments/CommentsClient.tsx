@@ -50,6 +50,14 @@ function getContextLabel(comment: any) {
   return "General Note";
 }
 
+function isGeneralComment(comment: any) {
+  return (
+    !comment.securityId &&
+    !comment.positionId &&
+    !comment.watchlistEntryId
+  );
+}
+
 function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return "—";
 
@@ -351,27 +359,33 @@ return (
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge tone="blue">
-                            {comment.security?.ticker || "GENERAL"}
-                          </Badge>
+                          {isGeneralComment(comment) ? (
+                            <Badge tone="blue">NOTE</Badge>
+                          ) : (
+                            <>
+                              <Badge tone="blue">
+                                {comment.security?.ticker || "N/A"}
+                              </Badge>
 
-                          <Badge tone={getTagTone(comment.tag) as any}>
-                            {comment.tag}
-                          </Badge>
+                              <Badge tone={getTagTone(comment.tag) as any}>
+                                {comment.tag}
+                              </Badge>
 
-                          <Badge>{getContextLabel(comment)}</Badge>
+                              <Badge>{getContextLabel(comment)}</Badge>
 
-                          {comment.position?.side ? (
-                            <Badge
-                              tone={
-                                comment.position.side === "SHORT"
-                                  ? "red"
-                                  : "green"
-                              }
-                            >
-                              {comment.position.side}
-                            </Badge>
-                          ) : null}
+                              {comment.position?.side ? (
+                                <Badge
+                                  tone={
+                                    comment.position.side === "SHORT"
+                                      ? "red"
+                                      : "green"
+                                  }
+                                >
+                                  {comment.position.side}
+                                </Badge>
+                              ) : null}
+                            </>
+                          )}
                         </div>
 
                         <LocalDateTime
@@ -392,7 +406,11 @@ return (
                             "Unknown"}
                         </span>
 
-                        <span>{comment.security?.name || "General note"}</span>
+                        <span>
+                          {isGeneralComment(comment)
+                            ? "General note"
+                            : comment.security?.name || "—"}
+                        </span>
                       </div>
                     </div>
                   ))
