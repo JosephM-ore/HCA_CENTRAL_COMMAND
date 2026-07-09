@@ -114,6 +114,49 @@ function getTotalPctChange(position: any) {
   return ((exitPrice - entryPrice) / entryPrice) * 100;
 }
 
+function getRealizedPnl(position: any) {
+  const existingPnl = Number(position.unrealizedPnl);
+
+  if (Number.isFinite(existingPnl)) {
+    return existingPnl;
+  }
+
+  const shares = Math.abs(Number(position.shares ?? 0));
+  const entryPrice = Number(getEntryPrice(position));
+  const exitPrice = Number(getExitPrice(position));
+
+  if (!shares || !Number.isFinite(entryPrice) || !Number.isFinite(exitPrice)) {
+    return 0;
+  }
+
+  if (position.side === "SHORT") {
+    return (entryPrice - exitPrice) * shares;
+  }
+
+  return (exitPrice - entryPrice) * shares;
+}
+
+function isClosedYearToDate(position: any) {
+  if (!position.closedAt) return false;
+
+  const closedAt = new Date(position.closedAt);
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+  return closedAt >= startOfYear && closedAt <= now;
+}
+
+function isClosedWithinLast365Days(position: any) {
+  if (!position.closedAt) return false;
+
+  const closedAt = new Date(position.closedAt);
+  const now = new Date();
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - 365);
+
+  return closedAt >= cutoff && closedAt <= now;
+}
+
 function formatPercent(value: number | null | undefined) {
   if (value == null || Number.isNaN(Number(value))) return "—";
 
@@ -413,10 +456,9 @@ function PastPositionsGrid({
                 {formatPercent(totalPctChange)}
               </div>
 
-              <div className={`font-semibold ${pnlClass(position.unrealizedPnl)}`}>
-                {formatMoney(position.unrealizedPnl)}
+              <div className={`font-semibold ${pnlClass(getRealizedPnl(position))}`}>
+                {formatMoney(getRealizedPnl(position))}
               </div>
-
               <div className="flex items-center gap-2">
                 {getOpenFlagCount(position) > 0 ? (
                   <span className="rounded-full bg-amber-50 px-2 py-1 font-medium text-amber-700 ring-1 ring-amber-200">
@@ -526,15 +568,14 @@ const closedPositions = useMemo(() => {
 }, [positions, query]);
 
   
-  const winners = closedPositions.filter((position) => {
-    const pctChange = getTotalPctChange(position);
-    return pctChange != null && pctChange >= 0;
-  }).length;
+  const yearToDateRealizedPnl = closedPositions
+    .filter((position) => isClosedYearToDate(position))
+    .reduce((sum, position) => sum + getRealizedPnl(position), 0);
 
-  const losers = closedPositions.filter((position) => {
-    const pctChange = getTotalPctChange(position);
-    return pctChange != null && pctChange < 0;
-  }).length;
+  const last365DaysRealizedPnl = closedPositions
+    .filter((position) => isClosedWithinLast365Days(position))
+    .reduce((sum, position) => sum + getRealizedPnl(position), 0);
+
 
 
   const userCanCreateComments = canCreateComments(currentUser?.role);
@@ -679,25 +720,25 @@ const closedPositions = useMemo(() => {
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Winners
+                    Year to Date Realized P&L
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-emerald-600">
-                    {winners}
+                  <p className={`mt-2 text-2xl font-semibold ${pnlClass(yearToDateRealizedPnl)}`}>
+                    {formatMoney(yearToDateRealizedPnl)}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Positive closed-position return
+                    Closed positions since Jan 1
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Losers
+                    Last 365 Days Realized P&L
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-rose-600">
-                    {losers}
+                  <p className={`mt-2 text-2xl font-semibold ${pnlClass(last365DaysRealizedPnl)}`}>
+                    {formatMoney(last365DaysRealizedPnl)}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Negative closed-position return
+                    Closed positions over trailing year
                   </p>
                 </div>
               </div>
