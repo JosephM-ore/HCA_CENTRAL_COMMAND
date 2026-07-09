@@ -38,6 +38,7 @@ function getTagTone(tag: string) {
   if (tag === "THESIS") return "green";
   if (tag === "CATALYST") return "amber";
   if (tag === "TRADE") return "blue";
+  if (tag === "NOTE") return "blue";
   return "slate";
 }
 
@@ -45,7 +46,8 @@ function getContextLabel(comment: any) {
   if (comment.watchlistEntryId) return "Watchlist";
   if (comment.position?.status === "CLOSED") return "Past Position";
   if (comment.position?.status === "ACTIVE") return "Active Position";
-  return "Security";
+  if (comment.securityId) return "Security";
+  return "General Note";
 }
 
 function formatDateTime(value: string | Date | null | undefined) {
@@ -65,13 +67,17 @@ export default function CommentsClient({
   initialComments,
 }: CommentsClientProps) {
   const [query, setQuery] = useState("");
+  const [localComments, setLocalComments] = useState<any[]>(initialComments);
+  const [generalNoteContent, setGeneralNoteContent] = useState("");
+  const [isSavingGeneralNote, setIsSavingGeneralNote] = useState(false);
+  const [generalNoteError, setGeneralNoteError] = useState("");
 
   const filteredComments = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    if (!normalizedQuery) return initialComments;
+  if (!normalizedQuery) return localComments;
 
-    return initialComments.filter((comment) => {
+  return localComments.filter((comment) => {
       const searchable = [
         comment.security?.ticker,
         comment.security?.name,
@@ -88,21 +94,62 @@ export default function CommentsClient({
 
       return searchable.includes(normalizedQuery);
     });
-  }, [initialComments, query]);
+  }, [localComments, query]);
 
-  const riskComments = initialComments.filter(
+  const riskComments = localComments.filter(
     (comment) => comment.tag === "RISK"
   ).length;
 
-  const exitComments = initialComments.filter(
+  const exitComments = localComments.filter(
     (comment) => comment.tag === "EXIT"
   ).length;
 
-  const tradeComments = initialComments.filter(
+  const tradeComments = localComments.filter(
     (comment) => comment.tag === "TRADE"
   ).length;
 
-  return (
+  async function handleCreateGeneralNote() {
+    const content = generalNoteContent.trim();
+
+    if (!content) {
+      setGeneralNoteError("General note content is required.");
+      return;
+    }
+
+    setIsSavingGeneralNote(true);
+    setGeneralNoteError("");
+
+    try {
+      const response = await fetch("/api/comments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          tag: "NOTE",
+          content,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create general note.");
+      }
+
+      setLocalComments((current) => [data.comment, ...current]);
+      setGeneralNoteContent("");
+    } catch (error) {
+      setGeneralNoteError(
+        error instanceof Error ? error.message : "Failed to create general note."
+      );
+    } finally {
+      setIsSavingGeneralNote(false);
+    }
+  }
+
+return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
       <div className="flex h-full">
         <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
@@ -196,13 +243,53 @@ export default function CommentsClient({
                 </p>
               </div>
 
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">
+                      Add General Note
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Create a desk-level note that is not attached to a specific security,
+                      position, or watchlist item.
+                    </p>
+                  </div>
+
+                  <Badge tone="blue">NOTE</Badge>
+                </div>
+
+                <textarea
+                  value={generalNoteContent}
+                  onChange={(event) => setGeneralNoteContent(event.target.value)}
+                  placeholder="Write a general portfolio, desk, or workflow note..."
+                  className="mt-3 min-h-24 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
+                />
+
+                {generalNoteError ? (
+                  <div className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                    {generalNoteError}
+                  </div>
+                ) : null}
+
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCreateGeneralNote}
+                    disabled={isSavingGeneralNote}
+                    className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSavingGeneralNote ? "Saving..." : "Add General Note"}
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-4 gap-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                 Total Comments
                 </p>
                 <p className="mt-2 text-2xl font-semibold text-slate-950">
-                {initialComments.length}
+                {localComments.length}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                 Across all entities
@@ -265,7 +352,7 @@ export default function CommentsClient({
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge tone="blue">
-                            {comment.security?.ticker || "N/A"}
+                            {comment.security?.ticker || "GENERAL"}
                           </Badge>
 
                           <Badge tone={getTagTone(comment.tag) as any}>
@@ -305,7 +392,7 @@ export default function CommentsClient({
                             "Unknown"}
                         </span>
 
-                        <span>{comment.security?.name}</span>
+                        <span>{comment.security?.name || "General note"}</span>
                       </div>
                     </div>
                   ))

@@ -211,8 +211,8 @@ model WatchlistEntry {
 model Comment {
   id                String   @id @default(cuid())
 
-  securityId        String
-  security          Security @relation(fields: [securityId], references: [id])
+  securityId        String?
+  security          Security? @relation(fields: [securityId], references: [id])
 
   positionId        String?
   position          Position? @relation(fields: [positionId], references: [id])
@@ -223,7 +223,7 @@ model Comment {
   authorId          String
   author            User     @relation(fields: [authorId], references: [id])
 
-  tag               String   // COMMENT, THESIS, RISK, CATALYST, TRADE, EXIT
+  tag               String   // COMMENT, NOTE, THESIS, RISK, CATALYST, TRADE, EXIT
   content           String
 
   isPinned          Boolean  @default(false)

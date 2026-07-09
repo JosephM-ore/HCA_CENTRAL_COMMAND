@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canCreateComments } from "@/lib/permissions";
 
-const VALID_TAGS = ["COMMENT", "THESIS", "RISK", "CATALYST", "TRADE", "EXIT"];
+const VALID_TAGS = ["COMMENT", "NOTE", "THESIS", "RISK", "CATALYST", "TRADE", "EXIT"];
 
 export async function POST(request: Request) {
   try {
@@ -17,12 +17,7 @@ export async function POST(request: Request) {
       content,
     } = body;
 
-    if (!securityId) {
-      return NextResponse.json(
-        { error: "securityId is required." },
-        { status: 400 }
-      );
-    }
+    
 
     if (!content || typeof content !== "string" || !content.trim()) {
       return NextResponse.json(
@@ -38,12 +33,6 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!positionId && !watchlistEntryId) {
-      return NextResponse.json(
-        { error: "A positionId or watchlistEntryId is required." },
-        { status: 400 }
-      );
-    }
 
     
     const author = await getCurrentUser();
@@ -62,14 +51,15 @@ export async function POST(request: Request) {
       }
 
     const comment = await prisma.comment.create({
-      data: {
-        securityId,
-        positionId: positionId || null,
-        watchlistEntryId: watchlistEntryId || null,
-        authorId: author.id,
-        tag,
-        content: content.trim(),
-      },
+     data: {
+      securityId: securityId || null,
+      positionId: positionId || null,
+      watchlistEntryId: watchlistEntryId || null,
+      authorId: author.id,
+      tag,
+      content: content.trim(),
+    },
+
       include: {
         author: {
           select: {
@@ -89,12 +79,12 @@ export async function POST(request: Request) {
         entityType: "COMMENT",
         entityId: comment.id,
         newValueJson: JSON.stringify({
-          securityId,
-          positionId: positionId || null,
-          watchlistEntryId: watchlistEntryId || null,
-          tag,
-          content: content.trim(),
-        }),
+        securityId: securityId || null,
+        positionId: positionId || null,
+        watchlistEntryId: watchlistEntryId || null,
+        tag,
+        content: content.trim(),
+      }),
       },
     });
 
