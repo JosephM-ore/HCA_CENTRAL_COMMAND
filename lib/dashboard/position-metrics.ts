@@ -241,41 +241,31 @@ export function getDisplayPortfolioPct(
   );
 }
 
-export function getDashboardStats(
-  positions: DashboardMetricPosition[]
-) {
+export function getDashboardStats(positions: any[]) {
   const totalMarketValue = positions.reduce(
-    (sum, position) => {
-      const marketValue = getNumber(
-        position.marketValue
-      );
+    (sum, position) => sum + Math.abs(getNumber(position.marketValue) ?? 0),
+    0
+  );
 
-      return sum + Math.abs(marketValue ?? 0);
-    },
+  const netMarketValue = positions.reduce(
+    (sum, position) => sum + (getNumber(position.marketValue) ?? 0),
     0
   );
 
   const totalUnrealizedPnl = positions.reduce(
-    (sum, position) =>
-      sum + (getDisplayUnrealizedPnl(position) ?? 0),
+    (sum, position) => sum + (getWellsUnrealizedPnl(position) ?? 0),
     0
   );
 
   const dayPnl = positions.reduce(
-    (sum, position) =>
-      sum + (getDisplayDayPnl(position) ?? 0),
+    (sum, position) => sum + (getDisplayDayPnl(position) ?? 0),
     0
   );
 
-  const commentedItems = positions.filter(
-    (position) =>
-      (position.comments?.length ?? 0) > 0
-  ).length;
-
   return {
-    totalMarketValue, // gross exposure
+    totalMarketValue,
+    netMarketValue,
     totalUnrealizedPnl,
     dayPnl,
-    commentedItems,
   };
 }

@@ -1354,11 +1354,23 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
       return matchesQuery && matchesFilter;
     })
     
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      const aTotalPctChange = getDisplayTotalPctChange(a);
+      const bTotalPctChange = getDisplayTotalPctChange(b);
+
+      if (activeFilter === "Winners") {
+        return (bTotalPctChange ?? 0) - (aTotalPctChange ?? 0);
+      }
+
+      if (activeFilter === "Losers") {
+        return (aTotalPctChange ?? 0) - (bTotalPctChange ?? 0);
+      }
+
+      return (
         (getDisplayPortfolioPct(b, localPositions) ?? 0) -
         (getDisplayPortfolioPct(a, localPositions) ?? 0)
-    );
+      );
+    });
 
 }, [localPositions, query, activeFilter]);
 
@@ -1372,12 +1384,11 @@ const shortPositions = useMemo(
   [filteredPositions]
 );
 
- 
 const {
   totalMarketValue,
+  netMarketValue,
   totalUnrealizedPnl,
   dayPnl,
-  commentedItems,
 } = getDashboardStats(localPositions);
 
   async function handleSaveManualTrade(payload: {
@@ -1626,11 +1637,17 @@ async function handleSaveFlag(payload: {
                 <div className="grid grid-cols-4 gap-4">
                   
                   <StatCard
-                    label="Gross Exposure"
+                    label="Gross Investments"
                     value={formatMoney(totalMarketValue)}
                     sub={`${localPositions.length} active positions from Wells`}
                   />
  
+                   <StatCard
+                    label="Net Portfolio"
+                    value={formatMoney(netMarketValue)}
+                    sub="Long exposure less short exposure"
+                  />
+
                   
                   <StatCard
                     label="Unrealized P&L"
@@ -1643,12 +1660,7 @@ async function handleSaveFlag(payload: {
                     value={formatMoney(dayPnl)}
                     sub="Estimated from Finnhub day change"
                   />
-                  <StatCard
-                    label="Commented Items"
-                    value={String(commentedItems)}
-                    sub="Positions with comment history"
-                  />
-
+                
                   
 
                 </div>
@@ -1668,7 +1680,7 @@ async function handleSaveFlag(payload: {
                     "Winners",
                     "Losers",
                     "Flagged",
-                    "Portfolio %",
+                    
                   ].map((filter) => (
                     <button
                       key={filter}
