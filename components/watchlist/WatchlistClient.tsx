@@ -393,6 +393,14 @@ function WatchlistDetailPanel({
   onRemove: (entry: any) => void;
   canEdit: boolean;
 }) {
+  const [showAllComments, setShowAllComments] = useState(false);
+  const [showAllPtHistory, setShowAllPtHistory] = useState(false);
+
+  useEffect(() => {
+    setShowAllComments(false);
+    setShowAllPtHistory(false);
+  }, [entry?.id]);
+
   if (!entry) return null;
 
   const security = entry.security;
@@ -401,10 +409,16 @@ function WatchlistDetailPanel({
   const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
 
   const comments =
-  entry.comments?.filter((comment: any) => comment.tag !== "PT") || [];
+    entry.comments?.filter((comment: any) => comment.tag !== "PT") || [];
 
   const ptComments =
     entry.comments?.filter((comment: any) => comment.tag === "PT") || [];
+
+  const visibleComments = showAllComments ? comments : comments.slice(0, 5);
+  const visiblePtComments = showAllPtHistory ? ptComments : ptComments.slice(0, 5);
+
+  const hiddenCommentCount = Math.max(0, comments.length - 5);
+  const hiddenPtCommentCount = Math.max(0, ptComments.length - 5);
 
   
   return (
@@ -496,7 +510,7 @@ function WatchlistDetailPanel({
 
           <div className="space-y-3">
             {comments.length ? (
-              comments.map((comment: any) => (
+              visibleComments.map((comment: any) => (
                 <div
                   key={comment.id}
                   className="rounded-2xl border border-slate-200 p-4"
@@ -523,6 +537,17 @@ function WatchlistDetailPanel({
                 No comments yet.
               </div>
             )}
+            {comments.length > 5 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllComments((current) => !current)}
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {showAllComments
+                  ? "Show less"
+                  : `Show ${hiddenCommentCount} more comment${hiddenCommentCount === 1 ? "" : "s"}`}
+              </button>
+            ) : null}
           </div>
         </section>
 
@@ -530,8 +555,8 @@ function WatchlistDetailPanel({
           <h3 className="mb-3 font-semibold text-slate-950">PT History</h3>
 
           <div className="space-y-3">
-            {ptComments.length ? (
-              ptComments.map((comment: any) => (
+         {ptComments.length ? (
+            visiblePtComments.map((comment: any) => (
                 <div
                   key={comment.id}
                   className="rounded-2xl border border-blue-100 bg-blue-50 p-4"
@@ -558,6 +583,17 @@ function WatchlistDetailPanel({
                 No PT history yet.
               </div>
             )}
+            {ptComments.length > 5 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllPtHistory((current) => !current)}
+                className="w-full rounded-2xl border border-blue-100 bg-white px-4 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50"
+              >
+                {showAllPtHistory
+                  ? "Show less"
+                  : `Show ${hiddenPtCommentCount} more PT change${hiddenPtCommentCount === 1 ? "" : "s"}`}
+              </button>
+            ) : null}
           </div>
         </section>
 
