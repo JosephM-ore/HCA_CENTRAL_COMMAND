@@ -406,8 +406,7 @@ function WatchlistDetailPanel({
   const ptComments =
     entry.comments?.filter((comment: any) => comment.tag === "PT") || [];
 
-  const latestComment = comments[0] ?? null;
-
+  
   return (
       <aside className="flex h-full w-[460px] shrink-0 flex-col border-l border-slate-200 bg-white shadow-xl">      
       <div className="border-b border-slate-200 p-5">
@@ -490,18 +489,7 @@ function WatchlistDetailPanel({
       <div className="flex-1 overflow-auto p-5">
 
 
-        <section className="mt-5">
-          <h3 className="mb-3 font-semibold text-slate-950">Comment Section</h3>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Latest Comment
-            </div>
-            <div>
-              {latestComment?.content || "No comment added yet."}
-            </div>
-          </div>
-        </section>
+        
 
         <section className="mt-5">
           <h3 className="mb-3 font-semibold text-slate-950">Comment Timeline</h3>
