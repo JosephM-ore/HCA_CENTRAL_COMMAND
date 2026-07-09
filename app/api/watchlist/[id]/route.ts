@@ -140,42 +140,33 @@ export async function PATCH(
     }
 
     
-await prisma.$transaction([
-  prisma.comment.deleteMany({
-    where: {
-      watchlistEntryId: id,
-    },
-  }),
+  await prisma.$transaction(async (tx) => {
+    await tx.watchlistEntry.update({
+      where: {
+        id,
+      },
+      data: {
+        side,
+        targetPrice,
+        notes,
+      },
+    });
 
-  prisma.flag.deleteMany({
-    where: {
-      watchlistEntryId: id,
-    },
-  }),
-
-  prisma.watchlistEntry.update({
-    where: {
-      id,
-    },
-    data: {
-      archivedAt: new Date(),
-    },
-  }),
-]);
-
-if (didTargetPriceChange) {
-  await prisma.comment.create({
-    data: {
-      securityId: existingEntry.securityId,
-      watchlistEntryId: existingEntry.id,
-      authorId: author.id,
-      tag: "PT",
-      content: `Price target changed from ${formatPriceForComment(
-        existingEntry.targetPrice
-      )} to ${formatPriceForComment(targetPrice)}. Reason: ${ptChangeComment}`,
-    },
+    if (didTargetPriceChange) {
+      await tx.comment.create({
+        data: {
+          securityId: existingEntry.securityId,
+          watchlistEntryId: existingEntry.id,
+          authorId: author.id,
+          tag: "PT",
+          content: `Price target changed from ${formatPriceForComment(
+            existingEntry.targetPrice
+          )} to ${formatPriceForComment(targetPrice)}. Reason: ${ptChangeComment}`,
+        },
+      });
+    }
   });
-}
+
 
   const updatedEntry = await prisma.watchlistEntry.findUniqueOrThrow({
     where: {
