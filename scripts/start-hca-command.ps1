@@ -4,6 +4,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigPath = Join-Path $ScriptDirectory "hca-host.config.ps1"
 $UpdateScriptPath = Join-Path $ScriptDirectory "update-hca-command.ps1"
+$PeriodicBackupScriptPath = Join-Path $ScriptDirectory "periodic-backup.ps1"
 
 if (-not (Test-Path $ConfigPath)) {
     Write-Host "Missing config file:" -ForegroundColor Red
@@ -236,6 +237,14 @@ $activeHostJson = [ordered]@{
 $activeHostJson | Set-Content -Path $ActiveHostPath -Encoding UTF8
 
 Write-HostEvent "START completed. ActiveHost=$env:COMPUTERNAME Url=$localUrl GitCommit=$gitCommit"
+
+if (Test-Path $PeriodicBackupScriptPath) {
+    Write-HostEvent "START launching periodic backup safety net."
+
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-ExecutionPolicy", "Bypass", "-File", "`"$PeriodicBackupScriptPath`""
+} else {
+    Write-HostEvent "START warning. Periodic backup script not found at $PeriodicBackupScriptPath"
+}
 
 Write-Host ""
 Write-Host "HCA Central Command is running on this machine." -ForegroundColor Green

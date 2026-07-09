@@ -1,5 +1,6 @@
 param(
-    [string]$Reason = "manual"
+    [string]$Reason = "manual",
+    [switch]$LatestOnly
 )
 
 Set-StrictMode -Version Latest
@@ -36,7 +37,7 @@ function Write-HostEvent {
     Add-Content -Path $HostEventsLogPath -Value $entry
 }
 
-Write-HostEvent "BACKUP requested. Reason=$Reason"
+Write-HostEvent "BACKUP requested. Reason=$Reason LatestOnly=$LatestOnly"
 
 if (-not (Test-Path $LocalDatabasePath)) {
     Write-HostEvent "BACKUP failed. Local database not found at $LocalDatabasePath"
@@ -65,16 +66,26 @@ $timestampedBackupPath = Join-Path $SharedBackupsPath "prod-$timestampForFile.db
 
 try {
     Copy-Item -Path $LocalDatabasePath -Destination $SharedLatestDatabasePath -Force
-    Copy-Item -Path $LocalDatabasePath -Destination $timestampedBackupPath -Force
 
-    Write-HostEvent "BACKUP completed. Latest=$SharedLatestDatabasePath Timestamped=$timestampedBackupPath"
+    if (-not $LatestOnly) {
+        Copy-Item -Path $LocalDatabasePath -Destination $timestampedBackupPath -Force
+    }
+
+    if ($LatestOnly) {
+        Write-HostEvent "BACKUP completed. Latest=$SharedLatestDatabasePath"
+    } else {
+        Write-HostEvent "BACKUP completed. Latest=$SharedLatestDatabasePath Timestamped=$timestampedBackupPath"
+    }
 
     Write-Host ""
     Write-Host "Database backup complete." -ForegroundColor Green
     Write-Host "Latest handoff DB:" -ForegroundColor Cyan
     Write-Host "  $SharedLatestDatabasePath"
-    Write-Host "Timestamped backup:" -ForegroundColor Cyan
-    Write-Host "  $timestampedBackupPath"
+
+    if (-not $LatestOnly) {
+        Write-Host "Timestamped backup:" -ForegroundColor Cyan
+        Write-Host "  $timestampedBackupPath"
+    }
 } catch {
     Write-HostEvent "BACKUP failed. Error=$($_.Exception.Message)"
     Write-Host "Backup failed:" -ForegroundColor Red
