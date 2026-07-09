@@ -1356,8 +1356,8 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
     
     .sort(
       (a, b) =>
-        (getDisplayTotalPctChange(b) ?? 0) -
-        (getDisplayTotalPctChange(a) ?? 0)
+        (getDisplayPortfolioPct(b, localPositions) ?? 0) -
+        (getDisplayPortfolioPct(a, localPositions) ?? 0)
     );
 
 }, [localPositions, query, activeFilter]);
@@ -1668,8 +1668,7 @@ async function handleSaveFlag(payload: {
                     "Winners",
                     "Losers",
                     "Flagged",
-                    "Technology",
-                    "Semiconductors",
+                    "Portfolio %",
                   ].map((filter) => (
                     <button
                       key={filter}
