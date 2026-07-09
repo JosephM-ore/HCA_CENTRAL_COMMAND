@@ -439,7 +439,7 @@ export default function SettingsClient({
                 <SettingsCard
                   eyebrow="Access Control"
                   title="Permissions"
-                  description="MVP roles include ADMIN, TRADER, ANALYST, PM, VIEWER, and COMPLIANCE. Role checks will later control commenting, flagging, watchlist edits, audit visibility, and admin-only settings."
+                  description="Roles include ADMIN, TRADER, and VIEWER."
                 >
                   <div className="space-y-2">
                     {users.map((user) => (

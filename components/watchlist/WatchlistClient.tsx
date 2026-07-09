@@ -713,7 +713,7 @@ function AddStockModal({
             value={targetPrice}
             onChange={(event) => setTargetPrice(event.target.value)}
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-            placeholder="Buy PT / Short PT"
+            placeholder="Buy PT / Short PT      Enter Numeric EX: 1000"
           />
 
           <textarea

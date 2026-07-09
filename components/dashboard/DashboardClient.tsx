@@ -1677,8 +1677,7 @@ async function handleSaveFlag(payload: {
                     "All",
                     "Long",
                     "Short",
-                    "Winners",
-                    "Losers",
+                    
                     "Flagged",
                     
                   ].map((filter) => (
