@@ -104,7 +104,9 @@ export default function LoginPage() {
 
         <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-xs text-slate-500">
           <p className="font-semibold text-slate-700">Seeded users</p>
-          <p className="mt-2">admin@example.com / password123</p>
+          <p className="mt-2">jhennessey@hovdecapital.com / password123</p>
+          <p>mcastellanos@sunwestbank.com / password123</p>
+          <p>admin@example.com / password123</p>          
           <p>trader1@example.com / password123</p>
           <p>trader2@example.com / password123</p>
           <p>viewer@example.com / password123</p>
