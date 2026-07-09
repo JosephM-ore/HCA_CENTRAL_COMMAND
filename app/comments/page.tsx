@@ -7,6 +7,16 @@ export default async function CommentsPage() {
   const comments = await prisma.comment.findMany({
     where: {
       archivedAt: null,
+      OR: [
+        {
+          watchlistEntryId: null,
+        },
+        {
+          watchlistEntry: {
+            archivedAt: null,
+          },
+        },
+      ],
     },
     include: {
       security: true,

@@ -140,16 +140,28 @@ export async function PATCH(
     }
 
     
-await prisma.watchlistEntry.update({
-  where: {
-    id,
-  },
-  data: {
-    side,
-    targetPrice,
-    notes,
-  },
-});
+await prisma.$transaction([
+  prisma.comment.deleteMany({
+    where: {
+      watchlistEntryId: id,
+    },
+  }),
+
+  prisma.flag.deleteMany({
+    where: {
+      watchlistEntryId: id,
+    },
+  }),
+
+  prisma.watchlistEntry.update({
+    where: {
+      id,
+    },
+    data: {
+      archivedAt: new Date(),
+    },
+  }),
+]);
 
 if (didTargetPriceChange) {
   await prisma.comment.create({
