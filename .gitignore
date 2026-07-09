@@ -10,6 +10,9 @@
 !.yarn/releases
 !.yarn/versions
 
+
+
+
 # testing
 /coverage
 
@@ -47,3 +50,12 @@ prisma/*.db-journal
 prisma/*.db-wal
 prisma/*.db-shm
 backups/
+
+# HCA local deployment artifacts
+scripts/hca-host.config.ps1
+data/
+backups/
+*.db
+*.db-wal
+*.db-shm
+.env
