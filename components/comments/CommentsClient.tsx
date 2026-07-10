@@ -58,17 +58,6 @@ function isGeneralComment(comment: any) {
   );
 }
 
-function formatDateTime(value: string | Date | null | undefined) {
-  if (!value) return "—";
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "numeric",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
 
 
 export default function CommentsClient({
