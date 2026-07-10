@@ -8,6 +8,14 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
+  const [registerError, setRegisterError] = useState("");
+  const [registerSuccess, setRegisterSuccess] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -41,6 +49,53 @@ export default function LoginPage() {
     }
   }
 
+  async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setRegisterError("");
+    setRegisterSuccess("");
+    setIsRegistering(true);
+
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: registerEmail,
+          password: registerPassword,
+          confirmPassword: registerConfirmPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setRegisterError(data.error || "Registration failed.");
+        return;
+      }
+
+      setRegisterSuccess("Account created. You can now sign in.");
+      setEmail(registerEmail.trim().toLowerCase());
+      setPassword("");
+      setRegisterPassword("");
+      setRegisterConfirmPassword("");
+    } catch {
+      setRegisterError("Registration failed. Please try again.");
+    } finally {
+      setIsRegistering(false);
+    }
+  }
+
+  function closeRegisterModal() {
+    setIsRegisterOpen(false);
+    setRegisterError("");
+    setRegisterSuccess("");
+    setRegisterPassword("");
+    setRegisterConfirmPassword("");
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6 text-slate-900">
       <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
@@ -59,7 +114,7 @@ export default function LoginPage() {
 
         <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Use a seeded local MVP account.
+          Use your HCA Central Command account.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -71,7 +126,7 @@ export default function LoginPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-              placeholder="trader1@example.com"
+              placeholder="email@example.com"
             />
           </div>
 
@@ -84,7 +139,7 @@ export default function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               type="password"
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-              placeholder="password123"
+              placeholder="Password"
             />
           </div>
 
@@ -102,16 +157,121 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <button
+          type="button"
+          onClick={() => setIsRegisterOpen(true)}
+          className="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Register approved admin account
+        </button>
+
         <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-xs text-slate-500">
-          <p className="font-semibold text-slate-700">Seeded users</p>
-          <p className="mt-2">jhennessey@hovdecapital.com / password123</p>
-          <p>mcastellanos@sunwestbank.com / password123</p>
-          <p>admin@example.com / password123</p>          
-          <p>trader1@example.com / password123</p>
-          <p>trader2@example.com / password123</p>
-          <p>viewer@example.com / password123</p>
+          <p className="font-semibold text-slate-700">Approved registration</p>
+          <p className="mt-2">
+            John and Malkolm can create their own admin accounts using their
+            approved email addresses.
+          </p>
+          <p className="mt-2">
+            Registration is restricted to manually approved emails only.
+          </p>
         </div>
       </div>
+
+      {isRegisterOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-6">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Register admin account
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Enter an approved email address and choose your password.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeRegisterModal}
+                className="rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleRegister} className="mt-6 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700">
+                  Email
+                </label>
+                <input
+                  value={registerEmail}
+                  onChange={(event) => setRegisterEmail(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                  placeholder="approved.email@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700">
+                  Password
+                </label>
+                <input
+                  value={registerPassword}
+                  onChange={(event) => setRegisterPassword(event.target.value)}
+                  type="password"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                  placeholder="At least 8 characters"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700">
+                  Confirm password
+                </label>
+                <input
+                  value={registerConfirmPassword}
+                  onChange={(event) =>
+                    setRegisterConfirmPassword(event.target.value)
+                  }
+                  type="password"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                  placeholder="Re-enter password"
+                />
+              </div>
+
+              {registerError ? (
+                <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                  {registerError}
+                </div>
+              ) : null}
+
+              {registerSuccess ? (
+                <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                  {registerSuccess}
+                </div>
+              ) : null}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeRegisterModal}
+                  className="flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  disabled={isRegistering}
+                  className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isRegistering ? "Creating..." : "Create account"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
