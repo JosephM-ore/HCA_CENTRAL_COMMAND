@@ -121,7 +121,83 @@ function DataOperationStep({
     </div>
   );
 }
+function WellsUploadResultPanel({
+  title,
+  result,
+}: {
+  title: string;
+  result: any;
+}) {
+  if (!result) return null;
 
+  return (
+    <div className="space-y-3">
+      <div className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
+        <p className="font-semibold">
+          {title}: {result.reportType || "N/A"}
+        </p>
+
+        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          <span>Rows processed</span>
+          <span className="font-semibold">
+            {result.rowsProcessed ?? "N/A"}
+          </span>
+
+          <span>Rows failed</span>
+          <span className="font-semibold">{result.rowsFailed ?? "N/A"}</span>
+
+          <span>Securities created</span>
+          <span className="font-semibold">
+            {result.securitiesCreated ?? "N/A"}
+          </span>
+
+          <span>Securities updated</span>
+          <span className="font-semibold">
+            {result.securitiesUpdated ?? "N/A"}
+          </span>
+
+          <span>Positions created</span>
+          <span className="font-semibold">
+            {result.positionsCreated ?? "N/A"}
+          </span>
+
+          <span>Positions updated</span>
+          <span className="font-semibold">
+            {result.positionsUpdated ?? "N/A"}
+          </span>
+
+          <span>Positions closed</span>
+          <span className="font-semibold">
+            {result.positionsClosed ?? "N/A"}
+          </span>
+
+          <span>Trades created</span>
+          <span className="font-semibold">
+            {result.tradesCreated ?? "N/A"}
+          </span>
+
+          <span>Trades updated</span>
+          <span className="font-semibold">
+            {result.tradesUpdated ?? "N/A"}
+          </span>
+        </div>
+      </div>
+
+      {result.failures?.length ? (
+        <div className="max-h-56 overflow-auto rounded-2xl border border-amber-200 bg-amber-50">
+          {result.failures.map((failure: string, index: number) => (
+            <div
+              key={`${title}-${failure}-${index}`}
+              className="border-b border-amber-100 px-4 py-2 text-xs text-amber-800 last:border-b-0"
+            >
+              {failure}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 export default function SettingsClient({
   auditLogCount,
   ingestionRuns,
@@ -130,8 +206,17 @@ export default function SettingsClient({
   const [currentUser, setCurrentUser] = useState<any | null>(null);
 
   const [isUploadingWells, setIsUploadingWells] = useState(false);
-  const [wellsUploadResult, setWellsUploadResult] = useState<any | null>(null);
+  const [wellsTaxLotsFile, setWellsTaxLotsFile] = useState<File | null>(null);
+  const [wellsTransactionsFile, setWellsTransactionsFile] = useState<File | null>(
+    null
+  );
+  const [wellsTaxLotsUploadResult, setWellsTaxLotsUploadResult] = useState<
+    any | null
+  >(null);
+  const [wellsTransactionsUploadResult, setWellsTransactionsUploadResult] =
+    useState<any | null>(null);
   const [wellsUploadError, setWellsUploadError] = useState("");
+  const [wellsFileInputResetKey, setWellsFileInputResetKey] = useState(0);
 
   const [isRefreshingMarketData, setIsRefreshingMarketData] = useState(false);
   const [marketDataRefreshResult, setMarketDataRefreshResult] =
@@ -161,47 +246,64 @@ export default function SettingsClient({
 
     
 
-    async function handleWellsUpload(event: React.ChangeEvent<HTMLInputElement>) {
-  const file = event.target.files?.[0];
+async function uploadSingleWellsFile(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
 
-  if (!file) return;
+  const response = await fetch("/api/ingestion/wells/manual-upload", {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+
+  const text = await response.text();
+
+  let data: any = null;
+
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(text || "Unexpected Wells upload response.");
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || data.message || "Wells upload failed.");
+  }
+
+  return data;
+}
+
+async function handleWellsUpload() {
+  if (!wellsTaxLotsFile || !wellsTransactionsFile) {
+    setWellsUploadError(
+      "Please select both Wells files before uploading: TaxLotDailyTD and ActTDDaily."
+    );
+    return;
+  }
 
   setIsUploadingWells(true);
-  setWellsUploadResult(null);
+  setWellsTaxLotsUploadResult(null);
+  setWellsTransactionsUploadResult(null);
   setWellsUploadError("");
 
   try {
-    const formData = new FormData();
-    formData.append("file", file);
+    const taxLotsResult = await uploadSingleWellsFile(wellsTaxLotsFile);
+    setWellsTaxLotsUploadResult(taxLotsResult);
 
-    const response = await fetch("/api/ingestion/wells/manual-upload", {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
+    const transactionsResult = await uploadSingleWellsFile(
+      wellsTransactionsFile
+    );
+    setWellsTransactionsUploadResult(transactionsResult);
 
-    const text = await response.text();
-
-    let data: any = null;
-
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new Error(text || "Unexpected Wells upload response.");
-    }
-
-    if (!response.ok) {
-      throw new Error(data.error || data.message || "Wells upload failed.");
-    }
-
-    setWellsUploadResult(data);
+    setWellsTaxLotsFile(null);
+    setWellsTransactionsFile(null);
+    setWellsFileInputResetKey((currentKey) => currentKey + 1);
   } catch (error) {
     setWellsUploadError(
       error instanceof Error ? error.message : "Wells upload failed."
     );
   } finally {
     setIsUploadingWells(false);
-    event.target.value = "";
   }
 }
 
@@ -526,16 +628,54 @@ export default function SettingsClient({
                       details="Updates: positions, past-position detection, tax lots, trades, and trade reconciliation. Does not update current prices or SEC fundamentals."
                     >
                       {userCanViewAuditLogs ? (
-                        <label className="cursor-pointer rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                          {isUploadingWells ? "Uploading..." : "Upload Wells CSV"}
-                          <input
-                            type="file"
-                            accept=".csv,text/csv"
-                            disabled={isUploadingWells}
-                            onChange={handleWellsUpload}
-                            className="hidden"
-                          />
-                        </label>
+                        <div className="w-96 max-w-full space-y-3">
+                          <div>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              TaxLotDailyTD / Positions
+                            </label>
+                            <input
+                              key={`tax-lots-${wellsFileInputResetKey}`}
+                              type="file"
+                              accept=".csv,text/csv"
+                              disabled={isUploadingWells}
+                              onChange={(event) =>
+                                setWellsTaxLotsFile(event.target.files?.[0] || null)
+                              }
+                              className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-slate-800"
+                            />
+                            <p className="mt-1 truncate text-xs text-slate-500">
+                              {wellsTaxLotsFile?.name || "No tax lot file selected"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              ActTDDaily / Transactions
+                            </label>
+                            <input
+                              key={`transactions-${wellsFileInputResetKey}`}
+                              type="file"
+                              accept=".csv,text/csv"
+                              disabled={isUploadingWells}
+                              onChange={(event) =>
+                                setWellsTransactionsFile(event.target.files?.[0] || null)
+                              }
+                              className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-medium file:text-white hover:file:bg-slate-800"
+                            />
+                            <p className="mt-1 truncate text-xs text-slate-500">
+                              {wellsTransactionsFile?.name || "No transaction file selected"}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handleWellsUpload}
+                            disabled={isUploadingWells || !wellsTaxLotsFile || !wellsTransactionsFile}
+                            className="w-full rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isUploadingWells ? "Uploading Wells files..." : "Upload both Wells files"}
+                          </button>
+                        </div>
                       ) : (
                         <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-500">
                           Admin / Compliance only
@@ -543,59 +683,18 @@ export default function SettingsClient({
                       )}
                     </DataOperationStep>
 
-                    {wellsUploadResult ? (
-                      <div className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">
-                        <p className="font-semibold">
-                          Wells upload complete: {wellsUploadResult.reportType || "N/A"}
-                        </p>
+                    {wellsTaxLotsUploadResult ? (
+                      <WellsUploadResultPanel
+                        title="Tax lots / positions upload complete"
+                        result={wellsTaxLotsUploadResult}
+                      />
+                    ) : null}
 
-                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                          <span>Rows processed</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.rowsProcessed ?? "N/A"}
-                          </span>
-
-                          <span>Rows failed</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.rowsFailed ?? "N/A"}
-                          </span>
-
-                          <span>Securities created</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.securitiesCreated ?? "N/A"}
-                          </span>
-
-                          <span>Securities updated</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.securitiesUpdated ?? "N/A"}
-                          </span>
-
-                          <span>Positions created</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.positionsCreated ?? "N/A"}
-                          </span>
-
-                          <span>Positions updated</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.positionsUpdated ?? "N/A"}
-                          </span>
-
-                          <span>Positions closed</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.positionsClosed ?? "N/A"}
-                          </span>
-
-                          <span>Trades created</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.tradesCreated ?? "N/A"}
-                          </span>
-
-                          <span>Trades updated</span>
-                          <span className="font-semibold">
-                            {wellsUploadResult.tradesUpdated ?? "N/A"}
-                          </span>
-                        </div>
-                      </div>
+                    {wellsTransactionsUploadResult ? (
+                      <WellsUploadResultPanel
+                        title="Transaction activity upload complete"
+                        result={wellsTransactionsUploadResult}
+                      />
                     ) : null}
 
                     {wellsUploadError ? (
@@ -603,19 +702,13 @@ export default function SettingsClient({
                         {wellsUploadError}
                       </div>
                     ) : null}
-
-                    {wellsUploadResult?.failures?.length ? (
-                      <div className="max-h-56 overflow-auto rounded-2xl border border-amber-200 bg-amber-50">
-                        {wellsUploadResult.failures.map((failure: string, index: number) => (
-                          <div
-                            key={`${failure}-${index}`}
-                            className="border-b border-amber-100 px-4 py-2 text-xs text-amber-800 last:border-b-0"
-                          >
-                            {failure}
-                          </div>
-                        ))}
+                    {wellsUploadError ? (
+                      <div className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
+                        {wellsUploadError}
                       </div>
                     ) : null}
+
+
 
                     <DataOperationStep
                       step="2"
