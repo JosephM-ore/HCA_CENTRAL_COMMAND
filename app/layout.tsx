@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@/lib/scheduler/market-data-scheduler";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import PinkThemeInitializer from "@/components/theme/PinkThemeInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +29,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <PinkThemeInitializer />
+        {children}
+      </body>
     </html>
   );
 }

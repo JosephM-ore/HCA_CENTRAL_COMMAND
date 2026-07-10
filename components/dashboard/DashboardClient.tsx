@@ -1288,7 +1288,7 @@ function FlagModal({
 
 export default function DashboardClient({ positions }: DashboardClientProps) {
   const [localPositions, setLocalPositions] = useState<any[]>(positions);
-  const [isPinkMode, setIsPinkMode] = useState(false);
+ 
 
   const [selectedPosition, setSelectedPosition] = useState<any | null>(null);
 
@@ -1317,10 +1317,7 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
     loadCurrentUser();
   }, []);
 
-  useEffect(() => {
-  const storedTheme = window.localStorage.getItem("hca-dashboard-theme");
-  setIsPinkMode(storedTheme === "pink");
-}, []);
+ 
 
 useEffect(() => {
   const konamiCode = [
@@ -1345,19 +1342,18 @@ useEffect(() => {
       currentIndex += 1;
 
       if (currentIndex === konamiCode.length) {
-        setIsPinkMode((current) => {
-          const nextValue = !current;
+      const currentTheme = window.localStorage.getItem("hca-dashboard-theme");
+      const nextValue = currentTheme !== "pink";
 
-          window.localStorage.setItem(
-            "hca-dashboard-theme",
-            nextValue ? "pink" : "default"
-          );
+      window.localStorage.setItem(
+        "hca-dashboard-theme",
+        nextValue ? "pink" : "default"
+      );
 
-          return nextValue;
-        });
+      document.documentElement.classList.toggle("hca-pink-theme", nextValue);
 
-        currentIndex = 0;
-      }
+      currentIndex = 0;
+            }
 
       return;
     }
@@ -1589,11 +1585,7 @@ async function handleSaveFlag(payload: {
   });
 }
   return (
-    <main
-      className={`h-screen overflow-hidden text-slate-900 ${
-        isPinkMode ? "dashboard-pink bg-pink-50" : "bg-slate-100"
-      }`}
-    >
+    <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
       <div className="flex h-full">
         <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
           <div className="mb-6 flex items-center gap-3 px-2 py-2">
