@@ -1288,6 +1288,7 @@ function FlagModal({
 
 export default function DashboardClient({ positions }: DashboardClientProps) {
   const [localPositions, setLocalPositions] = useState<any[]>(positions);
+  const [isPinkMode, setIsPinkMode] = useState(false);
 
   const [selectedPosition, setSelectedPosition] = useState<any | null>(null);
 
@@ -1315,6 +1316,61 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
 
     loadCurrentUser();
   }, []);
+
+  useEffect(() => {
+  const storedTheme = window.localStorage.getItem("hca-dashboard-theme");
+  setIsPinkMode(storedTheme === "pink");
+}, []);
+
+useEffect(() => {
+  const konamiCode = [
+    "ArrowUp",
+    "ArrowUp",
+    "ArrowDown",
+    "ArrowDown",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowLeft",
+    "ArrowRight",
+    "b",
+    "a",
+  ];
+
+  let currentIndex = 0;
+
+  function handleKeyDown(event: KeyboardEvent) {
+    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+
+    if (key === konamiCode[currentIndex]) {
+      currentIndex += 1;
+
+      if (currentIndex === konamiCode.length) {
+        setIsPinkMode((current) => {
+          const nextValue = !current;
+
+          window.localStorage.setItem(
+            "hca-dashboard-theme",
+            nextValue ? "pink" : "default"
+          );
+
+          return nextValue;
+        });
+
+        currentIndex = 0;
+      }
+
+      return;
+    }
+
+    currentIndex = key === konamiCode[0] ? 1 : 0;
+  }
+
+  window.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown);
+  };
+}, []);
 
   const filteredPositions = useMemo(() => {
   const normalizedQuery = query.trim().toLowerCase();
@@ -1533,7 +1589,11 @@ async function handleSaveFlag(payload: {
   });
 }
   return (
-    <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
+    <main
+      className={`h-screen overflow-hidden text-slate-900 ${
+        isPinkMode ? "dashboard-pink bg-pink-50" : "bg-slate-100"
+      }`}
+    >
       <div className="flex h-full">
         <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
           <div className="mb-6 flex items-center gap-3 px-2 py-2">

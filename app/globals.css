@@ -24,3 +24,148 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+/* HCA Dashboard Pink Terminal Mode
+   Triggered on the dashboard with:
+   Up Up Down Down Left Right Left Right B A
+*/
+
+.dashboard-pink {
+  background: #fff0f6 !important;
+  color: #3b2230 !important;
+}
+
+.dashboard-pink .bg-white {
+  background-color: #fff7fb !important;
+}
+
+.dashboard-pink .bg-slate-50 {
+  background-color: #fff1f7 !important;
+}
+
+.dashboard-pink .bg-slate-100 {
+  background-color: #ffe4ef !important;
+}
+
+.dashboard-pink .bg-slate-200 {
+  background-color: #fbcfe8 !important;
+}
+
+.dashboard-pink .bg-slate-900 {
+  background-color: #ec4899 !important;
+}
+
+.dashboard-pink .hover\:bg-slate-50:hover {
+  background-color: #fff1f7 !important;
+}
+
+.dashboard-pink .hover\:bg-slate-100:hover {
+  background-color: #fce7f3 !important;
+}
+
+.dashboard-pink .hover\:bg-slate-200:hover {
+  background-color: #f9a8d4 !important;
+}
+
+.dashboard-pink .hover\:bg-slate-800:hover {
+  background-color: #db2777 !important;
+}
+
+.dashboard-pink .border-slate-100,
+.dashboard-pink .border-slate-200 {
+  border-color: #f9a8d4 !important;
+}
+
+.dashboard-pink .text-slate-950,
+.dashboard-pink .text-slate-900,
+.dashboard-pink .text-slate-800 {
+  color: #3b2230 !important;
+}
+
+.dashboard-pink .text-slate-700,
+.dashboard-pink .text-slate-600,
+.dashboard-pink .text-slate-500 {
+  color: #9d4b73 !important;
+}
+
+.dashboard-pink .text-slate-400 {
+  color: #be6b93 !important;
+}
+
+.dashboard-pink .ring-slate-200 {
+  --tw-ring-color: #f9a8d4 !important;
+}
+
+.dashboard-pink input,
+.dashboard-pink textarea,
+.dashboard-pink select {
+  background-color: #fff7fb !important;
+  border-color: #f9a8d4 !important;
+  color: #3b2230 !important;
+}
+
+.dashboard-pink input::placeholder,
+.dashboard-pink textarea::placeholder {
+  color: #be6b93 !important;
+}
+
+.dashboard-pink .shadow-sm,
+.dashboard-pink .shadow-md,
+.dashboard-pink .shadow-xl,
+.dashboard-pink .shadow-2xl {
+  box-shadow: 0 8px 24px rgba(236, 72, 153, 0.12) !important;
+}
+
+/* Preserve financial meaning in pink mode. */
+.dashboard-pink .text-emerald-600,
+.dashboard-pink .text-emerald-700 {
+  color: #059669 !important;
+}
+
+.dashboard-pink .bg-emerald-50 {
+  background-color: #ecfdf5 !important;
+}
+
+.dashboard-pink .ring-emerald-200 {
+  --tw-ring-color: #a7f3d0 !important;
+}
+
+.dashboard-pink .text-rose-600,
+.dashboard-pink .text-rose-700 {
+  color: #e11d48 !important;
+}
+
+.dashboard-pink .bg-rose-50 {
+  background-color: #fff1f2 !important;
+}
+
+.dashboard-pink .ring-rose-200 {
+  --tw-ring-color: #fecdd3 !important;
+}
+
+.dashboard-pink .text-amber-600,
+.dashboard-pink .text-amber-700,
+.dashboard-pink .text-amber-500 {
+  color: #d97706 !important;
+}
+
+.dashboard-pink .bg-amber-50 {
+  background-color: #fffbeb !important;
+}
+
+.dashboard-pink .ring-amber-200 {
+  --tw-ring-color: #fde68a !important;
+}
+
+.dashboard-pink .bg-blue-50 {
+  background-color: #fdf2f8 !important;
+}
+
+.dashboard-pink .text-blue-700 {
+  color: #db2777 !important;
+}
+
+.dashboard-pink .hover\:bg-blue-100:hover {
+  background-color: #fce7f3 !important;
+}
