@@ -30,6 +30,47 @@ export default async function HomePage() {
               updatedAt: "desc",
             },
           },
+          comments: {
+            where: {
+              archivedAt: null,
+              OR: [
+                {
+                  watchlistEntryId: null,
+                },
+                {
+                  watchlistEntry: {
+                    archivedAt: null,
+                  },
+                },
+              ],
+            },
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+              position: {
+                select: {
+                  id: true,
+                  status: true,
+                },
+              },
+              watchlistEntry: {
+                select: {
+                  id: true,
+                  side: true,
+                  archivedAt: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+          },
         },
       },
       taxLots: {

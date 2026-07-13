@@ -103,6 +103,28 @@ function DateDisplay({
   return <LocalDateTime value={value} className={className} />;
 }
 
+function getCommentContextLabel(comment: any) {
+  if (comment.watchlistEntryId) return "WATCHLIST";
+  if (comment.positionId) return "POSITION";
+  if (comment.securityId) return "SECURITY";
+  return "GENERAL";
+}
+
+function getDashboardComments(position: any) {
+  const byId = new Map<string, any>();
+
+  const securityComments = position.security?.comments ?? [];
+  const positionComments = position.comments ?? [];
+
+  [...securityComments, ...positionComments].forEach((comment) => {
+    if (!comment?.id) return;
+    byId.set(comment.id, comment);
+  });
+
+  return Array.from(byId.values()).sort((a, b) => {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+}
 
 function SectionBar({
   title,
@@ -187,7 +209,9 @@ function PositionGrid({
 
         {positions.map((position) => {
 
-          const latestComment = position.comments?.[0];
+          const latestComment = getDashboardComments(position).find(
+            (comment: any) => comment.tag !== "PT"
+          );
           const openFlag = position.flags?.[0];
           const currentPrice = getDisplayCurrentPrice(position);
           const wap = getDisplayWap(position);
@@ -312,9 +336,7 @@ function TickerDetailPanel({
   const security = position.security;
   const openFlag = position.flags?.[0];
 
-  const latestComment = position.comments?.find(
-    (comment: any) => comment.tag !== "PT"
-  );
+  const dashboardComments = getDashboardComments(position);
 
   const currentPrice = getDisplayCurrentPrice(position);
   const wap = getDisplayWap(position);
@@ -534,14 +556,18 @@ function TickerDetailPanel({
           <h3 className="mb-3 font-semibold text-slate-950">Comment Timeline</h3>
 
           <div className="space-y-3">
-            {position.comments?.length ? (
-              position.comments.map((comment: any) => (
+            {dashboardComments.length ? (
+              dashboardComments.map((comment: any) => (
                 <div
                   key={comment.id}
                   className="rounded-2xl border border-slate-200 p-4"
                 >
                   <div className="flex items-center justify-between">
-                    <Badge tone="blue">{comment.tag}</Badge>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge tone="blue">{comment.tag}</Badge>
+                      <Badge>{getCommentContextLabel(comment)}</Badge>
+                    </div>
+
                     <LocalDateTime
                       value={comment.createdAt}
                       className="text-xs text-slate-400"
@@ -1490,26 +1516,52 @@ const {
   const newComment = data.comment;
 
   setLocalPositions((currentPositions) =>
-    currentPositions.map((position) => {
-      if (position.id !== payload.positionId) return position;
+  currentPositions.map((position) => {
+    if (position.securityId !== payload.securityId) return position;
 
+    const updatedSecurity = {
+      ...position.security,
+      comments: [newComment, ...(position.security?.comments || [])],
+    };
+
+    if (position.id !== payload.positionId) {
       return {
         ...position,
-        comments: [newComment, ...(position.comments || [])],
+        security: updatedSecurity,
       };
-    })
-  );
-
-  setSelectedPosition((currentPosition: any | null) => {
-    if (!currentPosition || currentPosition.id !== payload.positionId) {
-      return currentPosition;
     }
 
     return {
-      ...currentPosition,
-      comments: [newComment, ...(currentPosition.comments || [])],
+      ...position,
+      security: updatedSecurity,
+      comments: [newComment, ...(position.comments || [])],
     };
-  });
+  })
+);
+
+setSelectedPosition((currentPosition: any | null) => {
+  if (!currentPosition || currentPosition.securityId !== payload.securityId) {
+    return currentPosition;
+  }
+
+  const updatedSecurity = {
+    ...currentPosition.security,
+    comments: [newComment, ...(currentPosition.security?.comments || [])],
+  };
+
+  if (currentPosition.id !== payload.positionId) {
+    return {
+      ...currentPosition,
+      security: updatedSecurity,
+    };
+  }
+
+  return {
+    ...currentPosition,
+    security: updatedSecurity,
+    comments: [newComment, ...(currentPosition.comments || [])],
+  };
+});
 }
 
 function handleOpenComment(position: any) {
