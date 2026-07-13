@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canCreateComments } from "@/lib/permissions";
 
-const VALID_TAGS = ["COMMENT", "NOTE", "THESIS", "RISK", "CATALYST", "TRADE", "EXIT"];
+const VALID_TAGS = ["COMMENT", "NOTE", "THESIS", "RISK", "CATALYST", "TRADE", "EXIT", "PT"];
 
 export async function POST(request: Request) {
   try {
