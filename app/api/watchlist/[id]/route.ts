@@ -271,12 +271,47 @@ export async function DELETE(
       );
     }
 
-    await prisma.watchlistEntry.update({
-      where: {
-        id,
-      },
+    await prisma.$transaction([
+      prisma.comment.updateMany({
+        where: {
+          watchlistEntryId: id,
+          archivedAt: null,
+        },
+        data: {
+          archivedAt: new Date(),
+        },
+      }),
+
+      prisma.flag.updateMany({
+        where: {
+          watchlistEntryId: id,
+          status: "OPEN",
+        },
+        data: {
+          status: "ARCHIVED",
+        },
+      }),
+
+      prisma.watchlistEntry.update({
+        where: {
+          id,
+        },
+        data: {
+          archivedAt: new Date(),
+        },
+      }),
+    ]);
+
+    await prisma.auditLog.create({
       data: {
-        archivedAt: new Date(),
+        actorId: author.id,
+        action: "WATCHLIST_ENTRY_DELETED",
+        entityType: "WATCHLIST_ENTRY",
+        entityId: id,
+        newValueJson: JSON.stringify({
+          id,
+          archivedAt: new Date(),
+        }),
       },
     });
 
