@@ -109,6 +109,25 @@ function formatPercent(value: number | null | undefined) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
+function getWatchlistComments(entry: any) {
+  const byId = new Map<string, any>();
+
+  const securityComments = entry.security?.comments ?? [];
+  const watchlistComments = entry.comments ?? [];
+
+  [...securityComments, ...watchlistComments].forEach((comment) => {
+    if (!comment?.id) return;
+
+    byId.set(comment.id, comment);
+  });
+
+  return Array.from(byId.values()).sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() -
+      new Date(a.createdAt).getTime()
+  );
+}
+
 
 function WatchlistGrid({
     title,
@@ -152,7 +171,7 @@ function WatchlistGrid({
           const currentPrice = getWatchlistCurrentPrice(entry);
           const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
           const openFlag = entry.flags?.[0];         
-          const latestComment = entry.comments?.find(
+          const latestComment = getWatchlistComments(entry).find(
             (comment: any) => comment.tag !== "PT"
           );
 
@@ -385,11 +404,15 @@ function WatchlistDetailPanel({
   const currentPrice = getWatchlistCurrentPrice(entry);
   const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
 
-  const comments =
-    entry.comments?.filter((comment: any) => comment.tag !== "PT") || [];
+  const allComments = getWatchlistComments(entry);
 
-  const ptComments =
-    entry.comments?.filter((comment: any) => comment.tag === "PT") || [];
+  const comments = allComments.filter(
+    (comment: any) => comment.tag !== "PT"
+  );
+
+  const ptComments = allComments.filter(
+    (comment: any) => comment.tag === "PT"
+  );
 
   const visibleComments = showAllComments ? comments : comments.slice(0, 5);
   const visiblePtComments = showAllPtHistory ? ptComments : ptComments.slice(0, 5);
@@ -925,7 +948,7 @@ function CommentModal({
 
   if (!entry) return null;
 
-  const latestComment = entry.comments?.[0];
+  const latestComment = getWatchlistComments(entry)[0];
 
   async function handleSave() {
     setError("");
@@ -1153,7 +1176,13 @@ const shortEntries = useMemo(
 
         return {
           ...entry,
-          comments: [newComment, ...(entry.comments || [])],
+          security: {
+            ...entry.security,
+            comments: [
+              newComment,
+              ...(entry.security?.comments || []),
+            ],
+          },
         };
       })
     );

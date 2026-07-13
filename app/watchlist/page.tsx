@@ -17,6 +17,24 @@ export default async function WatchlistPage() {
               updatedAt: "desc",
             },
           },
+          comments: {
+            where: {
+              archivedAt: null,
+            },
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+          },
         },
       },
       comments: {
