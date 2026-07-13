@@ -2,21 +2,40 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSecFundamentals } from "@/lib/sec";
 import { calculateValuationMetrics } from "@/lib/market-calculations";
+import { getCurrentUser } from "@/lib/auth";
 
 function mergeNumber(freshValue: number | null | undefined, existingValue: number | null | undefined) {
   return freshValue ?? existingValue ?? null;
 }
 
 export async function POST() {
-  const ingestionRun = await prisma.ingestionRun.create({
-    data: {
-      source: "SEC_EDGAR",
-      status: "STARTED",
-      message: "SEC fundamentals refresh started.",
-    },
-  });
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Authentication required." },
+      { status: 401 }
+    );
+  }
+
+  if (user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Admin access required." },
+      { status: 403 }
+    );
+  }
+
+  let ingestionRun: any;
 
   try {
+    ingestionRun = await prisma.ingestionRun.create({
+      data: {
+        source: "SEC_EDGAR",
+        status: "STARTED",
+        message: "SEC fundamentals refresh started.",
+      },
+    });
+
     const securities = await prisma.security.findMany({
       orderBy: { ticker: "asc" },
       include: {
@@ -127,7 +146,17 @@ export async function POST() {
     return NextResponse.json({ source: "SEC_EDGAR", updatedCount, failedCount, results });
   } catch (error) {
     console.error("SEC fundamentals refresh failed:", error);
-    await prisma.ingestionRun.update({ where: { id: ingestionRun.id }, data: { status: "FAILED", message: error instanceof Error ? error.message : "Unknown SEC refresh failure.", endedAt: new Date() } });
-    return NextResponse.json({ error: "SEC fundamentals refresh failed.", detail: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
+    await prisma.ingestionRun.update({
+      where: { id: ingestionRun.id },
+      data: {
+        status: "FAILED",
+        message: error instanceof Error ? error.message : "Unknown SEC refresh failure.",
+        endedAt: new Date(),
+      },
+    });
+    return NextResponse.json(
+      { error: "SEC fundamentals refresh failed.", detail: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }

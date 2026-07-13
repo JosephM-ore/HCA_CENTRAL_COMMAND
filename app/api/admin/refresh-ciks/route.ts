@@ -1,17 +1,36 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveSecCikForTicker } from "@/lib/sec";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function POST() {
-  const ingestionRun = await prisma.ingestionRun.create({
-    data: {
-      source: "SEC_CIK",
-      status: "STARTED",
-      message: "SEC CIK refresh started.",
-    },
-  });
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Authentication required." },
+      { status: 401 }
+    );
+  }
+
+  if (user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: "Admin access required." },
+      { status: 403 }
+    );
+  }
+
+  let ingestionRun: any;
 
   try {
+    ingestionRun = await prisma.ingestionRun.create({
+      data: {
+        source: "SEC_CIK",
+        status: "STARTED",
+        message: "SEC CIK refresh started.",
+      },
+    });
+
     const securities = await prisma.security.findMany({
       orderBy: { ticker: "asc" },
     });
@@ -71,14 +90,6 @@ export async function POST() {
     });
   } catch (error) {
     console.error("SEC CIK refresh failed:", error);
-    await prisma.ingestionRun.update({
-      where: { id: ingestionRun.id },
-      data: {
-        status: "FAILED",
-        message: error instanceof Error ? error.message : "Unknown SEC CIK refresh failure.",
-        endedAt: new Date(),
-      },
-    });
     return NextResponse.json(
       { error: "SEC CIK refresh failed.", detail: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
