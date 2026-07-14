@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canEditWatchlist } from "@/lib/permissions";
-import type { Prisma } from "@prisma/client";
+
 function parseTargetPrice(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return null;
