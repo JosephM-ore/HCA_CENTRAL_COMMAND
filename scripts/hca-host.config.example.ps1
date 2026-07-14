@@ -1,28 +1,22 @@
-# HCA Central Command host configuration example.
-# Copy this file to:
-#   scripts/hca-host.config.ps1
-#
-# Then update the paths for the local machine and shared drive.
-#
-# IMPORTANT:
-# - The live SQLite database should stay local to the active host.
-# - The shared drive should store backups, logs, and active-host metadata only.
+# HCA Central Command host configuration example
+#User should set their appPath and SharedRoot paths to whatever their set up is on their machine 
+#All other lines in this file should remain untouched
 
-$AppPath = "C:\HCA-Central-Command"
+$AppPath = "C:\Users\jmoore\OneDrive - Sunwest Bank\Desktop\HCA-Central-Command\HCA_CENTRAL_COMMAND"
 
-$SharedRoot = "C:\Users\jmoore\OneDrive - Sunwest Bank\Desktop\HCA-Shared-Test"
+$SharedRoot = "C:\Users\jmoore\OneDrive - Sunwest Bank\Desktop\HCA-Shared-Database"
 
 $Port = 3000
 
 $AppName = "hca-central-command"
 
-$LocalDatabasePath = "C:\HCA-Central-Command\data\prod.db"
+$LocalDatabasePath = "$AppPath\data\prod.db"
 
-$SharedLatestDirectory = "\\SharedDrive\HCA-Central-Command\latest"
-$SharedLatestDatabasePath = "\\SharedDrive\HCA-Central-Command\latest\latest.db"
+$SharedLatestDirectory = "$SharedRoot\latest"
+$SharedLatestDatabasePath = "$SharedLatestDirectory\latest.db"
 
-$SharedBackupsPath = "\\SharedDrive\HCA-Central-Command\backups"
-$SharedLogsPath = "\\SharedDrive\HCA-Central-Command\logs"
+$SharedBackupsPath = "$SharedRoot\backups"
+$SharedLogsPath = "$SharedRoot\logs"
 
-$ActiveHostPath = "\\SharedDrive\HCA-Central-Command\active-host.json"
-$HostEventsLogPath = "\\SharedDrive\HCA-Central-Command\logs\host-events.log"
+$ActiveHostPath = "$SharedRoot\active-host.json"
+$HostEventsLogPath = "$SharedLogsPath\host-events.log"
