@@ -96,7 +96,9 @@ function Invoke-HcaScript {
     param(
         [string]$ScriptPath,
         [string]$DisplayName,
-        [string[]]$Arguments = @()
+        [string[]]$Arguments = @(),
+        [switch]$Wait,
+        [switch]$KeepWindowOpen
     )
 
     if (-not (Test-Path $ScriptPath)) {
@@ -107,20 +109,39 @@ function Invoke-HcaScript {
             [System.Windows.Forms.MessageBoxIcon]::Error
         ) | Out-Null
 
-        return
+        return $null
     }
 
     Write-HostEvent "LAUNCHER invoking script. Name=$DisplayName Path=$ScriptPath"
 
     $argumentList = @(
-        "-NoExit",
+        "-NoProfile"
+    )
+
+    if ($KeepWindowOpen) {
+        $argumentList += "-NoExit"
+    }
+
+    $argumentList += @(
         "-ExecutionPolicy",
         "Bypass",
         "-File",
         "`"$ScriptPath`""
-    ) + $Arguments
+    )
 
-    Start-Process powershell.exe -ArgumentList $argumentList
+    $argumentList += $Arguments
+
+    $startProcessParameters = @{
+        FilePath     = "powershell.exe"
+        ArgumentList = $argumentList
+        PassThru     = $true
+    }
+
+    if ($Wait) {
+        $startProcessParameters.Wait = $true
+    }
+
+    return Start-Process @startProcessParameters
 }
 
 function Open-Url {
@@ -320,13 +341,32 @@ function Refresh-LauncherStatus {
         $takeoverButton.Enabled = $false
     }
 
-    $statusBox.Text = ($lines -join :NewLine)
+   $statusBox.Text = ($lines -join "`r`n")
 }
 
 $startButton.Add_Click({
-    Invoke-HcaScript -ScriptPath $StartScriptPath -DisplayName "Start / Open HCA"
-})
+    $state = Get-ActiveHostState
 
+    if ($state -and $state.status -eq "RUNNING" -and $state.url) {
+        $activeUrl = [string]$state.url
+
+        if (Test-HcaHealth -Url $activeUrl) {
+            Open-Url -Url $activeUrl
+            return
+        }
+    }
+
+    Invoke-HcaScript `
+        -ScriptPath $StartScriptPath `
+        -DisplayName "Start / Open HCA" | Out-Null
+
+    [System.Windows.Forms.MessageBox]::Show(
+        "HCA is starting.`n`nThe first startup may take several minutes. The application will open automatically when it is ready.",
+        "HCA Central Command",
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Information
+    ) | Out-Null
+})
 $openButton.Add_Click({
     Open-Url -Url $script:currentOpenUrl
 })
@@ -337,14 +377,43 @@ $refreshButton.Add_Click({
 
 $stopButton.Add_Click({
     $dialogResult = [System.Windows.Forms.MessageBox]::Show(
-        "Stop Hosting will back up the local database and stop HCA on this machine.`n`nContinue?",
+        "Stop hosting HCA on this computer?`n`nThe latest database will be backed up before HCA stops.",
         "Stop HCA Hosting",
         [System.Windows.Forms.MessageBoxButtons]::YesNo,
         [System.Windows.Forms.MessageBoxIcon]::Question
     )
 
-    if ($dialogResult -eq [System.Windows.Forms.DialogResult]::Yes) {
-        Invoke-HcaScript -ScriptPath $StopScriptPath -DisplayName "Stop Hosting"
+    if ($dialogResult -ne [System.Windows.Forms.DialogResult]::Yes) {
+        return
+    }
+
+    $stopButton.Enabled = $false
+    $statusBox.Text = "Backing up the database and stopping HCA...`r`n`r`nDo not shut down this computer yet."
+
+    try {
+        $process = Invoke-HcaScript `
+            -ScriptPath $StopScriptPath `
+            -DisplayName "Stop Hosting" `
+            -Wait
+
+        if ($process -and $process.ExitCode -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show(
+                "HCA hosting has stopped successfully.`n`nThe latest database backup has been saved. This computer may now be shut down.",
+                "HCA Central Command",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            ) | Out-Null
+        } else {
+            [System.Windows.Forms.MessageBox]::Show(
+                "The stop operation reported an error.`n`nDo not shut down this computer until the host log has been reviewed.",
+                "HCA Central Command",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Warning
+            ) | Out-Null
+        }
+    } finally {
+        $stopButton.Enabled = $true
+        Refresh-LauncherStatus
     }
 })
 

@@ -199,7 +199,7 @@ if ($existingConnection) {
 Write-Host ""
 Write-Host "Starting HCA Central Command locally..." -ForegroundColor Cyan
 
-Start-Process powershell.exe -ArgumentList "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", "cd '$AppPath'; npm run start"
+Start-Process powershell.exe -ArgumentList "-ExecutionPolicy", "Bypass", "-Command", "cd '$AppPath'; npm run start"
 
 $healthOk = $false
 

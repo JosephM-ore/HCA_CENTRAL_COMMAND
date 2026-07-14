@@ -10,7 +10,7 @@
 
 $AppPath = "C:\HCA-Central-Command"
 
-$SharedRoot = "\\SharedDrive\HCA-Central-Command"
+$SharedRoot = "C:\Users\jmoore\OneDrive - Sunwest Bank\Desktop\HCA-Shared-Test"
 
 $Port = 3000
 
