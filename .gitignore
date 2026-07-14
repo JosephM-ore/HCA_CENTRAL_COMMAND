@@ -60,3 +60,4 @@ backups/
 *.db-shm
 .env
 
+scripts/hca-host.config.ps1
