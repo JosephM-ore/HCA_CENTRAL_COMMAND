@@ -2,7 +2,7 @@
 #User should set their appPath and SharedRoot paths to whatever their set up is on their machine 
 #All other lines in this file should remain untouched
 
-$AppPath = "C:\Users\jmoore\OneDrive - Sunwest Bank\Desktop\HCA-Central-Command\HCA_CENTRAL_COMMAND"
+$AppPath = Split-Path -Path $PSScriptRoot -Parent
 
 $SharedRoot = "C:\Users\jmoore\OneDrive - Sunwest Bank\Desktop\HCA-Shared-Database"
 
