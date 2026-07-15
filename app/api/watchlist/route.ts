@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canEditWatchlist } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
 
 function formatPriceForComment(value: number | null) {
   if (value == null) return "—";
@@ -14,6 +15,109 @@ function formatPriceForComment(value: number | null) {
   });
 }
 
+function parseTargetPrice(value: unknown) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    throw new Error("Target price must be numeric.");
+  }
+
+  if (parsedValue < 0) {
+    throw new Error("Target price cannot be negative.");
+  }
+
+  return parsedValue;
+}
+
+function getAllowedTargetTypes(side: string) {
+  return side === "LONG"
+    ? ["BUY", "SELL"]
+    : ["SELL", "COVER"];
+}
+
+function getTargetField(
+  side: string,
+  targetType: string
+): "entryTargetPrice" | "exitTargetPrice" {
+  if (side === "LONG") {
+    return targetType === "BUY"
+      ? "entryTargetPrice"
+      : "exitTargetPrice";
+  }
+
+  return targetType === "SELL"
+    ? "entryTargetPrice"
+    : "exitTargetPrice";
+}
+
+function getTargetLabel(side: string, targetType: string) {
+  if (side === "LONG") {
+    return targetType === "BUY" ? "buy" : "sell";
+  }
+
+  return targetType === "SELL" ? "sell" : "cover";
+}
+
+const watchlistEntryInclude = {
+  security: {
+    include: {
+      marketData: {
+        take: 1,
+        orderBy: {
+          updatedAt: "desc" as const,
+        },
+      },
+      comments: {
+        where: {
+          archivedAt: null,
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc" as const,
+        },
+      },
+    },
+  },
+  comments: {
+    where: {
+      archivedAt: null,
+    },
+    include: {
+      author: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc" as const,
+    },
+  },
+  flags: {
+    where: {
+      status: "OPEN",
+    },
+    orderBy: {
+      createdAt: "desc" as const,
+    },
+  },
+} satisfies Prisma.WatchlistEntryInclude;
 
 export async function GET() {
   try {
@@ -21,44 +125,7 @@ export async function GET() {
       where: {
         archivedAt: null,
       },
-      include: {
-        security: {
-          include: {
-            marketData: {
-              take: 1,
-              orderBy: {
-                updatedAt: "desc",
-              },
-            },
-          },
-        },
-        comments: {
-          where: {
-            archivedAt: null,
-          },
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        flags: {
-          where: {
-            status: "OPEN",
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-      },
+      include: watchlistEntryInclude,
       orderBy: [
         {
           side: "asc",
@@ -82,192 +149,311 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const author = await getCurrentUser();
+
+    if (!author) {
+      return NextResponse.json(
+        { error: "Authentication required." },
+        { status: 401 }
+      );
+    }
+
+    if (!canEditWatchlist(author.role)) {
+      return NextResponse.json(
+        {
+          error:
+            "You do not have permission to edit the watchlist.",
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
-    const { ticker, side, targetPrice, comment } = body;
+    const ticker = String(body.ticker || "")
+      .trim()
+      .toUpperCase();
 
-    if (!ticker || typeof ticker !== "string") {
+    const side = String(body.side || "")
+      .trim()
+      .toUpperCase();
+
+    const targetType = String(body.targetType || "")
+      .trim()
+      .toUpperCase();
+
+    const comment = String(body.comment || "").trim();
+
+    if (!ticker) {
       return NextResponse.json(
         { error: "Ticker is required." },
         { status: 400 }
       );
     }
 
-    if (!side || !["LONG", "SHORT"].includes(side)) {
+    if (!["LONG", "SHORT"].includes(side)) {
       return NextResponse.json(
         { error: "Side must be LONG or SHORT." },
         { status: 400 }
       );
     }
 
-    const parsedTargetPrice =
-      targetPrice === "" || targetPrice == null ? null : Number(targetPrice);
+    const allowedTargetTypes = getAllowedTargetTypes(side);
 
-    if (parsedTargetPrice != null && Number.isNaN(parsedTargetPrice)) {
+    if (!allowedTargetTypes.includes(targetType)) {
       return NextResponse.json(
-        { error: "Target price must be numeric." },
+        {
+          error:
+            side === "LONG"
+              ? "Long target type must be BUY or SELL."
+              : "Short target type must be SELL or COVER.",
+        },
         { status: 400 }
       );
     }
 
-    const author = await getCurrentUser();
+    let parsedTargetPrice: number | null;
 
-      if (!author) {
-        return NextResponse.json(
-          { error: "Authentication required." },
-          { status: 401 }
-        );
-      }
+    try {
+      parsedTargetPrice = parseTargetPrice(body.targetPrice);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Invalid target price.",
+        },
+        { status: 400 }
+      );
+    }
 
-      if (!canEditWatchlist(author.role)) {
-        return NextResponse.json(
-          { error: "You do not have permission to edit the watchlist." },
-          { status: 403 }
-        );
-      }
+    const targetField = getTargetField(side, targetType);
+    const targetLabel = getTargetLabel(side, targetType);
 
-    const normalizedTicker = ticker.trim().toUpperCase();
+    const result = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const security = await tx.security.upsert({
+          where: {
+            ticker,
+          },
+          update: {},
+          create: {
+            ticker,
+            name: ticker,
+            sector: "Uncategorized",
+          },
+        });
 
-    const security = await prisma.security.upsert({
-      where: {
-        ticker: normalizedTicker,
-      },
-      update: {},
-      create: {
-        ticker: normalizedTicker,
-        name: normalizedTicker,
-        sector: "Uncategorized",
-      },
-    });
-
-    const entry = await prisma.watchlistEntry.create({
-      data: {
-        securityId: security.id,
-        side,
-        targetPrice: parsedTargetPrice,
-        notes: comment?.trim() || null,
-      },
-      include: {
-        security: {
-          include: {
-            marketData: {
-              take: 1,
-              orderBy: {
-                updatedAt: "desc",
-              },
+        const existingEntry =
+          await tx.watchlistEntry.findFirst({
+            where: {
+              securityId: security.id,
+              side,
+              archivedAt: null,
             },
-          },
-        },
-        comments: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-              },
+            orderBy: {
+              createdAt: "asc",
             },
+          });
+
+        if (existingEntry) {
+          const existingEntryTarget =
+            existingEntry.entryTargetPrice ??
+            existingEntry.targetPrice;
+
+          const previousTargetPrice =
+            targetField === "entryTargetPrice"
+              ? existingEntryTarget
+              : existingEntry.exitTargetPrice;
+
+          const updateData: Prisma.WatchlistEntryUpdateInput = {};
+
+          if (parsedTargetPrice != null) {
+            if (targetField === "entryTargetPrice") {
+              updateData.entryTargetPrice = parsedTargetPrice;
+
+              // Keep the temporary legacy field synchronized until it is
+              // removed in a later migration.
+              updateData.targetPrice = parsedTargetPrice;
+            } else {
+              updateData.exitTargetPrice = parsedTargetPrice;
+            }
+          }
+
+          const updatedEntry =
+            await tx.watchlistEntry.update({
+              where: {
+                id: existingEntry.id,
+              },
+              data: updateData,
+            });
+
+          if (parsedTargetPrice != null) {
+            const commentPrefix =
+              previousTargetPrice == null
+                ? `${targetLabel[0].toUpperCase()}${targetLabel.slice(
+                    1
+                  )} price target set to`
+                : `${targetLabel[0].toUpperCase()}${targetLabel.slice(
+                    1
+                  )} price target changed from ${formatPriceForComment(
+                    previousTargetPrice
+                  )} to`;
+
+            await tx.comment.create({
+              data: {
+                securityId: security.id,
+                watchlistEntryId: updatedEntry.id,
+                authorId: author.id,
+                tag: "PT",
+                content: `${commentPrefix} ${formatPriceForComment(
+                  parsedTargetPrice
+                )}.`,
+              },
+            });
+          }
+
+          if (comment) {
+            await tx.comment.create({
+              data: {
+                securityId: security.id,
+                watchlistEntryId: updatedEntry.id,
+                authorId: author.id,
+                tag: "COMMENT",
+                content: comment,
+              },
+            });
+          }
+
+          await tx.auditLog.create({
+            data: {
+              actorId: author.id,
+              action: "WATCHLIST_ENTRY_UPDATED",
+              entityType: "WATCHLIST_ENTRY",
+              entityId: updatedEntry.id,
+              previousValueJson: JSON.stringify({
+                ticker,
+                side: existingEntry.side,
+                entryTargetPrice: existingEntryTarget,
+                exitTargetPrice:
+                  existingEntry.exitTargetPrice,
+              }),
+              newValueJson: JSON.stringify({
+                ticker,
+                side: updatedEntry.side,
+                targetType,
+                entryTargetPrice:
+                  updatedEntry.entryTargetPrice ??
+                  updatedEntry.targetPrice,
+                exitTargetPrice:
+                  updatedEntry.exitTargetPrice,
+                comment: comment || null,
+                updateMethod:
+                  "ADD_MODAL_EXISTING_ENTRY",
+              }),
+            },
+          });
+
+          return {
+            id: updatedEntry.id,
+            created: false,
+          };
+        }
+
+        const entryTargetPrice =
+          targetField === "entryTargetPrice"
+            ? parsedTargetPrice
+            : null;
+
+        const exitTargetPrice =
+          targetField === "exitTargetPrice"
+            ? parsedTargetPrice
+            : null;
+
+        const createdEntry =
+          await tx.watchlistEntry.create({
+            data: {
+              securityId: security.id,
+              side,
+              targetPrice: entryTargetPrice,
+              entryTargetPrice,
+              exitTargetPrice,
+              notes: comment || null,
+            },
+          });
+
+        if (parsedTargetPrice != null) {
+          await tx.comment.create({
+            data: {
+              securityId: security.id,
+              watchlistEntryId: createdEntry.id,
+              authorId: author.id,
+              tag: "PT",
+              content: `Original ${targetLabel} price target set to ${formatPriceForComment(
+                parsedTargetPrice
+              )}.`,
+            },
+          });
+        }
+
+        if (comment) {
+          await tx.comment.create({
+            data: {
+              securityId: security.id,
+              watchlistEntryId: createdEntry.id,
+              authorId: author.id,
+              tag: "COMMENT",
+              content: comment,
+            },
+          });
+        }
+
+        await tx.auditLog.create({
+          data: {
+            actorId: author.id,
+            action: "WATCHLIST_ENTRY_CREATED",
+            entityType: "WATCHLIST_ENTRY",
+            entityId: createdEntry.id,
+            newValueJson: JSON.stringify({
+              ticker,
+              side,
+              targetType,
+              entryTargetPrice,
+              exitTargetPrice,
+              comment: comment || null,
+            }),
           },
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-        flags: true,
+        });
+
+        return {
+          id: createdEntry.id,
+          created: true,
+        };
+      }
+    );
+
+    const entry = await prisma.watchlistEntry.findUniqueOrThrow({
+      where: {
+        id: result.id,
       },
+      include: watchlistEntryInclude,
     });
 
-    if (parsedTargetPrice != null) {
-  await prisma.comment.create({
-    data: {
-      securityId: security.id,
-      watchlistEntryId: entry.id,
-      authorId: author.id,
-      tag: "PT",
-      content: `Original price target set to ${formatPriceForComment(
-        parsedTargetPrice
-      )}.`,
-    },
-  });
-}
-
-if (comment && comment.trim()) {
-  await prisma.comment.create({
-    data: {
-      securityId: security.id,
-      watchlistEntryId: entry.id,
-      authorId: author.id,
-      tag: "COMMENT",
-      content: comment.trim(),
-    },
-  });
-}
-
-const entryWithComment = await prisma.watchlistEntry.findUniqueOrThrow({
-  where: {
-    id: entry.id,
-  },
-  include: {
-    security: {
-      include: {
-        marketData: {
-          take: 1,
-          orderBy: {
-            updatedAt: "desc",
-          },
-        },
+    return NextResponse.json(
+      {
+        entry,
+        created: result.created,
       },
-    },
-    comments: {
-      where: {
-        archivedAt: null,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    },
-    flags: {
-      where: {
-        status: "OPEN",
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    },
-  },
-});
-
-    await prisma.auditLog.create({
-      data: {
-        actorId: author.id,
-        action: "WATCHLIST_ENTRY_CREATED",
-        entityType: "WATCHLIST_ENTRY",
-        entityId: entry.id,
-        newValueJson: JSON.stringify({
-          ticker: normalizedTicker,
-          side,
-          targetPrice: parsedTargetPrice,
-          comment: comment?.trim() || null,
-        }),
-      },
-    });
-
-    return NextResponse.json({ entry: entryWithComment }, { status: 201 });
+      {
+        status: result.created ? 201 : 200,
+      }
+    );
   } catch (error) {
     console.error("POST /api/watchlist failed", error);
 
     return NextResponse.json(
-      { error: "Failed to create watchlist entry." },
+      { error: "Failed to create or update watchlist entry." },
       { status: 500 }
     );
   }
