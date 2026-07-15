@@ -233,21 +233,22 @@ export default function LoginPage() {
                 />
               </div>
 
-              <div>
+                            <div>
                 <label className="text-sm font-medium text-slate-700">
                   Password
                 </label>
+
                 <input
-                  value={registerConfirmPassword}
+                  value={registerPassword}
                   onChange={(event) =>
-                    setRegisterConfirmPassword(event.target.value)
+                    setRegisterPassword(event.target.value)
                   }
                   type="password"
                   autoComplete="new-password"
                   required
                   minLength={8}
                   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-                  placeholder="Re-enter password"
+                  placeholder="At least 8 characters"
                 />
               </div>
 
@@ -255,6 +256,7 @@ export default function LoginPage() {
                 <label className="text-sm font-medium text-slate-700">
                   Confirm password
                 </label>
+
                 <input
                   value={registerConfirmPassword}
                   onChange={(event) =>
