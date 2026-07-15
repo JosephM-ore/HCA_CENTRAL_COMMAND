@@ -9,6 +9,7 @@ async function main() {
   // Delete operational data first.
   // For trader testing, do not seed demo securities, positions, trades,
   // tax lots, comments, flags, watchlist entries, or market data.
+  await prisma.registrationApproval.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.ingestionRun.deleteMany();
   await prisma.marketDataCache.deleteMany();
