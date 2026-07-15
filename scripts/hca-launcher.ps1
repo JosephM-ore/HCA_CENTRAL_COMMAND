@@ -356,16 +356,14 @@ $startButton.Add_Click({
         }
     }
 
+    $statusBox.Text = "HCA is starting...`r`n`r`nThe application will open automatically when ready."
+    [System.Windows.Forms.Application]::DoEvents()
+
     Invoke-HcaScript `
         -ScriptPath $StartScriptPath `
         -DisplayName "Start / Open HCA" | Out-Null
 
-    [System.Windows.Forms.MessageBox]::Show(
-        "HCA is starting.`n`nThe first startup may take several minutes. The application will open automatically when it is ready.",
-        "HCA Central Command",
-        [System.Windows.Forms.MessageBoxButtons]::OK,
-        [System.Windows.Forms.MessageBoxIcon]::Information
-    ) | Out-Null
+    Refresh-LauncherStatus
 })
 $openButton.Add_Click({
     Open-Url -Url $script:currentOpenUrl
@@ -418,11 +416,20 @@ $stopButton.Add_Click({
 })
 
 $backupButton.Add_Click({
-    Invoke-HcaScript -ScriptPath $BackupScriptPath -DisplayName "Backup Now" -Arguments @("-Reason", "launcher")
+    Invoke-HcaScript `
+        -ScriptPath $BackupScriptPath `
+        -DisplayName "Backup Now" `
+        -Arguments @("-Reason", "launcher") | Out-Null
+
+    Refresh-LauncherStatus
 })
 
 $updateButton.Add_Click({
-    Invoke-HcaScript -ScriptPath $UpdateScriptPath -DisplayName "Check For Updates"
+    Invoke-HcaScript `
+        -ScriptPath $UpdateScriptPath `
+        -DisplayName "Check For Updates" | Out-Null
+
+    Refresh-LauncherStatus
 })
 
 $takeoverButton.Add_Click({
@@ -435,6 +442,7 @@ $takeoverButton.Add_Click({
 
     if ($dialogResult -eq [System.Windows.Forms.DialogResult]::Yes) {
         Invoke-HcaScript -ScriptPath $TakeoverScriptPath -DisplayName "Emergency Takeover"
+        Refresh-LauncherStatus
     }
 })
 
@@ -455,8 +463,20 @@ $closeButton.Add_Click({
     $form.Close()
 })
 
+$statusTimer = New-Object System.Windows.Forms.Timer
+$statusTimer.Interval = 5000
+
+$statusTimer.Add_Tick({
+    Refresh-LauncherStatus
+})
+
 $form.Add_Shown({
     Refresh-LauncherStatus
+    $statusTimer.Start()
+})
+
+$form.Add_FormClosed({
+    $statusTimer.Stop()
 })
 
 Write-HostEvent "LAUNCHER opened."
