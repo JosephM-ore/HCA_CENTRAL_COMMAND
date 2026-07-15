@@ -1618,8 +1618,8 @@ async function handleSaveFlag(payload: {
       <div className="flex h-full">
         <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
           <div className="mb-6 flex items-center gap-3 px-2 py-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
-              ⌘
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl">
+              /assets/hca.ico
             </div>
             <div>
               <h1 className="font-semibold leading-tight">
