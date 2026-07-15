@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [registerName, setRegisterName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
@@ -62,10 +63,11 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email: registerEmail,
-          password: registerPassword,
-          confirmPassword: registerConfirmPassword,
+          body: JSON.stringify({
+            name: registerName,
+            email: registerEmail,
+            password: registerPassword,
+            confirmPassword: registerConfirmPassword,
         }),
       });
 
@@ -79,6 +81,7 @@ export default function LoginPage() {
       setRegisterSuccess("Account created. You can now sign in.");
       setEmail(registerEmail.trim().toLowerCase());
       setPassword("");
+      setRegisterName("");
       setRegisterPassword("");
       setRegisterConfirmPassword("");
     } catch {
@@ -92,6 +95,7 @@ export default function LoginPage() {
     setIsRegisterOpen(false);
     setRegisterError("");
     setRegisterSuccess("");
+    setRegisterName("");
     setRegisterPassword("");
     setRegisterConfirmPassword("");
   }
@@ -162,14 +166,14 @@ export default function LoginPage() {
           onClick={() => setIsRegisterOpen(true)}
           className="mt-3 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
         >
-          Register approved admin account
+          Register approved account
         </button>
 
         <div className="mt-6 rounded-2xl bg-slate-50 p-4 text-xs text-slate-500">
           <p className="font-semibold text-slate-700">Approved registration</p>
-          <p className="mt-2">
-            John and Malkolm can create their own admin accounts using their
-            approved email addresses.
+            <p className="mt-2">
+            Approved users can create their accounts using their approved
+            email addresses.
           </p>
           <p className="mt-2">
             Registration is restricted to manually approved emails only.
@@ -183,10 +187,10 @@ export default function LoginPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">
-                  Register admin account
+                  Register approved account
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Enter an approved email address and choose your password.
+                  Enter your name, approved email address, and password.
                 </p>
               </div>
 
@@ -200,6 +204,20 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleRegister} className="mt-6 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700">
+                    Full name
+                  </label>
+                  <input
+                    value={registerName}
+                    onChange={(event) => setRegisterName(event.target.value)}
+                    type="text"
+                    autoComplete="name"
+                    required
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                    placeholder="Full name"
+                  />
+              </div>
               <div>
                 <label className="text-sm font-medium text-slate-700">
                   Email
@@ -207,6 +225,9 @@ export default function LoginPage() {
                 <input
                   value={registerEmail}
                   onChange={(event) => setRegisterEmail(event.target.value)}
+                  type="email"
+                  autoComplete="email"
+                  required
                   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
                   placeholder="approved.email@example.com"
                 />
@@ -217,11 +238,16 @@ export default function LoginPage() {
                   Password
                 </label>
                 <input
-                  value={registerPassword}
-                  onChange={(event) => setRegisterPassword(event.target.value)}
+                  value={registerConfirmPassword}
+                  onChange={(event) =>
+                    setRegisterConfirmPassword(event.target.value)
+                  }
                   type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
                   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-                  placeholder="At least 8 characters"
+                  placeholder="Re-enter password"
                 />
               </div>
 
@@ -235,6 +261,9 @@ export default function LoginPage() {
                     setRegisterConfirmPassword(event.target.value)
                   }
                   type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
                   className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
                   placeholder="Re-enter password"
                 />
