@@ -13,10 +13,11 @@ type AuditLogsClientProps = {
 function actionTone(action: string) {
   const normalized = action.toUpperCase();
 
-  if (
+    if (
     normalized.includes("DELETE") ||
     normalized.includes("REMOVE") ||
-    normalized.includes("FAILED")
+    normalized.includes("FAILED") ||
+    normalized.includes("REVOKED")
   ) {
     return "red";
   }
