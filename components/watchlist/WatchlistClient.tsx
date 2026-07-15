@@ -102,7 +102,21 @@ function calculateFromTarget(
 
   return ((targetPrice - currentPrice) / currentPrice) * 100;
 }
+function getEntryTargetPrice(entry: any) {
+  return entry.entryTargetPrice ?? entry.targetPrice ?? null;
+}
 
+function getExitTargetPrice(entry: any) {
+  return entry.exitTargetPrice ?? null;
+}
+
+function getEntryTargetLabel(side: string) {
+  return side === "SHORT" ? "Sell PT" : "Buy PT";
+}
+
+function getExitTargetLabel(side: string) {
+  return side === "SHORT" ? "Cover PT" : "Sell PT";
+}
 function formatPercent(value: number | null | undefined) {
   if (value == null || Number.isNaN(value)) return "—";
 
@@ -157,20 +171,38 @@ function WatchlistGrid({
       <SectionBar title={title} tone={tone} />
 
       <div className="overflow-x-auto">
-       <div className="grid min-w-[1050px] grid-cols-8 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <div className="grid min-w-[1320px] grid-cols-10 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
           <div className="col-span-2">Ticker # / Name</div>
           <div>Current Price</div>
-          <div>{tone === "green" ? "Buy PT" : "Short PT"}</div>
-          <div>% From PT</div>
+          <div>{tone === "green" ? "Buy PT" : "Sell PT"}</div>
+          <div>{tone === "green" ? "% From Buy" : "% From Sell"}</div>
+          <div>{tone === "green" ? "Sell PT" : "Cover PT"}</div>
+          <div>{tone === "green" ? "% From Sell" : "% From Cover"}</div>
           <div>Market Data</div>
           <div>Comment Section</div>
           <div>Actions</div>
         </div>
 
         {entries.map((entry) => {
-          const currentPrice = getWatchlistCurrentPrice(entry);
-          const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
-          const openFlag = entry.flags?.[0];         
+            const currentPrice = getWatchlistCurrentPrice(entry);
+
+          const entryTargetPrice =
+            getEntryTargetPrice(entry);
+
+          const exitTargetPrice =
+            getExitTargetPrice(entry);
+
+          const fromEntryTarget = calculateFromTarget(
+            currentPrice,
+            entryTargetPrice
+          );
+
+          const fromExitTarget = calculateFromTarget(
+            currentPrice,
+            exitTargetPrice
+          );
+
+          const openFlag = entry.flags?.[0];        
           const latestComment = getWatchlistComments(entry).find(
             (comment: any) => comment.tag !== "PT"
           );
@@ -178,7 +210,7 @@ function WatchlistGrid({
           return (
             <div
               key={entry.id}
-              className="grid min-w-[1050px] grid-cols-8 items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50"
+                            className="grid min-w-[1320px] grid-cols-10 items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50"
             >
               
               <button
@@ -197,13 +229,32 @@ function WatchlistGrid({
               </button>
 
 
-              <div>{currentPrice != null ? `$${currentPrice.toFixed(2)}` : "—"}</div>
+              <div>
+                {formatMoney(currentPrice)}
+              </div>
 
-              <div>{entry.targetPrice != null ? `$${entry.targetPrice.toFixed(2)}` : "—"}</div>
+              <div className="font-semibold text-slate-900">
+                {formatMoney(entryTargetPrice)}
+              </div>
 
-             
-              <div className={`font-semibold ${pctClass(fromTarget)}`}>
-                {formatPercent(fromTarget)}
+              <div
+                className={`font-semibold ${pctClass(
+                  fromEntryTarget
+                )}`}
+              >
+                {formatPercent(fromEntryTarget)}
+              </div>
+
+              <div className="font-semibold text-slate-900">
+                {formatMoney(exitTargetPrice)}
+              </div>
+
+              <div
+                className={`font-semibold ${pctClass(
+                  fromExitTarget
+                )}`}
+              >
+                {formatPercent(fromExitTarget)}
               </div>
 
 
@@ -401,8 +452,30 @@ function WatchlistDetailPanel({
 
   const security = entry.security;
   const marketData = security.marketData?.[0];
+
   const currentPrice = getWatchlistCurrentPrice(entry);
-  const fromTarget = calculateFromTarget(currentPrice, entry.targetPrice);
+
+  const entryTargetPrice =
+    getEntryTargetPrice(entry);
+
+  const exitTargetPrice =
+    getExitTargetPrice(entry);
+
+  const fromEntryTarget = calculateFromTarget(
+    currentPrice,
+    entryTargetPrice
+  );
+
+  const fromExitTarget = calculateFromTarget(
+    currentPrice,
+    exitTargetPrice
+  );
+
+  const entryTargetLabel =
+    getEntryTargetLabel(entry.side);
+
+  const exitTargetLabel =
+    getExitTargetLabel(entry.side);
 
   const allComments = getWatchlistComments(entry);
 
@@ -449,7 +522,10 @@ function WatchlistDetailPanel({
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Current Price</p>
+            <p className="text-xs text-slate-500">
+              Current Price
+            </p>
+
             <p className="mt-1 font-semibold text-slate-950">
               {formatMoney(currentPrice)}
             </p>
@@ -457,24 +533,59 @@ function WatchlistDetailPanel({
 
           <div className="rounded-2xl bg-slate-50 p-3">
             <p className="text-xs text-slate-500">
-              {entry.side === "SHORT" ? "Short PT" : "Buy PT"}
+              Market Data Source
             </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {formatMoney(entry.targetPrice)}
-            </p>
-          </div>
 
-          <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">% From PT</p>
-            <p className={`mt-1 font-semibold ${pctClass(fromTarget)}`}>
-              {formatPercent(fromTarget)}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-slate-50 p-3">
-            <p className="text-xs text-slate-500">Market Data Source</p>
             <p className="mt-1 font-semibold text-slate-950">
               {marketData?.marketDataSource ?? "N/A"}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">
+              {entryTargetLabel}
+            </p>
+
+            <p className="mt-1 font-semibold text-slate-950">
+              {formatMoney(entryTargetPrice)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">
+              % From {entryTargetLabel}
+            </p>
+
+            <p
+              className={`mt-1 font-semibold ${pctClass(
+                fromEntryTarget
+              )}`}
+            >
+              {formatPercent(fromEntryTarget)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">
+              {exitTargetLabel}
+            </p>
+
+            <p className="mt-1 font-semibold text-slate-950">
+              {formatMoney(exitTargetPrice)}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 p-3">
+            <p className="text-xs text-slate-500">
+              % From {exitTargetLabel}
+            </p>
+
+            <p
+              className={`mt-1 font-semibold ${pctClass(
+                fromExitTarget
+              )}`}
+            >
+              {formatPercent(fromExitTarget)}
             </p>
           </div>
         </div>
@@ -1274,12 +1385,15 @@ export default function WatchlistClient({
     const flagText =
       entry.flags?.map((flag: any) => flag.flagType).join(" ") || "";
 
-    const searchable = [
+        const searchable = [
       entry.security?.ticker,
       entry.security?.name,
       entry.security?.sector,
       entry.side,
-      entry.targetPrice,
+      getEntryTargetLabel(entry.side),
+      getExitTargetLabel(entry.side),
+      getEntryTargetPrice(entry),
+      getExitTargetPrice(entry),
       entry.notes,
       commentText,
       flagText,
@@ -1562,8 +1676,9 @@ async function handleRemoveEntry(entry: any) {
                                   Watchlist
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500">
-                                  Long and short watchlists with current price, buy/short
-                                  point, percent from point, market data, flags, and comments.
+                                  Long and short watchlists with entry and exit
+                                  targets, percent from target, market data, flags,
+                                  and comments.
                                 </p>
                               </div>
 
@@ -1625,7 +1740,7 @@ async function handleRemoveEntry(entry: any) {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search ticker, company, sector, side, target price, notes, comments, flags..."
+                placeholder="Search ticker, company, sector, side, buy, sell, cover, target prices, notes, comments, flags..."
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
               />
             </div>
