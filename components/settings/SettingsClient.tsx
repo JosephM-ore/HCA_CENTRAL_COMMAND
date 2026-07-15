@@ -8,6 +8,8 @@ type SettingsClientProps = {
   auditLogCount: number;
   ingestionRuns: any[];
   users: any[];
+  initialRegistrationApprovals: any[];
+  canManageUserAccess: boolean;
 };
 
 function NavItem({
@@ -178,8 +180,31 @@ export default function SettingsClient({
   auditLogCount,
   ingestionRuns,
   users,
+  initialRegistrationApprovals,
+  canManageUserAccess,
 }: SettingsClientProps) {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
+
+  const [registrationApprovals, setRegistrationApprovals] =
+    useState<any[]>(initialRegistrationApprovals);
+
+  const [isApproveUserOpen, setIsApproveUserOpen] =
+    useState(false);
+
+  const [approvalEmail, setApprovalEmail] =
+    useState("");
+
+  const [approvalRole, setApprovalRole] =
+    useState("VIEWER");
+
+  const [approvalError, setApprovalError] =
+    useState("");
+
+  const [isApprovingUser, setIsApprovingUser] =
+    useState(false);
+
+  const [revokingApprovalId, setRevokingApprovalId] =
+    useState<string | null>(null);
 
   const [isUploadingWells, setIsUploadingWells] = useState(false);
   const [wellsTaxLotsFile, setWellsTaxLotsFile] = useState<File | null>(null);
@@ -220,6 +245,114 @@ export default function SettingsClient({
       loadCurrentUser();
     }, []);
 
+    async function handleApproveUser(
+    event: React.FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    setApprovalError("");
+    setIsApprovingUser(true);
+
+    try {
+      const response = await fetch(
+        "/api/admin/registration-approvals",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            email: approvalEmail,
+            role: approvalRole,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setApprovalError(
+          data.error || "Failed to approve registration access."
+        );
+        return;
+      }
+
+      setRegistrationApprovals((currentApprovals) => [
+        data.approval,
+        ...currentApprovals.filter(
+          (approval) => approval.id !== data.approval.id
+        ),
+      ]);
+
+      setApprovalEmail("");
+      setApprovalRole("VIEWER");
+      setApprovalError("");
+      setIsApproveUserOpen(false);
+    } catch {
+      setApprovalError(
+        "Failed to approve registration access. Please try again."
+      );
+    } finally {
+      setIsApprovingUser(false);
+    }
+  }
+
+  async function handleRevokeApproval(approval: any) {
+    const confirmed = window.confirm(
+      `Revoke registration access for ${approval.email}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setRevokingApprovalId(approval.id);
+
+    try {
+      const response = await fetch(
+        `/api/admin/registration-approvals/${approval.id}/revoke`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        window.alert(
+          data.error || "Failed to revoke registration access."
+        );
+        return;
+      }
+
+      setRegistrationApprovals((currentApprovals) =>
+        currentApprovals.map((currentApproval) =>
+          currentApproval.id === data.approval.id
+            ? data.approval
+            : currentApproval
+        )
+      );
+    } catch {
+      window.alert(
+        "Failed to revoke registration access. Please try again."
+      );
+    } finally {
+      setRevokingApprovalId(null);
+    }
+  }
+
+  function closeApproveUserModal() {
+    if (isApprovingUser) {
+      return;
+    }
+
+    setIsApproveUserOpen(false);
+    setApprovalEmail("");
+    setApprovalRole("VIEWER");
+    setApprovalError("");
+  }
     
 
 async function uploadSingleWellsFile(file: File) {
@@ -383,7 +516,11 @@ async function handleWellsUpload() {
   }
 }
     const userCanViewAuditLogs = canViewAuditLogs(currentUser?.role);
-  
+    
+    const pendingRegistrationApprovals =
+      registrationApprovals.filter(
+        (approval) => approval.status === "PENDING"
+    );
   
   const navItems = [
     { href: "/", label: "Home / Positions" },
@@ -514,28 +651,136 @@ async function handleWellsUpload() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <SettingsCard
+                                <SettingsCard
                   eyebrow="Access Control"
-                  title="Permissions"
-                  description="Roles include ADMIN, TRADER, and VIEWER."
+                  title="User Access"
+                  description="Registered users are read-only. Administrators can approve email addresses and assign roles for self-registration."
                 >
-                  <div className="space-y-2">
-                    {users.map((user) => (
-                      <div
-                        key={user.id}
-                        className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2 text-sm"
-                      >
+                  <div className="space-y-5">
+                    <div>
+                      <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="font-medium text-slate-800">
-                            {user.name || user.email}
+                          <p className="text-sm font-semibold text-slate-900">
+                            Registered users
                           </p>
-                          <p className="text-xs text-slate-500">{user.email}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Existing accounts and assigned roles
+                          </p>
                         </div>
-                        <Badge tone={user.role === "ADMIN" ? "amber" : "blue"}>
-                          {user.role}
-                        </Badge>
+
+                        {canManageUserAccess ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setApprovalError("");
+                              setIsApproveUserOpen(true);
+                            }}
+                            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                          >
+                            Approve New User
+                          </button>
+                        ) : null}
                       </div>
-                    ))}
+
+                      <div className="mt-3 space-y-2">
+                        {users.map((user) => (
+                          <div
+                            key={user.id}
+                            className="flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-2 text-sm"
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate font-medium text-slate-800">
+                                {user.name || user.email}
+                              </p>
+                              <p className="truncate text-xs text-slate-500">
+                                {user.email}
+                              </p>
+                            </div>
+
+                            <Badge
+                              tone={
+                                user.role === "ADMIN"
+                                  ? "amber"
+                                  : "blue"
+                              }
+                            >
+                              {user.role}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {canManageUserAccess ? (
+                      <div className="border-t border-slate-200 pt-5">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            Pending registrations
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Approved email addresses that have not registered
+                          </p>
+                        </div>
+
+                        <div className="mt-3 space-y-2">
+                          {pendingRegistrationApprovals.length ? (
+                            pendingRegistrationApprovals.map(
+                              (approval) => (
+                                <div
+                                  key={approval.id}
+                                  className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-3 py-3"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-slate-900">
+                                      {approval.email}
+                                    </p>
+
+                                    <p className="mt-1 text-xs text-slate-500">
+                                      Approved by{" "}
+                                      {approval.approvedBy?.name ||
+                                        approval.approvedBy?.email ||
+                                        "Administrator"}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex shrink-0 items-center gap-2">
+                                    <Badge tone="blue">
+                                      {approval.role}
+                                    </Badge>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRevokeApproval(approval)
+                                      }
+                                      disabled={
+                                        revokingApprovalId === approval.id
+                                      }
+                                      className="rounded-xl border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {revokingApprovalId === approval.id
+                                        ? "Revoking..."
+                                        : "Revoke"}
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            )
+                          ) : (
+                            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                              No pending registration approvals.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border-t border-slate-200 pt-4">
+                        <p className="text-xs leading-5 text-slate-500">
+                          Registered users are shown for reference. Only
+                          administrators can approve new registrations.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </SettingsCard>
 
@@ -838,8 +1083,109 @@ async function handleWellsUpload() {
               
             </div>
           </div>
-        </section>
+                </section>
       </div>
+
+      {isApproveUserOpen && canManageUserAccess ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-6">
+          <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">
+                  Approve New User
+                </h3>
+
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  Approve an email address and assign the role the user
+                  will receive during registration.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeApproveUserModal}
+                disabled={isApprovingUser}
+                className="rounded-xl px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Close
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleApproveUser}
+              className="mt-6 space-y-4"
+            >
+              <div>
+                <label className="text-sm font-medium text-slate-700">
+                  Email
+                </label>
+
+                <input
+                  value={approvalEmail}
+                  onChange={(event) =>
+                    setApprovalEmail(event.target.value)
+                  }
+                  type="email"
+                  autoComplete="email"
+                  required
+                  disabled={isApprovingUser}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  placeholder="approved.user@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-slate-700">
+                  Role
+                </label>
+
+                <select
+                  value={approvalRole}
+                  onChange={(event) =>
+                    setApprovalRole(event.target.value)
+                  }
+                  disabled={isApprovingUser}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+                >
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="TRADER">TRADER</option>
+                  <option value="ANALYST">ANALYST</option>
+                  <option value="PM">PM</option>
+                  <option value="VIEWER">VIEWER</option>
+                  <option value="COMPLIANCE">COMPLIANCE</option>
+                </select>
+              </div>
+
+              {approvalError ? (
+                <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                  {approvalError}
+                </div>
+              ) : null}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeApproveUserModal}
+                  disabled={isApprovingUser}
+                  className="flex-1 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isApprovingUser}
+                  className="flex-1 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isApprovingUser
+                    ? "Approving..."
+                    : "Approve User"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
