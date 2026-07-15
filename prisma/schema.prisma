@@ -193,9 +193,17 @@ model WatchlistEntry {
   securityId String
   security   Security @relation(fields: [securityId], references: [id])
 
-  side        String // LONG, SHORT
+  side String // LONG, SHORT
+
+  // Legacy target retained temporarily for safe host upgrades.
   targetPrice Float?
-  notes       String?
+
+  // LONG: entry = Buy PT, exit = Sell PT
+  // SHORT: entry = Sell PT, exit = Cover PT
+  entryTargetPrice Float?
+  exitTargetPrice  Float?
+
+  notes String?
 
   archivedAt DateTime?
 
