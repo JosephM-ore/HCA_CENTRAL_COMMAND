@@ -857,63 +857,108 @@ function EditWatchlistModal({
 }: {
   entry: any | null;
   onClose: () => void;
-  onSave: (entry: any, payload: {
-    side: string;
-    targetPrice: string;
-    notes: string;
-    ptChangeComment: string;
-  }) => Promise<void>;
+  onSave: (
+    entry: any,
+    payload: {
+      side: string;
+      entryTargetPrice: string;
+      exitTargetPrice: string;
+      notes: string;
+      ptChangeComment: string;
+    }
+  ) => Promise<void>;
 }) {
   const [side, setSide] = useState("LONG");
-  const [targetPrice, setTargetPrice] = useState("");
+  const [entryTargetPrice, setEntryTargetPrice] = useState("");
+  const [exitTargetPrice, setExitTargetPrice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [ptChangeComment, setPtChangeComment] = useState("");
-  const originalTargetPrice = entry?.targetPrice != null ? String(entry.targetPrice) : "";
-  const targetPriceChanged = String(targetPrice || "") !== originalTargetPrice;
 
-  
+  const originalEntryTargetPrice =
+    entry?.entryTargetPrice != null
+      ? String(entry.entryTargetPrice)
+      : entry?.targetPrice != null
+        ? String(entry.targetPrice)
+        : "";
+
+  const originalExitTargetPrice =
+    entry?.exitTargetPrice != null
+      ? String(entry.exitTargetPrice)
+      : "";
+
+  const entryTargetChanged =
+    String(entryTargetPrice || "") !== originalEntryTargetPrice;
+
+  const exitTargetChanged =
+    String(exitTargetPrice || "") !== originalExitTargetPrice;
+
+  const targetPriceChanged =
+    entryTargetChanged || exitTargetChanged;
+
+  const entryTargetLabel =
+    side === "SHORT" ? "Sell PT" : "Buy PT";
+
+  const exitTargetLabel =
+    side === "SHORT" ? "Cover PT" : "Sell PT";
+
   useEffect(() => {
     if (!entry) return;
 
     setSide(entry.side || "LONG");
-    setTargetPrice(entry.targetPrice != null ? String(entry.targetPrice) : "");
+
+    setEntryTargetPrice(
+      entry.entryTargetPrice != null
+        ? String(entry.entryTargetPrice)
+        : entry.targetPrice != null
+          ? String(entry.targetPrice)
+          : ""
+    );
+
+    setExitTargetPrice(
+      entry.exitTargetPrice != null
+        ? String(entry.exitTargetPrice)
+        : ""
+    );
+
     setPtChangeComment("");
     setError("");
   }, [entry]);
 
-
   if (!entry) return null;
 
-    async function handleSave() {
-      setError("");
+  async function handleSave() {
+    setError("");
 
-      if (targetPriceChanged && !ptChangeComment.trim()) {
-        setError("Please enter a reason for changing the price target.");
-        return;
-      }
-
-      setIsSaving(true);
-
-      try {
-        await onSave(entry, {
-          side,
-          targetPrice,
-          notes: entry.notes || "",
-          ptChangeComment,
-        });
-
-        onClose();
-      } catch (error) {
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Failed to update watchlist item."
-        );
-      } finally {
-        setIsSaving(false);
-      }
+    if (targetPriceChanged && !ptChangeComment.trim()) {
+      setError(
+        "Please enter a reason for changing the price targets."
+      );
+      return;
     }
+
+    setIsSaving(true);
+
+    try {
+      await onSave(entry, {
+        side,
+        entryTargetPrice,
+        exitTargetPrice,
+        notes: entry.notes || "",
+        ptChangeComment,
+      });
+
+      onClose();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to update watchlist item."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
@@ -923,12 +968,14 @@ function EditWatchlistModal({
             <h2 className="text-xl font-semibold text-slate-950">
               Edit Watchlist Item
             </h2>
+
             <p className="mt-1 text-sm text-slate-500">
               {entry.security.ticker} • {entry.security.name}
             </p>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
             className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
           >
@@ -936,30 +983,77 @@ function EditWatchlistModal({
           </button>
         </div>
 
-        <div className="mt-5 space-y-3">
-          <select
-            value={side}
-            onChange={(event) => setSide(event.target.value)}
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-          >
-            <option value="LONG">Long Watchlist</option>
-            <option value="SHORT">Short Watchlist</option>
-          </select>
-
+        <div className="mt-5 space-y-4">
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Change PT
+              Watchlist Side
             </label>
-            <input
-              value={targetPrice}
-              onChange={(event) => setTargetPrice(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-              placeholder={
-                entry.side === "SHORT"
-                  ? "Enter new Short PT"
-                  : "Enter new Buy PT"
-              }
-            />
+
+            <select
+              value={side}
+              onChange={(event) => setSide(event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            >
+              <option value="LONG">Long Watchlist</option>
+              <option value="SHORT">Short Watchlist</option>
+            </select>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Changing sides relabels the entry and exit targets but
+              preserves their values.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {entryTargetLabel}
+              </label>
+
+              <input
+                value={entryTargetPrice}
+                onChange={(event) =>
+                  setEntryTargetPrice(event.target.value)
+                }
+                type="number"
+                min="0"
+                step="any"
+                inputMode="decimal"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                placeholder={`Enter ${entryTargetLabel.toLowerCase()}`}
+              />
+
+              <p className="mt-1 text-xs text-slate-500">
+                {side === "SHORT"
+                  ? "Price where the short may be initiated or added."
+                  : "Price where the long may be initiated or added."}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {exitTargetLabel}
+              </label>
+
+              <input
+                value={exitTargetPrice}
+                onChange={(event) =>
+                  setExitTargetPrice(event.target.value)
+                }
+                type="number"
+                min="0"
+                step="any"
+                inputMode="decimal"
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                placeholder={`Enter ${exitTargetLabel.toLowerCase()}`}
+              />
+
+              <p className="mt-1 text-xs text-slate-500">
+                {side === "SHORT"
+                  ? "Price where the short may be covered."
+                  : "Price where the long may be sold or exited."}
+              </p>
+            </div>
           </div>
 
           {targetPriceChanged ? (
@@ -967,31 +1061,37 @@ function EditWatchlistModal({
               <label className="text-xs font-semibold uppercase tracking-wide text-amber-700">
                 Reason for PT Change Required
               </label>
+
               <textarea
                 value={ptChangeComment}
-                onChange={(event) => setPtChangeComment(event.target.value)}
+                onChange={(event) =>
+                  setPtChangeComment(event.target.value)
+                }
                 className="mt-2 h-24 w-full resize-none rounded-2xl border border-amber-200 bg-white p-4 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                placeholder="Explain why the price target is changing..."
+                placeholder="Explain why one or both price targets are changing..."
               />
             </div>
           ) : null}
-
-          
         </div>
 
         {error ? (
-          <p className="mt-3 text-sm font-medium text-rose-600">{error}</p>
+          <p className="mt-3 text-sm font-medium text-rose-600">
+            {error}
+          </p>
         ) : null}
 
         <div className="mt-5 flex justify-end gap-2">
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            disabled={isSaving}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancel
           </button>
 
           <button
+            type="button"
             onClick={handleSave}
             disabled={isSaving}
             className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
@@ -1003,7 +1103,6 @@ function EditWatchlistModal({
     </div>
   );
 }
-
 function CommentModal({
   entry,
   onClose,
@@ -1304,7 +1403,8 @@ const shortEntries = useMemo(
     entry: any,
     payload: {
       side: string;
-      targetPrice: string;
+      entryTargetPrice: string;
+      exitTargetPrice: string;
       notes: string;
       ptChangeComment: string;
     }
