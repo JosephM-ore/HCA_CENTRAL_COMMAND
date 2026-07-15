@@ -627,6 +627,7 @@ function AddStockModal({
   onAdd: (payload: {
     ticker: string;
     side: string;
+    targetType: string;
     targetPrice: string;
     comment: string;
   }) => Promise<void>;
@@ -636,6 +637,7 @@ function AddStockModal({
 
   const [ticker, setTicker] = useState("");
   const [side, setSide] = useState("LONG");
+  const [targetType, setTargetType] = useState("BUY");
   const [targetPrice, setTargetPrice] = useState("");
   const [comment, setComment] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -654,20 +656,26 @@ function AddStockModal({
     setIsSaving(true);
 
     try {
-      await onAdd({
+          await onAdd({
         ticker,
         side,
+        targetType,
         targetPrice,
         comment,
       });
 
       setTicker("");
       setSide("LONG");
+      setTargetType("BUY");
       setTargetPrice("");
       setComment("");
       onClose();
-    } catch {
-      setError("Failed to add stock. Please try again.");
+      } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to add stock. Please try again."
+      );
     } finally {
       setIsSaving(false);
     }
@@ -724,21 +732,90 @@ function AddStockModal({
             </div>
           ) : null}
 
-          <select
-            value={side}
-            onChange={(event) => setSide(event.target.value)}
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-          >
-            <option value="LONG">Long Watchlist</option>
-            <option value="SHORT">Short Watchlist</option>
-          </select>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Watchlist Side
+            </label>
 
-          <input
-            value={targetPrice}
-            onChange={(event) => setTargetPrice(event.target.value)}
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-            placeholder="Buy PT / Short PT      Enter Numeric EX: 1000"
-          />
+            <select
+              value={side}
+              onChange={(event) => {
+                const nextSide = event.target.value;
+
+                setSide(nextSide);
+                setTargetType(
+                  nextSide === "SHORT" ? "SELL" : "BUY"
+                );
+              }}
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            >
+              <option value="LONG">Long Watchlist</option>
+              <option value="SHORT">Short Watchlist</option>
+            </select>
+          </div>
+                    <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Target Type
+            </label>
+
+            <select
+              value={targetType}
+              onChange={(event) =>
+                setTargetType(event.target.value)
+              }
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            >
+              {side === "LONG" ? (
+                <>
+                  <option value="BUY">Buy PT</option>
+                  <option value="SELL">Sell PT</option>
+                </>
+              ) : (
+                <>
+                  <option value="SELL">Sell PT</option>
+                  <option value="COVER">Cover PT</option>
+                </>
+              )}
+            </select>
+
+            <p className="mt-1 text-xs text-slate-500">
+              {side === "LONG"
+                ? targetType === "BUY"
+                  ? "Price where the long position may be initiated or added."
+                  : "Price where the long position may be sold or exited."
+                : targetType === "SELL"
+                  ? "Price where the short position may be initiated or added."
+                  : "Price where the short position may be covered."}
+            </p>
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {targetType === "BUY"
+                ? "Buy PT"
+                : targetType === "COVER"
+                  ? "Cover PT"
+                  : "Sell PT"}
+            </label>
+
+            <input
+              value={targetPrice}
+              onChange={(event) =>
+                setTargetPrice(event.target.value)
+              }
+              type="number"
+              min="0"
+              step="any"
+              inputMode="decimal"
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+              placeholder={`Enter ${
+                targetType === "BUY"
+                  ? "buy"
+                  : targetType === "COVER"
+                    ? "cover"
+                    : "sell"
+              } price target`}
+            />
+          </div>
 
           <textarea
             value={comment}
@@ -1126,9 +1203,10 @@ const shortEntries = useMemo(
   [filteredEntries]
 );
 
-  async function handleAddEntry(payload: {
+   async function handleAddEntry(payload: {
     ticker: string;
     side: string;
+    targetType: string;
     targetPrice: string;
     comment: string;
   }) {
@@ -1140,13 +1218,35 @@ const shortEntries = useMemo(
       body: JSON.stringify(payload),
     });
 
+        const data = await response.json();
+
     if (!response.ok) {
-      throw new Error("Failed to add watchlist entry.");
+      throw new Error(
+        data.error || "Failed to add watchlist entry."
+      );
     }
 
-    const data = await response.json();
+        setEntries((currentEntries) => {
+      const entryAlreadyExists = currentEntries.some(
+        (entry) => entry.id === data.entry.id
+      );
 
-    setEntries((currentEntries) => [data.entry, ...currentEntries]);
+      if (entryAlreadyExists) {
+        return currentEntries.map((entry) =>
+          entry.id === data.entry.id
+            ? data.entry
+            : entry
+        );
+      }
+
+      return [data.entry, ...currentEntries];
+    });
+
+    setSelectedEntry((currentEntry: any | null) =>
+      currentEntry?.id === data.entry.id
+        ? data.entry
+        : currentEntry
+    );
   }
 
   async function handleSaveComment(payload: {
