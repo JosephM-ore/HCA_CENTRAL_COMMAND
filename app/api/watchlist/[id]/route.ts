@@ -1,17 +1,29 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canEditWatchlist } from "@/lib/permissions";
 
-function parseTargetPrice(value: unknown) {
-  if (value === null || value === undefined || value === "") {
+function parseTargetPrice(
+  value: unknown,
+  label: string
+) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return null;
   }
 
   const numberValue = Number(value);
 
   if (!Number.isFinite(numberValue)) {
-    throw new Error("Target price must be a valid number.");
+    throw new Error(`${label} must be a valid number.`);
+  }
+
+  if (numberValue < 0) {
+    throw new Error(`${label} cannot be negative.`);
   }
 
   return numberValue;
@@ -38,12 +50,63 @@ function formatPriceForComment(value: number | null) {
   });
 }
 
-function targetPriceChanged(oldValue: number | null, newValue: number | null) {
-  if (oldValue == null && newValue == null) return false;
-  if (oldValue == null || newValue == null) return true;
+function targetPriceChanged(
+  oldValue: number | null,
+  newValue: number | null
+) {
+  if (oldValue == null && newValue == null) {
+    return false;
+  }
+
+  if (oldValue == null || newValue == null) {
+    return true;
+  }
 
   return Math.abs(oldValue - newValue) > 0.000001;
 }
+
+function capitalize(value: string) {
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
+
+function getEntryTargetLabel(side: string) {
+  return side === "SHORT" ? "sell" : "buy";
+}
+
+function getExitTargetLabel(side: string) {
+  return side === "SHORT" ? "cover" : "sell";
+}
+
+function buildTargetChangeComment({
+  label,
+  previousValue,
+  nextValue,
+  reason,
+}: {
+  label: string;
+  previousValue: number | null;
+  nextValue: number | null;
+  reason: string;
+}) {
+  const capitalizedLabel = capitalize(label);
+
+  if (previousValue == null && nextValue != null) {
+    return `${capitalizedLabel} price target set to ${formatPriceForComment(
+      nextValue
+    )}. Reason: ${reason}`;
+  }
+
+  if (previousValue != null && nextValue == null) {
+    return `${capitalizedLabel} price target removed. Previous value was ${formatPriceForComment(
+      previousValue
+    )}. Reason: ${reason}`;
+  }
+
+  return `${capitalizedLabel} price target changed from ${formatPriceForComment(
+    previousValue
+  )} to ${formatPriceForComment(nextValue)}. Reason: ${reason}`;
+}
+
 
 export async function PATCH(
   request: Request,
@@ -53,7 +116,6 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    
     const author = await getCurrentUser();
 
     if (!author) {
@@ -68,23 +130,22 @@ export async function PATCH(
     if (!canEditWatchlist(author.role)) {
       return NextResponse.json(
         {
-          error: "You do not have permission to edit the watchlist.",
+          error:
+            "You do not have permission to edit the watchlist.",
         },
         { status: 403 }
       );
     }
 
-
-   
-    const existingEntry = await prisma.watchlistEntry.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        security: true,
-      },
-    });
-
+    const existingEntry =
+      await prisma.watchlistEntry.findUnique({
+        where: {
+          id,
+        },
+        include: {
+          security: true,
+        },
+      });
 
     if (!existingEntry) {
       return NextResponse.json(
@@ -95,7 +156,9 @@ export async function PATCH(
       );
     }
 
-    const side = body.side;
+    const side = String(body.side || "")
+      .trim()
+      .toUpperCase();
 
     if (side !== "LONG" && side !== "SHORT") {
       return NextResponse.json(
@@ -106,10 +169,19 @@ export async function PATCH(
       );
     }
 
-    let targetPrice: number | null;
+    let entryTargetPrice: number | null;
+    let exitTargetPrice: number | null;
 
     try {
-      targetPrice = parseTargetPrice(body.targetPrice);
+      entryTargetPrice = parseTargetPrice(
+        body.entryTargetPrice,
+        side === "SHORT" ? "Sell PT" : "Buy PT"
+      );
+
+      exitTargetPrice = parseTargetPrice(
+        body.exitTargetPrice,
+        side === "SHORT" ? "Cover PT" : "Sell PT"
+      );
     } catch (error) {
       return NextResponse.json(
         {
@@ -123,107 +195,230 @@ export async function PATCH(
     }
 
     const notes = parseNotes(body.notes);
-    const didTargetPriceChange = targetPriceChanged(
-      existingEntry.targetPrice,
-      targetPrice
+    const ptChangeComment = parseNotes(
+      body.ptChangeComment
     );
 
-    const ptChangeComment = parseNotes(body.ptChangeComment);
+    const existingEntryTargetPrice =
+      existingEntry.entryTargetPrice ??
+      existingEntry.targetPrice;
 
-    if (didTargetPriceChange && !ptChangeComment) {
+    const existingExitTargetPrice =
+      existingEntry.exitTargetPrice;
+
+    const didEntryTargetChange = targetPriceChanged(
+      existingEntryTargetPrice,
+      entryTargetPrice
+    );
+
+    const didExitTargetChange = targetPriceChanged(
+      existingExitTargetPrice,
+      exitTargetPrice
+    );
+
+    const didSideChange = existingEntry.side !== side;
+
+    if (
+      (didEntryTargetChange || didExitTargetChange) &&
+      !ptChangeComment
+    ) {
       return NextResponse.json(
         {
-          error: "Changing price target requires a PT change comment.",
+          error:
+            "Changing a price target requires a PT change comment.",
         },
         { status: 400 }
       );
     }
 
-    
-  await prisma.$transaction(async (tx) => {
-    await tx.watchlistEntry.update({
-      where: {
-        id,
-      },
-      data: {
-        side,
-        targetPrice,
-        notes,
-      },
-    });
-
-    if (didTargetPriceChange) {
-      await tx.comment.create({
-        data: {
-          securityId: existingEntry.securityId,
-          watchlistEntryId: existingEntry.id,
-          authorId: author.id,
-          tag: "PT",
-          content: `Price target changed from ${formatPriceForComment(
-            existingEntry.targetPrice
-          )} to ${formatPriceForComment(targetPrice)}. Reason: ${ptChangeComment}`,
-        },
-      });
-    }
-  });
-
-
-  const updatedEntry = await prisma.watchlistEntry.findUniqueOrThrow({
-    where: {
-      id,
-    },
-    include: {
-      security: {
-        include: {
-          marketData: {
-            orderBy: {
-              updatedAt: "desc",
-            },
-            take: 1,
-          },
-        },
-      },
-      comments: {
+    const conflictingEntry =
+      await prisma.watchlistEntry.findFirst({
         where: {
+          id: {
+            not: id,
+          },
+          securityId: existingEntry.securityId,
+          side,
           archivedAt: null,
         },
+        select: {
+          id: true,
+        },
+      });
+
+    if (conflictingEntry) {
+      return NextResponse.json(
+        {
+          error:
+            "This security already has an active watchlist entry on the selected side.",
+        },
+        { status: 409 }
+      );
+    }
+
+    await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        await tx.watchlistEntry.update({
+          where: {
+            id,
+          },
+          data: {
+            side,
+            entryTargetPrice,
+            exitTargetPrice,
+
+            // Keep the legacy target synchronized with the entry
+            // target until targetPrice is removed in a later migration.
+            targetPrice: entryTargetPrice,
+
+            notes,
+          },
+        });
+
+        if (didEntryTargetChange && ptChangeComment) {
+          await tx.comment.create({
+            data: {
+              securityId: existingEntry.securityId,
+              watchlistEntryId: existingEntry.id,
+              authorId: author.id,
+              tag: "PT",
+              content: buildTargetChangeComment({
+                label: getEntryTargetLabel(side),
+                previousValue: existingEntryTargetPrice,
+                nextValue: entryTargetPrice,
+                reason: ptChangeComment,
+              }),
+            },
+          });
+        }
+
+        if (didExitTargetChange && ptChangeComment) {
+          await tx.comment.create({
+            data: {
+              securityId: existingEntry.securityId,
+              watchlistEntryId: existingEntry.id,
+              authorId: author.id,
+              tag: "PT",
+              content: buildTargetChangeComment({
+                label: getExitTargetLabel(side),
+                previousValue: existingExitTargetPrice,
+                nextValue: exitTargetPrice,
+                reason: ptChangeComment,
+              }),
+            },
+          });
+        }
+
+        await tx.auditLog.create({
+          data: {
+            actorId: author.id,
+            action: "WATCHLIST_ENTRY_UPDATED",
+            entityType: "WATCHLIST_ENTRY",
+            entityId: existingEntry.id,
+            previousValueJson: JSON.stringify({
+              ticker: existingEntry.security.ticker,
+              side: existingEntry.side,
+              entryTargetPrice: existingEntryTargetPrice,
+              exitTargetPrice: existingExitTargetPrice,
+              notes: existingEntry.notes,
+            }),
+            newValueJson: JSON.stringify({
+              ticker: existingEntry.security.ticker,
+              side,
+              entryTargetPrice,
+              exitTargetPrice,
+              notes,
+              sideChanged: didSideChange,
+              targetChangeReason:
+                didEntryTargetChange || didExitTargetChange
+                  ? ptChangeComment
+                  : null,
+            }),
+          },
+        });
+      }
+    );
+
+    const updatedEntry =
+      await prisma.watchlistEntry.findUniqueOrThrow({
+        where: {
+          id,
+        },
         include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
+          security: {
+            include: {
+              marketData: {
+                orderBy: {
+                  updatedAt: "desc",
+                },
+                take: 1,
+              },
+              comments: {
+                where: {
+                  archivedAt: null,
+                },
+                include: {
+                  author: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      role: true,
+                    },
+                  },
+                },
+                orderBy: {
+                  createdAt: "desc",
+                },
+              },
             },
           },
+          comments: {
+            where: {
+              archivedAt: null,
+            },
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+          },
+          flags: {
+            where: {
+              status: "OPEN",
+            },
+            orderBy: {
+              createdAt: "desc",
+            },
+            take: 5,
+          },
         },
-        orderBy: {
-          createdAt: "desc",
-        },
-      },
-      flags: {
-        where: {
-          status: "OPEN",
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 5,
-      },
-    },
-  });
-
+      });
 
     return NextResponse.json({
       watchlistEntry: updatedEntry,
     });
   } catch (error) {
-    console.error("Failed to update watchlist item:", error);
+    console.error(
+      "Failed to update watchlist item:",
+      error
+    );
 
     return NextResponse.json(
       {
         error: "Failed to update watchlist item.",
-        detail: error instanceof Error ? error.message : "Unknown error",
+        detail:
+          error instanceof Error
+            ? error.message
+            : "Unknown error",
       },
       { status: 500 }
     );
