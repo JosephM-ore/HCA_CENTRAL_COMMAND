@@ -1619,9 +1619,9 @@ async function handleSaveFlag(payload: {
       <div className="flex h-full">
         <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
           <div className="mb-6 flex items-center gap-3 px-2 py-2">
-            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden ">
               <img
-                  src="/assets/Designer.png"
+                  src="/assets/icon2.png"
                   alt="HCA Logo"
                   width={40}
                   height={40}
