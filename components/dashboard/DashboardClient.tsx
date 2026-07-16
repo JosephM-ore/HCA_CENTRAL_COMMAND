@@ -4,7 +4,7 @@ import Badge from "@/components/common/Badge";
 import { useEffect, useMemo, useState } from "react";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 
-import Image from "next/image";
+import HcaLogo from "@/components/common/HcaLogo";
 import {
   canCreateComments,
   canCreateFlags,
@@ -1337,31 +1337,50 @@ useEffect(() => {
     "a",
   ];
 
+  const themeStorageKey = "hca-dashboard-theme";
   let currentIndex = 0;
 
+  // Restore the saved dashboard theme when the page loads.
+  const savedTheme = window.localStorage.getItem(themeStorageKey);
+
+  document.documentElement.classList.toggle(
+    "hca-pink-theme",
+    savedTheme === "pink"
+  );
+
   function handleKeyDown(event: KeyboardEvent) {
-    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    const key =
+      event.key.length === 1
+        ? event.key.toLowerCase()
+        : event.key;
 
     if (key === konamiCode[currentIndex]) {
       currentIndex += 1;
 
       if (currentIndex === konamiCode.length) {
-      const currentTheme = window.localStorage.getItem("hca-dashboard-theme");
-      const nextValue = currentTheme !== "pink";
+        const currentTheme =
+          window.localStorage.getItem(themeStorageKey);
 
-      window.localStorage.setItem(
-        "hca-dashboard-theme",
-        nextValue ? "pink" : "default"
-      );
+        const shouldEnablePinkTheme = currentTheme !== "pink";
 
-      document.documentElement.classList.toggle("hca-pink-theme", nextValue);
+        window.localStorage.setItem(
+          themeStorageKey,
+          shouldEnablePinkTheme ? "pink" : "default"
+        );
 
-      currentIndex = 0;
-            }
+        document.documentElement.classList.toggle(
+          "hca-pink-theme",
+          shouldEnablePinkTheme
+        );
+
+        currentIndex = 0;
+      }
 
       return;
     }
 
+    // Restart at 1 if this key could be the first key
+    // of a new Konami sequence.
     currentIndex = key === konamiCode[0] ? 1 : 0;
   }
 
@@ -1619,14 +1638,7 @@ async function handleSaveFlag(payload: {
       <div className="flex h-full">
         <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
           <div className="mb-6 flex items-center gap-3 px-2 py-2">
-            <div className="flex h-10 w-10 items-center justify-center overflow-hidden ">
-              <img
-                  src="/assets/icon2.png"
-                  alt="HCA Logo"
-                  width={40}
-                  height={40}
-                />
-            </div>
+            <HcaLogo />
             <div>
               <h1 className="font-semibold leading-tight">
                 HCA Central Command

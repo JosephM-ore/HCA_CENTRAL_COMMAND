@@ -25,6 +25,25 @@ body {
    Up Up Down Down Left Right Left Right B A
 */
 
+/* Default HCA logo state */
+.hca-logo-normal {
+  display: block;
+}
+
+.hca-logo-pink {
+  display: none;
+}
+
+/* Pink-theme HCA logo state */
+html.hca-pink-theme .hca-logo-normal {
+  display: none;
+}
+
+html.hca-pink-theme .hca-logo-pink {
+  display: block;
+}
+
+
 html.hca-pink-theme,
 html.hca-pink-theme body {
   background: #fff0f6 !important;
