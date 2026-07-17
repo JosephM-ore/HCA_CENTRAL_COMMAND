@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 
 import HcaLogo from "@/components/common/HcaLogo";
+import ExpandedTradeHistoryModal from "@/components/dashboard/ExpandedTradeHistoryModal";
 import {
   canCreateComments,
   canCreateFlags,
@@ -313,6 +314,7 @@ function TickerDetailPanel({
   onFlag,
   onLots,
   onAddTrade,
+  onExpandHistory,
   canComment,
   canFlag,
 }: {
@@ -323,6 +325,7 @@ function TickerDetailPanel({
   onFlag: (position: any) => void;
   onLots: (position: any) => void;
   onAddTrade: (position: any) => void;
+  onExpandHistory: (position: any) => void;
   canComment: boolean;
   canFlag: boolean;
 }) {
@@ -471,14 +474,25 @@ function TickerDetailPanel({
       
       <div className="flex-1 overflow-auto p-5">
         <section>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <h3 className="font-semibold text-slate-950">
               Trade History From Ticker Click
             </h3>
 
-            <span className="text-xs text-slate-400">
-              {visibleTrades.length} of {position.trades?.length || 0} trades
-            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="text-xs text-slate-400">
+                {visibleTrades.length} of{" "}
+                {position.trades?.length || 0} trades
+              </span>
+
+              <button
+                type="button"
+                onClick={() => onExpandHistory(position)}
+                className="rounded-2xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Expand History
+              </button>
+            </div>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 text-xs">
@@ -1393,6 +1407,10 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
   const [activeFilter, setActiveFilter] = useState("All");
   const [taxLotsPosition, setTaxLotsPosition] = useState<any | null>(null);
   const [manualTradePosition, setManualTradePosition] = useState<any | null>(null);
+  const [
+    expandedTradeHistoryPosition,
+    setExpandedTradeHistoryPosition,
+  ] = useState<any | null>(null);
 
   const userCanCreateComments = canCreateComments(currentUser?.role);
   const userCanCreateFlags = canCreateFlags(currentUser?.role);
@@ -1933,6 +1951,7 @@ async function handleSaveFlag(payload: {
               onFlag={setFlagPosition}
               onLots={setTaxLotsPosition}
               onAddTrade={setManualTradePosition}
+              onExpandHistory={setExpandedTradeHistoryPosition}
               canComment={userCanCreateComments}
               canFlag={userCanCreateFlags}
             />
@@ -1959,6 +1978,13 @@ async function handleSaveFlag(payload: {
             <TaxLotsModal
               position={taxLotsPosition}
               onClose={() => setTaxLotsPosition(null)}
+            />
+
+            <ExpandedTradeHistoryModal
+              position={expandedTradeHistoryPosition}
+              onClose={() =>
+                setExpandedTradeHistoryPosition(null)
+              }
             />
 
             <FlagModal
