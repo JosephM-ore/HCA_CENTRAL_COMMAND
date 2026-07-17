@@ -1137,23 +1137,26 @@ function FlagModal({
 }: {
   position: any | null;
   onClose: () => void;
-  onSave: (payload: {
+    onSave: (payload: {
     securityId: string;
     positionId: string;
     flagType: string;
     priority: string;
     description: string;
+    reminderAt: string | null;
   }) => Promise<void>;
 }) {
-  const [flagType, setFlagType] = useState("Risk Review");
+    const [flagType, setFlagType] = useState("Risk Review");
   const [priority, setPriority] = useState("MEDIUM");
   const [description, setDescription] = useState("");
+  const [reminderAt, setReminderAt] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
   if (!position) return null;
 
   const flagTypes = [
+    "REMINDER",
     "Risk Review",
     "Earnings Upcoming",
     "Valuation Stretched",
@@ -1167,12 +1170,45 @@ function FlagModal({
     "Custom",
   ];
 
+  const isReminder =
+    flagType.trim().toUpperCase() === "REMINDER";
+
   async function handleSave() {
     setError("");
 
     if (!flagType.trim()) {
       setError("Please select a flag type.");
       return;
+    }
+
+    if (isReminder && !description.trim()) {
+      setError(
+        "A description is required for reminders."
+      );
+      return;
+    }
+
+    if (isReminder && !reminderAt) {
+      setError(
+        "A reminder date and time are required."
+      );
+      return;
+    }
+
+    let serializedReminderAt: string | null = null;
+
+    if (reminderAt) {
+      const parsedReminderAt = new Date(reminderAt);
+
+      if (Number.isNaN(parsedReminderAt.getTime())) {
+        setError(
+          "Enter a valid reminder date and time."
+        );
+        return;
+      }
+
+      serializedReminderAt =
+        parsedReminderAt.toISOString();
     }
 
     setIsSaving(true);
@@ -1184,19 +1220,26 @@ function FlagModal({
         flagType,
         priority,
         description,
+        reminderAt: serializedReminderAt,
       });
 
       setFlagType("Risk Review");
       setPriority("MEDIUM");
       setDescription("");
+      setReminderAt("");
+      setError("");
+
       onClose();
-    } catch {
-      setError("Failed to create flag. Please try again.");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create flag. Please try again."
+      );
     } finally {
       setIsSaving(false);
     }
   }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
       <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
@@ -1230,7 +1273,9 @@ function FlagModal({
             >
               {flagTypes.map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {type === "REMINDER"
+                    ? "Reminder"
+                    : type}
                 </option>
               ))}
             </select>
@@ -1250,15 +1295,55 @@ function FlagModal({
               <option value="HIGH">High</option>
             </select>
           </div>
-
           <div>
             <label className="text-sm font-medium text-slate-700">
-              Description
+              Date and Time{" "}
+              {isReminder ? (
+                <span className="text-rose-600">
+                  *
+                </span>
+              ) : (
+                <span className="font-normal text-slate-400">
+                  — Optional
+                </span>
+              )}
+            </label>
+
+            <input
+              value={reminderAt}
+              onChange={(event) =>
+                setReminderAt(event.target.value)
+              }
+              type="datetime-local"
+              required={isReminder}
+              disabled={isSaving}
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+            />
+
+            <p className="mt-1 text-xs text-slate-500">
+              {isReminder
+                ? "Required for reminders."
+                : "Optional for regular flags."}
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Description{" "}
+              {isReminder ? (
+                <span className="text-rose-600">
+                  *
+                </span>
+              ) : null}
             </label>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Describe why this ticker needs attention..."
+              placeholder={
+                isReminder
+                  ? "Describe what needs to be remembered..."
+                  : "Describe why this ticker needs attention..."
+              }
+
               className="mt-2 h-28 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
             />
           </div>
@@ -1281,7 +1366,11 @@ function FlagModal({
             disabled={isSaving}
             className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSaving ? "Saving..." : "Save Flag"}
+            {isSaving
+              ? "Saving..."
+              : isReminder
+                ? "Create Reminder"
+                : "Save Flag"}
           </button>
         </div>
       </div>
@@ -1595,6 +1684,7 @@ async function handleSaveFlag(payload: {
   flagType: string;
   priority: string;
   description: string;
+  reminderAt: string | null;
 }) {
   const response = await fetch("/api/flags", {
     method: "POST",
@@ -1604,11 +1694,14 @@ async function handleSaveFlag(payload: {
     body: JSON.stringify(payload),
   });
 
+  const data = await response.json();
+
   if (!response.ok) {
-    throw new Error("Failed to create flag.");
+    throw new Error(
+      data.error || "Failed to create flag."
+    );
   }
 
-  const data = await response.json();
   const newFlag = data.flag;
 
   setLocalPositions((currentPositions) =>
