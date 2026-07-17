@@ -183,10 +183,9 @@ export default function ReminderStartupPopup() {
         return;
       }
 
-      window.sessionStorage.setItem(
-        SESSION_STORAGE_KEY,
-        "true"
-      );
+      if (hasCheckedThisTab) {
+        return;
+      }
 
       try {
         const now = new Date();
@@ -237,6 +236,11 @@ export default function ReminderStartupPopup() {
               "Failed to load the current user."
           );
         }
+
+        window.sessionStorage.setItem(
+          SESSION_STORAGE_KEY,
+          "true"
+        );
 
         if (isCancelled) {
           return;
