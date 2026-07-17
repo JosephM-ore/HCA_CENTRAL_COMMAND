@@ -66,7 +66,29 @@ function formatNumber(
     maximumFractionDigits: 2,
   });
 }
+function formatSignedNumber(
+  value: number | null | undefined
+) {
+  if (
+    value == null ||
+    !Number.isFinite(value)
+  ) {
+    return "—";
+  }
 
+  if (Math.abs(value) < 0.000001) {
+    return "—";
+  }
+
+  const formattedValue = Math.abs(
+    value
+  ).toLocaleString("en-US", {
+    maximumFractionDigits: 2,
+  });
+
+  return `${value > 0 ? "+" : "-"}${formattedValue}`;
+}
+``
 function formatPercent(
   value: number | null | undefined
 ) {
@@ -93,7 +115,20 @@ function percentageClass(
     ? "text-emerald-600"
     : "text-rose-600";
 }
+function signedValueClass(
+  value: number | null | undefined
+) {
+  if (
+    value == null ||
+    Math.abs(value) < 0.000001
+  ) {
+    return "text-slate-500";
+  }
 
+  return value > 0
+    ? "text-emerald-600"
+    : "text-rose-600";
+}
 function sourceTone(source?: string | null) {
   if (source === "WELLS_FARGO") {
     return "green";
@@ -194,7 +229,7 @@ function TradeHistoryTableRow({
         />
       </div>
 
-      <div>
+    <div className="flex flex-col items-start gap-1">
         <Badge
           tone={
             row.isEntry
@@ -206,6 +241,18 @@ function TradeHistoryTableRow({
         >
           {row.tradeType}
         </Badge>
+
+        <span
+          className={`text-[10px] font-semibold uppercase tracking-wide ${
+            row.isPendingManual
+              ? "text-violet-600"
+              : "text-slate-400"
+          }`}
+        >
+          {row.isPendingManual
+            ? "Projected"
+            : "History"}
+        </span>
       </div>
 
       <div className="font-medium text-slate-950">
@@ -405,14 +452,14 @@ export default function ExpandedTradeHistoryModal({
         </div>
 
         <div className="flex-1 overflow-auto p-6">
-          <section>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+                    <section>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
               <SummaryCard
-                label="Current Position"
+                label="Wells Position"
                 value={
                   <span>
                     {formatNumber(
-                      currentExposure
+                      analytics.wellsExposure
                     )}{" "}
                     <span className="text-sm text-slate-500">
                       {isShort
@@ -421,21 +468,59 @@ export default function ExpandedTradeHistoryModal({
                     </span>
                   </span>
                 }
-                detail="Current Wells exposure"
+                detail="Authoritative Wells exposure"
+              />
+
+              <SummaryCard
+                label="Pending Manual Delta"
+                value={
+                  <span
+                    className={signedValueClass(
+                      analytics.pendingManualDelta
+                    )}
+                  >
+                    {formatSignedNumber(
+                      analytics.pendingManualDelta
+                    )}
+                  </span>
+                }
+                detail="Net unreconciled adjustment"
+              />
+
+              <SummaryCard
+                label="Projected Position"
+                value={
+                  analytics.projectedExposure !=
+                  null ? (
+                    <span>
+                      {formatNumber(
+                        analytics.projectedExposure
+                      )}{" "}
+                      <span className="text-sm text-slate-500">
+                        {isShort
+                          ? "Short"
+                          : "Long"}
+                      </span>
+                    </span>
+                  ) : (
+                    "Invalid"
+                  )
+                }
+                detail="Wells plus pending manual trades"
+              />
+
+              <SummaryCard
+                label="Pending Trades"
+                value={
+                  analytics.pendingTradeCount
+                }
+                detail="Awaiting reconciliation"
               />
 
               <SummaryCard
                 label="Trade Count"
                 value={analytics.tradeCount}
                 detail={`${analytics.entryTradeCount} entries • ${analytics.exitTradeCount} exits`}
-              />
-
-              <SummaryCard
-                label="Shares Traded"
-                value={formatNumber(
-                  analytics.totalSharesTraded
-                )}
-                detail="Absolute share activity"
               />
 
               <SummaryCard
@@ -461,6 +546,20 @@ export default function ExpandedTradeHistoryModal({
                 )}
                 detail="Share-weighted exits"
               />
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+              Total visible share activity:{" "}
+              <span className="font-semibold text-slate-950">
+                {formatNumber(
+                  analytics.totalSharesTraded
+                )}
+              </span>{" "}
+              shares across{" "}
+              <span className="font-semibold text-slate-950">
+                {analytics.tradeCount}
+              </span>{" "}
+              visible trades.
             </div>
           </section>
 
@@ -539,33 +638,58 @@ export default function ExpandedTradeHistoryModal({
             </div>
           </section>
 
-          <section className="mt-4">
-            {analytics.historyIsComplete ? (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                The loaded trade history
-                reconstructs to zero starting
-                exposure and reconciles to the
-                current position.
-              </div>
+                  <section className="mt-4">
+            {analytics.pendingTradeCount > 0 ? (
+              analytics.pendingProjectionIsValid ? (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm leading-6 text-violet-800">
+                  <span className="font-semibold">
+                    Pending trade projection.
+                  </span>{" "}
+                  The authoritative Wells position of{" "}
+                  <span className="font-semibold">
+                    {formatNumber(
+                      analytics.wellsExposure
+                    )}
+                  </span>{" "}
+                  shares is used as the baseline. The{" "}
+                  <span className="font-semibold">
+                    {analytics.pendingTradeCount}
+                  </span>{" "}
+                  pending manual{" "}
+                  {analytics.pendingTradeCount === 1
+                    ? "trade projects"
+                    : "trades project"}{" "}
+                  the position to{" "}
+                  <span className="font-semibold">
+                    {formatNumber(
+                      analytics.projectedExposure
+                    )}
+                  </span>{" "}
+                  shares. Official dashboard metrics
+                  remain Wells-derived until
+                  reconciliation.
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-800">
+                  <span className="font-semibold">
+                    Invalid pending projection.
+                  </span>{" "}
+                  Applying the pending manual trades
+                  to the Wells baseline would produce
+                  an invalid negative exposure. Review
+                  the pending trades before relying on
+                  projected position values.
+                </div>
+              )
             ) : (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                <span className="font-semibold">
-                  Partial trade history.
-                </span>{" "}
-                The loaded trades reconstruct to a
-                starting exposure of{" "}
-                <span className="font-semibold">
-                  {formatNumber(
-                    analytics.derivedStartingExposure
-                  )}
-                </span>
-                . Position Before, Position After,
-                and percentage-change values are
-                estimates based on the currently
-                available visible trade history.
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                No pending manual trades. The projected
+                position equals the authoritative Wells
+                position.
               </div>
             )}
           </section>
+
 
           <section className="mt-5">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3">
@@ -623,18 +747,19 @@ export default function ExpandedTradeHistoryModal({
             <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="overflow-x-auto">
                 <div className="grid min-w-[1650px] grid-cols-12 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  <div>Date Traded</div>
-                  <div>Type</div>
-                  <div>Shares</div>
-                  <div>Avg Price</div>
-                  <div>Notional</div>
-                  <div>Position Before</div>
-                  <div>Position After</div>
-                  <div>% Change</div>
-                  <div>Entry vs Current</div>
-                  <div>Source</div>
-                  <div>Reconciliation</div>
-                  <div>Note</div>
+                    <div>Date Traded</div>
+                    <div>Type</div>
+                    <div>Shares</div>
+                    <div>Avg Price</div>
+                    <div>Notional</div>
+                    <div>Exposure Before</div>
+                    <div>Exposure After</div>
+
+                    <div>% Change</div>
+                    <div>Entry vs Current</div>
+                    <div>Source</div>
+                    <div>Reconciliation</div>
+                    <div>Note</div>
                 </div>
 
                 {displayedRows.length ? (
@@ -654,13 +779,19 @@ export default function ExpandedTradeHistoryModal({
             </div>
 
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              Entry vs Current compares entry
-              execution price with the current
-              market price. Exit trades display an
-              em dash because realized performance
+              Rows labeled Projected are pending
+              manual trades applied forward from the
+              current Wells position. Rows labeled
+              History are non-pending visible trades
+              reconstructed backward from the Wells
+              position. Entry vs Current compares
+              entry execution price with the current
+              market price. Exit trades display an em
+              dash because realized performance
               requires an authoritative lot-matching
               methodology.
             </p>
+
           </section>
         </div>
 
