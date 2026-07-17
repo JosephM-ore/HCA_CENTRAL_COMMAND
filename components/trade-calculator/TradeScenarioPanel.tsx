@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import Badge from "@/components/common/Badge";
+import ManualTradeReviewModal from "@/components/trade-calculator/ManualTradeReviewModal";
 import {
   calculateTradeScenario,
   type PositionSide,
@@ -290,6 +291,9 @@ export default function TradeScenarioPanel({
   const [comment, setComment] =
     useState("");
 
+  const [isReviewOpen, setIsReviewOpen] =
+    useState(false);    
+
   useEffect(() => {
     setTradeAction(
       getDefaultAction(position?.side)
@@ -314,10 +318,11 @@ export default function TradeScenarioPanel({
     );
 
     setComment("");
-  }, [
-    position?.id,
-    currentPrice,
-  ]);
+    setIsReviewOpen(false);
+    }, [
+        position?.id,
+        currentPrice,
+    ]);
 
   const serializedDateTraded =
     serializeLocalDateTime(dateTraded);
@@ -431,8 +436,10 @@ export default function TradeScenarioPanel({
       getLocalDateTimeInputValue()
     );
 
-    setComment("");
+      setComment("");
+    setIsReviewOpen(false);
   }
+
 
   const sizingInputIsStarted =
     sizingMode === "SHARES"
@@ -1031,20 +1038,38 @@ export default function TradeScenarioPanel({
             <p className="mt-1 text-xs leading-5 text-slate-500">
               This scenario has not created a trade
               or changed Wells-authoritative records.
-              Review and manual-trade submission will
-              be added in the next step.
+              Review the calculated trade before any
+              Manual Pending record is created.
             </p>
           </div>
 
-          <button
+                    <button
             type="button"
-            disabled
-            className="cursor-not-allowed rounded-2xl bg-slate-200 px-4 py-3 text-sm font-medium text-slate-500"
+            onClick={() =>
+              setIsReviewOpen(true)
+            }
+            disabled={!result.canCreateDraft}
+            className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           >
             Review &amp; Add Trade
           </button>
+
         </div>
-      </section>
+        </section>
+
+        <ManualTradeReviewModal
+            open={isReviewOpen}
+            draft={result.draft}
+            result={result}
+            baselineLabel={
+            baselineMode === "WELLS"
+                ? "Wells-only scenario basis"
+                : "Wells plus pending manual trades"
+            }
+            onClose={() =>
+            setIsReviewOpen(false)
+            }
+        />
     </div>
   );
 }
