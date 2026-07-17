@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import Badge from "@/components/common/Badge";
+import TradeScenarioPanel from "@/components/trade-calculator/TradeScenarioPanel";
 import { buildTradeHistoryAnalytics } from "@/lib/dashboard/trade-history-analytics";
 import type {
   TradeBaselineMode,
@@ -857,24 +858,25 @@ export default function TradeCalculatorWorkspace({
               </div>
             ) : null}
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Next Stage
-              </p>
+            {analytics ? (
+              <TradeScenarioPanel
+                security={selectedSecurity}
+                position={selectedPosition}
+                baselineMode={baselineMode}
+                pendingManualDelta={
+                  analytics.pendingManualDelta
+                }
+                pendingProjectionIsValid={
+                  analytics.pendingProjectionIsValid
+                }
+                currentPrice={currentPrice}
+                wellsWap={wellsWap}
+                grossPortfolioMarketValue={
+                  grossPortfolioMarketValue
+                }
+              />
+            ) : null}
 
-              <h3 className="mt-1 text-lg font-semibold text-slate-950">
-                Proposed Trade Inputs
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                The next implementation step will add
-                trade action, sizing mode, shares,
-                notional, target weight, execution
-                price, stop price, target price, and
-                live scenario calculations against
-                the selected baseline.
-              </p>
-            </div>
           </div>
         )}
       </section>
