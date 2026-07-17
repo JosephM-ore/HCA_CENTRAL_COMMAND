@@ -242,8 +242,8 @@ model Comment {
 model Flag {
   id String @id @default(cuid())
 
-  securityId String
-  security   Security @relation(fields: [securityId], references: [id])
+  securityId String?
+  security   Security? @relation(fields: [securityId], references: [id])
 
   positionId String?
   position   Position? @relation(fields: [positionId], references: [id])
@@ -253,6 +253,7 @@ model Flag {
 
   flagType    String
   description String?
+  reminderAt DateTime?
 
   priority String // LOW, MEDIUM, HIGH
   status   String @default("OPEN") // OPEN, RESOLVED, ARCHIVED
