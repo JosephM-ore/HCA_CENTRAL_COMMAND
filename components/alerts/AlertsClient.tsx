@@ -7,6 +7,7 @@ import CurrentUserPill from "@/components/auth/CurrentUserPill";
 import HcaLogo from "@/components/common/HcaLogo";
 type AlertsClientProps = {
   initialFlags: any[];
+  securities: any[];
 };
 
 function priorityTone(priority: string) {
@@ -354,7 +355,10 @@ function TradeReconciliationAlertCard({
     </div>
   );
 }
-export default function AlertsClient({ initialFlags }: AlertsClientProps) {
+export default function AlertsClient({
+  initialFlags,
+  securities,
+}: AlertsClientProps) {
   const [query, setQuery] = useState("");
   const [flags, setFlags] = useState<any[]>(initialFlags);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
