@@ -639,7 +639,12 @@ const closedPositions = useMemo(() => {
                 >
                     Alerts
                 </Link>
-
+                <a
+                    href="/trade-calculator"
+                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+                >
+                    Trade Calculator
+                </a>
                 <Link
                     href="/settings"
                     className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"

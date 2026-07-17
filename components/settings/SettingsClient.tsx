@@ -529,6 +529,7 @@ async function handleWellsUpload() {
     { href: "/past-positions", label: "Past Positions" },
     { href: "/comments", label: "Comments" },
     { href: "/alerts", label: "Alerts" },
+    { href: "/trade-calculator", label: "Trade Calculator" },
     { href: "/settings", label: "Settings", active: true },
   ];
 

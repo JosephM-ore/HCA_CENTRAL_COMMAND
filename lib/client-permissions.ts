@@ -2,6 +2,10 @@ export function canCreateComments(role?: string | null) {
   return ["ADMIN", "TRADER", "ANALYST", "PM"].includes(role || "");
 }
 
+export function canLogManualTrade(role?: string | null) {
+  return ["ADMIN", "TRADER", "PM"].includes(role || "");
+}
+
 export function canEditWatchlist(role?: string | null) {
   return ["ADMIN", "TRADER", "ANALYST"].includes(role || "");
 }

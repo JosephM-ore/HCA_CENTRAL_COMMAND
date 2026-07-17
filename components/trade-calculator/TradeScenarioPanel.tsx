@@ -24,6 +24,8 @@ type TradeScenarioPanelProps = {
   currentPrice: number | null;
   wellsWap: number | null;
   grossPortfolioMarketValue: number;
+  canSubmitManualTrade: boolean;
+  onTradeCreated: (trade: any) => void;
 };
 
 function toInputNumber(
@@ -244,6 +246,8 @@ export default function TradeScenarioPanel({
   currentPrice,
   wellsWap,
   grossPortfolioMarketValue,
+  canSubmitManualTrade,
+  onTradeCreated,
 }: TradeScenarioPanelProps) {
   const [tradeAction, setTradeAction] =
     useState<TradeAction>(
@@ -293,7 +297,18 @@ export default function TradeScenarioPanel({
 
   const [isReviewOpen, setIsReviewOpen] =
     useState(false);    
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
 
+  const [
+    submissionError,
+    setSubmissionError,
+  ] = useState("");
+
+  const [
+    submissionMessage,
+    setSubmissionMessage,
+  ] = useState("");
   useEffect(() => {
     setTradeAction(
       getDefaultAction(position?.side)
@@ -319,7 +334,10 @@ export default function TradeScenarioPanel({
 
     setComment("");
     setIsReviewOpen(false);
-    }, [
+    setIsSubmitting(false);
+    setSubmissionError("");
+    setSubmissionMessage("");
+  }, [
         position?.id,
         currentPrice,
     ]);
@@ -436,8 +454,114 @@ export default function TradeScenarioPanel({
       getLocalDateTimeInputValue()
     );
 
-      setComment("");
+    setComment("");
     setIsReviewOpen(false);
+    setSubmissionError("");
+    setSubmissionMessage("");
+  }
+
+  async function handleSubmitTrade() {
+    const draft = result.draft;
+
+    if (!draft) {
+      setSubmissionError(
+        "The trade scenario is not ready for submission."
+      );
+      return;
+    }
+
+    if (!canSubmitManualTrade) {
+      setSubmissionError(
+        "You do not have permission to create manual trades."
+      );
+      return;
+    }
+
+    setSubmissionError("");
+    setSubmissionMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(
+        "/api/trades/manual",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            securityId:
+              draft.securityId,
+            positionId:
+              draft.positionId,
+            tradeType:
+              draft.tradeType,
+            dateTraded:
+              draft.dateTraded,
+            shares:
+              draft.shares,
+            avgPrice:
+              draft.avgPrice,
+            comment:
+              draft.comment,
+            origin:
+              "TRADE_CALCULATOR",
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Failed to create manual trade."
+        );
+      }
+
+      onTradeCreated(data.trade);
+
+      setIsReviewOpen(false);
+      setSubmissionError("");
+
+      setSizingMode("TARGET_WEIGHT");
+      setSharesInput("");
+      setNotionalInput("");
+      setTargetWeightPctInput("");
+
+      setEstimatedPriceInput(
+        currentPrice != null
+          ? currentPrice.toFixed(2)
+          : ""
+      );
+
+      setStopPriceInput("");
+      setTargetPriceInput("");
+
+      setDateTraded(
+        getLocalDateTimeInputValue()
+      );
+
+      setComment("");
+
+      setSubmissionMessage(
+        `${draft.tradeType} ${draft.shares.toLocaleString(
+          "en-US"
+        )} shares of ${
+          draft.ticker
+        } was added as a Manual Pending trade.`
+      );
+    } catch (error) {
+      setSubmissionError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create manual trade."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
 
@@ -1027,7 +1151,11 @@ export default function TradeScenarioPanel({
           </ul>
         </section>
       ) : null}
-
+      {submissionMessage ? (
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
+          {submissionMessage}
+        </section>
+      ) : null}
       <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -1043,16 +1171,18 @@ export default function TradeScenarioPanel({
             </p>
           </div>
 
-                    <button
+            <button
             type="button"
-            onClick={() =>
-              setIsReviewOpen(true)
-            }
-            disabled={!result.canCreateDraft}
+            onClick={() => {
+                setSubmissionError("");
+                setSubmissionMessage("");
+                setIsReviewOpen(true);
+            }}
+            disabled={!result?.canCreateDraft}
             className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
-          >
+            >
             Review &amp; Add Trade
-          </button>
+            </button>
 
         </div>
         </section>
@@ -1066,10 +1196,23 @@ export default function TradeScenarioPanel({
                 ? "Wells-only scenario basis"
                 : "Wells plus pending manual trades"
             }
-            onClose={() =>
-            setIsReviewOpen(false)
+            canSubmit={
+            canSubmitManualTrade
             }
-        />
+            isSubmitting={isSubmitting}
+            submissionError={
+            submissionError
+            }
+            onClose={() => {
+            if (isSubmitting) {
+                return;
+            }
+
+            setSubmissionError("");
+            setIsReviewOpen(false);
+            }}
+            onSubmit={handleSubmitTrade}
+      />
     </div>
   );
 }

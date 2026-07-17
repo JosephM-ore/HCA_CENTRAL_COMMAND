@@ -1855,7 +1855,12 @@ async function handleSaveFlag(payload: {
             >
               Alerts
             </a>
-
+            <a
+                href="/trade-calculator"
+                className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+            >
+                Trade Calculator
+            </a>
             <a
               href="/settings"
               className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"

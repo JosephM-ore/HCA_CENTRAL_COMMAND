@@ -12,9 +12,12 @@ type ManualTradeReviewModalProps = {
   draft: ManualTradeDraft | null;
   result: TradeCalculatorResult;
   baselineLabel: string;
+  canSubmit: boolean;
+  isSubmitting: boolean;
+  submissionError: string;
   onClose: () => void;
+  onSubmit: () => Promise<void>;
 };
-
 function formatMoney(
   value: number | null | undefined
 ) {
@@ -131,7 +134,11 @@ export default function ManualTradeReviewModal({
   draft,
   result,
   baselineLabel,
+  canSubmit,
+  isSubmitting,
+  submissionError,
   onClose,
+  onSubmit,
 }: ManualTradeReviewModalProps) {
   if (!open || !draft) {
     return null;
@@ -172,7 +179,8 @@ export default function ManualTradeReviewModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+            disabled={isSubmitting}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             ✕
           </button>
@@ -435,7 +443,25 @@ export default function ManualTradeReviewModal({
               position, WAP, market value, portfolio
               weight, tax lots, or P&amp;L.
             </p>
+            {!canSubmit ? (
+                <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+                <p className="font-semibold text-slate-900">
+                    Calculation Only
+                </p>
 
+                <p className="mt-1">
+                    Your current role may calculate and
+                    review trade scenarios but cannot
+                    create Manual Pending trades.
+                </p>
+                </section>
+            ) : null}
+
+          {submissionError ? (
+            <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-medium text-rose-700">
+              {submissionError}
+            </section>
+          ) : null}
             <p className="mt-2">
               Stop and target prices are scenario
               assumptions only and will not be saved
@@ -446,25 +472,35 @@ export default function ManualTradeReviewModal({
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white p-4">
           <p className="text-xs text-slate-500">
-            Final submission will be enabled in the
-            next implementation step.
+            {canSubmit
+              ? "Submission creates a Manual Pending trade for Wells reconciliation."
+              : "Your current role has calculation-only access."}
           </p>
 
           <div className="flex gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              disabled={isSubmitting}
+              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Back to Calculator
             </button>
 
             <button
               type="button"
-              disabled
-              className="cursor-not-allowed rounded-2xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+              onClick={onSubmit}
+              disabled={
+                !canSubmit ||
+                isSubmitting
+              }
+              className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
             >
-              Add Manual Trade
+              {isSubmitting
+                ? "Adding Trade..."
+                : canSubmit
+                  ? "Add Manual Trade"
+                  : "Calculation Only"}
             </button>
           </div>
         </div>

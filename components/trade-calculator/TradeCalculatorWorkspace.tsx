@@ -7,7 +7,9 @@ import {
 } from "react";
 import Badge from "@/components/common/Badge";
 import TradeScenarioPanel from "@/components/trade-calculator/TradeScenarioPanel";
+import { canLogManualTrade } from "@/lib/client-permissions";
 import { buildTradeHistoryAnalytics } from "@/lib/dashboard/trade-history-analytics";
+
 import type {
   TradeBaselineMode,
 } from "@/lib/trade-calculator/trade-calculator";
@@ -262,6 +264,16 @@ export default function TradeCalculatorWorkspace({
   securities,
   grossPortfolioMarketValue,
 }: TradeCalculatorWorkspaceProps) {
+  const [
+    localSecurities,
+    setLocalSecurities,
+  ] = useState<any[]>(securities);
+
+  const [
+    currentUser,
+    setCurrentUser,
+  ] = useState<any | null>(null);
+
   const [securityQuery, setSecurityQuery] =
     useState("");
 
@@ -275,13 +287,41 @@ export default function TradeCalculatorWorkspace({
     useState<TradeBaselineMode>(
       "WELLS_PLUS_PENDING"
     );
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadCurrentUser() {
+      const response = await fetch(
+        "/api/auth/me",
+        {
+          credentials: "include",
+        }
+      );
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!isCancelled) {
+        setCurrentUser(data.user);
+      }
+    }
+
+    loadCurrentUser();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
   const normalizedQuery =
     securityQuery.trim().toLowerCase();
 
   const filteredSecurities = useMemo(
     () =>
-      securities.filter((security) => {
+      localSecurities.filter((security) => {
         if (!normalizedQuery) {
           return true;
         }
@@ -300,11 +340,12 @@ export default function TradeCalculatorWorkspace({
           normalizedQuery
         );
       }),
-    [securities, normalizedQuery]
+    [localSecurities, normalizedQuery]
   );
 
   const selectedSecurity =
-    securities.find(
+    localSecurities.find(
+
       (security) =>
         security.id === selectedSecurityId
     ) ?? null;
@@ -404,7 +445,45 @@ export default function TradeCalculatorWorkspace({
           grossPortfolioMarketValue
         )
       : null;
+  function handleTradeCreated(
+    trade: any
+  ) {
+    setLocalSecurities(
+      (currentSecurities) =>
+        currentSecurities.map(
+          (security) => {
+            if (
+              security.id !==
+              trade.securityId
+            ) {
+              return security;
+            }
 
+            return {
+              ...security,
+              positions: (
+                security.positions || []
+              ).map((position: any) => {
+                if (
+                  position.id !==
+                  trade.positionId
+                ) {
+                  return position;
+                }
+
+                return {
+                  ...position,
+                  trades: [
+                    trade,
+                    ...(position.trades || []),
+                  ],
+                };
+              }),
+            };
+          }
+        )
+    );
+  }
   function handleSecurityChange(
     securityId: string
   ) {
@@ -873,6 +952,14 @@ export default function TradeCalculatorWorkspace({
                 wellsWap={wellsWap}
                 grossPortfolioMarketValue={
                   grossPortfolioMarketValue
+                }
+                canSubmitManualTrade={
+                  canLogManualTrade(
+                    currentUser?.role
+                  )
+                }
+                onTradeCreated={
+                  handleTradeCreated
                 }
               />
             ) : null}
