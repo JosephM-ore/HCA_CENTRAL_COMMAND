@@ -3,6 +3,7 @@ import "@/lib/scheduler/market-data-scheduler";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import PinkThemeInitializer from "@/components/theme/PinkThemeInitializer";
+import ReminderStartupPopup from "@/components/reminders/ReminderStartupPopup";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <PinkThemeInitializer />
+        <ReminderStartupPopup />
         {children}
       </body>
     </html>
