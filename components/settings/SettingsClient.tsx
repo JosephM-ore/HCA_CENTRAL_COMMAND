@@ -561,7 +561,7 @@ async function handleWellsUpload() {
                 active={item.active}
                 />
             ))}
-            </nav>
+          </nav>
 
           <div className="mt-auto rounded-3xl bg-slate-50 p-4">
             <div className="mb-2 text-sm font-medium">Compliance Mode</div>
