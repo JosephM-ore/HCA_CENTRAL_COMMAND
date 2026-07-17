@@ -3,6 +3,8 @@
 import Badge from "@/components/common/Badge";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 import HcaLogo from "@/components/common/HcaLogo";
+import TradeCalculatorWorkspace from "@/components/trade-calculator/TradeCalculatorWorkspace";
+
 
 type TradeCalculatorClientProps = {
   initialSecurities: any[];
@@ -240,26 +242,15 @@ export default function TradeCalculatorClient({
                     Absolute Wells market value
                   </p>
                 </div>
-              </div>
+            </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-xl font-semibold text-emerald-700">
-                  ✓
-                </div>
+                <TradeCalculatorWorkspace
+                securities={initialSecurities}
+                grossPortfolioMarketValue={
+                  grossPortfolioMarketValue
+                }
+              />
 
-                <h3 className="mt-4 text-lg font-semibold text-slate-950">
-                  Calculator data is ready
-                </h3>
-
-                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                  The page has loaded Security
-                  identity, active Wells positions,
-                  current market data, pending manual
-                  trades, and the gross portfolio
-                  basis. The interactive calculator
-                  controls will be added next.
-                </p>
-              </div>
             </div>
           </div>
         </section>
