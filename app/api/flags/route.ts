@@ -1,34 +1,59 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canCreateFlags } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
 
-const VALID_PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
+const VALID_PRIORITIES = new Set([
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+]);
+
+function parseOptionalReminderAt(value: unknown) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const parsedDate = new Date(String(value));
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error("Reminder date and time are invalid.");
+  }
+
+  return parsedDate;
+}
+
+const flagInclude = {
+  security: true,
+  position: true,
+  watchlistEntry: true,
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+    },
+  },
+  resolvedBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+    },
+  },
+} satisfies Prisma.FlagInclude;
 
 export async function GET() {
   try {
     const flags = await prisma.flag.findMany({
-      include: {
-        security: true,
-        position: true,
-        watchlistEntry: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
-        resolvedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
+      include: flagInclude,
       orderBy: [
         {
           status: "asc",
@@ -63,95 +88,274 @@ export async function POST(request: Request) {
 
     if (!canCreateFlags(user.role)) {
       return NextResponse.json(
-        { error: "You do not have permission to create flags." },
+        {
+          error:
+            "You do not have permission to create flags.",
+        },
         { status: 403 }
       );
     }
 
     const body = await request.json();
 
-    const {
-      securityId,
-      positionId,
-      watchlistEntryId,
-      flagType,
-      priority,
-      description,
-    } = body;
+    const requestedSecurityId = body.securityId
+      ? String(body.securityId).trim()
+      : null;
 
-    if (!securityId) {
-      return NextResponse.json(
-        { error: "securityId is required." },
-        { status: 400 }
-      );
-    }
+    const positionId = body.positionId
+      ? String(body.positionId).trim()
+      : null;
 
-    if (!positionId && !watchlistEntryId) {
-      return NextResponse.json(
-        { error: "A positionId or watchlistEntryId is required." },
-        { status: 400 }
-      );
-    }
+    const watchlistEntryId = body.watchlistEntryId
+      ? String(body.watchlistEntryId).trim()
+      : null;
 
-    if (!flagType || typeof flagType !== "string" || !flagType.trim()) {
+    const flagType = String(body.flagType || "").trim();
+
+    const normalizedFlagType =
+      flagType.toUpperCase() === "REMINDER"
+        ? "REMINDER"
+        : flagType;
+
+    const priority = String(body.priority || "")
+      .trim()
+      .toUpperCase();
+
+    const description = String(
+      body.description || ""
+    ).trim();
+
+    if (!flagType) {
       return NextResponse.json(
         { error: "Flag type is required." },
         { status: 400 }
       );
     }
 
-    if (!priority || !VALID_PRIORITIES.includes(priority)) {
+    if (!VALID_PRIORITIES.has(priority)) {
       return NextResponse.json(
-        { error: "Priority must be LOW, MEDIUM, or HIGH." },
+        {
+          error:
+            "Priority must be LOW, MEDIUM, or HIGH.",
+        },
         { status: 400 }
       );
     }
 
-    const flag = await prisma.flag.create({
-      data: {
-        securityId,
-        positionId: positionId || null,
-        watchlistEntryId: watchlistEntryId || null,
-        flagType: flagType.trim(),
-        priority,
-        description: description?.trim() || null,
-        status: "OPEN",
-        createdById: user.id,
-      },
-      include: {
-        security: true,
-        position: true,
-        watchlistEntry: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
+    if (positionId && watchlistEntryId) {
+      return NextResponse.json(
+        {
+          error:
+            "A flag cannot be associated with both a position and a watchlist entry.",
+        },
+        { status: 400 }
+      );
+    }
+
+    let reminderAt: Date | null;
+
+    try {
+      reminderAt = parseOptionalReminderAt(
+        body.reminderAt
+      );
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Reminder date and time are invalid.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      normalizedFlagType === "REMINDER" &&
+      !reminderAt
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A reminder date and time are required for reminders.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      normalizedFlagType === "REMINDER" &&
+      !description
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "A description is required for reminders.",
+        },
+        { status: 400 }
+      );
+    }
+
+    let securityId = requestedSecurityId;
+    let securityTicker: string | null = null;
+
+    if (positionId) {
+      const position = await prisma.position.findUnique({
+        where: {
+          id: positionId,
+        },
+        select: {
+          id: true,
+          securityId: true,
+          security: {
+            select: {
+              ticker: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    await prisma.auditLog.create({
-      data: {
-        actorId: user.id,
-        action: "FLAG_CREATED",
-        entityType: "FLAG",
-        entityId: flag.id,
-        newValueJson: JSON.stringify({
-          securityId,
-          positionId: positionId || null,
-          watchlistEntryId: watchlistEntryId || null,
-          flagType: flag.flagType,
-          priority: flag.priority,
-          description: flag.description,
-          status: flag.status,
-        }),
-      },
-    });
+      if (!position) {
+        return NextResponse.json(
+          { error: "Position not found." },
+          { status: 404 }
+        );
+      }
 
-    return NextResponse.json({ flag }, { status: 201 });
+      if (
+        securityId &&
+        securityId !== position.securityId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The selected Security does not match the selected position.",
+          },
+          { status: 400 }
+        );
+      }
+
+      securityId = position.securityId;
+      securityTicker = position.security.ticker;
+    }
+
+    if (watchlistEntryId) {
+      const watchlistEntry =
+        await prisma.watchlistEntry.findUnique({
+          where: {
+            id: watchlistEntryId,
+          },
+          select: {
+            id: true,
+            securityId: true,
+            security: {
+              select: {
+                ticker: true,
+              },
+            },
+          },
+        });
+
+      if (!watchlistEntry) {
+        return NextResponse.json(
+          { error: "Watchlist entry not found." },
+          { status: 404 }
+        );
+      }
+
+      if (
+        securityId &&
+        securityId !== watchlistEntry.securityId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "The selected Security does not match the selected watchlist entry.",
+          },
+          { status: 400 }
+        );
+      }
+
+      securityId = watchlistEntry.securityId;
+      securityTicker =
+        watchlistEntry.security.ticker;
+    }
+
+    if (
+      securityId &&
+      !positionId &&
+      !watchlistEntryId
+    ) {
+      const security = await prisma.security.findUnique({
+        where: {
+          id: securityId,
+        },
+        select: {
+          id: true,
+          ticker: true,
+        },
+      });
+
+      if (!security) {
+        return NextResponse.json(
+          { error: "Security not found." },
+          { status: 404 }
+        );
+      }
+
+      securityTicker = security.ticker;
+    }
+
+    const flag = await prisma.$transaction(
+      async (tx: Prisma.TransactionClient) => {
+        const createdFlag = await tx.flag.create({
+          data: {
+            securityId,
+            positionId,
+            watchlistEntryId,
+            flagType: normalizedFlagType,
+            priority,
+            description: description || null,
+            reminderAt,
+            status: "OPEN",
+            createdById: user.id,
+          },
+          include: flagInclude,
+        });
+
+        await tx.auditLog.create({
+          data: {
+            actorId: user.id,
+            action: "FLAG_CREATED",
+            entityType: "FLAG",
+            entityId: createdFlag.id,
+            newValueJson: JSON.stringify({
+              securityId: createdFlag.securityId,
+              securityContext:
+                securityTicker || "General",
+              positionId:
+                createdFlag.positionId,
+              watchlistEntryId:
+                createdFlag.watchlistEntryId,
+              flagType: createdFlag.flagType,
+              priority: createdFlag.priority,
+              description:
+                createdFlag.description,
+              reminderAt:
+                createdFlag.reminderAt,
+              status: createdFlag.status,
+            }),
+          },
+        });
+
+        return createdFlag;
+      }
+    );
+
+    return NextResponse.json(
+      { flag },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("POST /api/flags failed", error);
 
