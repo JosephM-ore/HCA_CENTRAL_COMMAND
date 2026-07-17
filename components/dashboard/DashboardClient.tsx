@@ -54,7 +54,19 @@ function openCapitalIq(ticker: string) {
   window.open(getCapitalIqUrl(ticker), "_blank");
 }
 
+function getLocalDateTimeInputValue(
+  date = new Date()
+) {
+  const timezoneOffsetMilliseconds =
+    date.getTimezoneOffset() * 60 * 1000;
 
+  return new Date(
+    date.getTime() -
+      timezoneOffsetMilliseconds
+  )
+    .toISOString()
+    .slice(0, 16);
+}
 
 function formatNumber(value: number | null | undefined) {
   if (value == null) return "—";
@@ -859,12 +871,19 @@ function AddTradeModal({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+    useEffect(() => {
     if (!position) return;
 
-    const today = new Date().toISOString().slice(0, 10);
-    setDateTraded(today);
-    setTradeType(position.side === "SHORT" ? "SHORT" : "BUY");
+    setDateTraded(
+      getLocalDateTimeInputValue()
+    );
+
+    setTradeType(
+      position.side === "SHORT"
+        ? "SHORT"
+        : "BUY"
+    );
+
     setShares("");
     setAvgPrice("");
     setComment("");
@@ -886,19 +905,44 @@ function AddTradeModal({
       return;
     }
 
-    if (!avgPrice.trim()) {
+        if (!avgPrice.trim()) {
       setError("Average price is required.");
       return;
     }
 
+    if (!dateTraded) {
+      setError(
+        "Trade date and time are required."
+      );
+      return;
+    }
+
+    const parsedDateTraded =
+      new Date(dateTraded);
+
+    if (
+      Number.isNaN(
+        parsedDateTraded.getTime()
+      )
+    ) {
+      setError(
+        "Enter a valid trade date and time."
+      );
+      return;
+    }
+
+    const serializedDateTraded =
+      parsedDateTraded.toISOString();
+
     setIsSaving(true);
 
     try {
-      await onSave({
+        await onSave({
         securityId: position.securityId,
         positionId: position.id,
         tradeType,
-        dateTraded,
+        dateTraded:
+          serializedDateTraded,
         shares,
         avgPrice,
         comment,
@@ -947,12 +991,30 @@ function AddTradeModal({
             <option value="COVER">Cover Short</option>
           </select>
 
-          <input
-            type="date"
-            value={dateTraded}
-            onChange={(event) => setDateTraded(event.target.value)}
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
-          />
+            <div>
+            <label className="text-sm font-medium text-slate-700">
+              Trade Date and Time
+            </label>
+
+            <input
+              type="datetime-local"
+              value={dateTraded}
+              onChange={(event) =>
+                setDateTraded(
+                  event.target.value
+                )
+              }
+              step="60"
+              required
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+            />
+
+            <p className="mt-1 text-xs text-slate-500">
+              Defaults to the current local date
+              and time. An earlier trade timestamp
+              may be selected.
+            </p>
+          </div>
 
           <input
             value={shares}
