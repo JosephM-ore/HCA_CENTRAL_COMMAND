@@ -366,6 +366,52 @@ function TradeReconciliationAlertCard({
     </div>
   );
 }
+function AlertGroup({
+  title,
+  description,
+  count,
+  tone,
+  children,
+}: {
+  title: string;
+  description: string;
+  count: number;
+  tone: "red" | "amber" | "blue" | "slate";
+  children: React.ReactNode;
+}) {
+  const toneClasses = {
+    red: "border-rose-200 bg-rose-50 text-rose-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+    blue: "border-blue-200 bg-blue-50 text-blue-700",
+    slate: "border-slate-200 bg-slate-50 text-slate-700",
+  };
+
+  return (
+    <section className="space-y-3">
+      <div
+        className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${toneClasses[tone]}`}
+      >
+        <div>
+          <h3 className="text-sm font-semibold">
+            {title}
+          </h3>
+
+          <p className="mt-0.5 text-xs opacity-80">
+            {description}
+          </p>
+        </div>
+
+        <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-sm font-bold shadow-sm">
+          {count}
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {children}
+      </div>
+    </section>
+  );
+}
 
 function CreateFlagModal({
   open,
@@ -889,10 +935,105 @@ export default function AlertsClient({
     });
   }, [flags, query]);
 
-  const openFlags = flags.filter((flag) => flag.status === "OPEN");
-  const highPriority = flags.filter((flag) => flag.priority === "HIGH");
-  const resolvedFlags = flags.filter((flag) => flag.status === "RESOLVED");
-  const userCanResolveFlags = canCreateFlags(currentUser?.role);
+  const openFlags = flags.filter(
+    (flag) => flag.status === "OPEN"
+  );
+
+  const highPriority = flags.filter(
+    (flag) => flag.priority === "HIGH"
+  );
+
+  const userCanResolveFlags =
+    canCreateFlags(currentUser?.role);
+
+  const now = new Date();
+
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1
+  );
+
+  const endOfUpcomingWindow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 8
+  );
+
+  const overdueFlags = filteredFlags.filter(
+    (flag) => {
+      if (!flag.reminderAt) return false;
+
+      const reminderDate = new Date(
+        flag.reminderAt
+      );
+
+      return reminderDate < startOfToday;
+    }
+  );
+
+  const todayFlags = filteredFlags.filter(
+    (flag) => {
+      if (!flag.reminderAt) return false;
+
+      const reminderDate = new Date(
+        flag.reminderAt
+      );
+
+      return (
+        reminderDate >= startOfToday &&
+        reminderDate < startOfTomorrow
+      );
+    }
+  );
+
+  const upcomingFlags = filteredFlags.filter(
+    (flag) => {
+      if (!flag.reminderAt) return false;
+
+      const reminderDate = new Date(
+        flag.reminderAt
+      );
+
+      return (
+        reminderDate >= startOfTomorrow &&
+        reminderDate < endOfUpcomingWindow
+      );
+    }
+  );
+
+  const laterFlags = filteredFlags.filter(
+    (flag) => {
+      if (!flag.reminderAt) return false;
+
+      const reminderDate = new Date(
+        flag.reminderAt
+      );
+
+      return reminderDate >= endOfUpcomingWindow;
+    }
+  );
+
+  const undatedFlags = filteredFlags.filter(
+    (flag) => !flag.reminderAt
+  );
+
+  const datedFlagCount =
+    overdueFlags.length +
+    todayFlags.length +
+    upcomingFlags.length +
+    laterFlags.length;
+
+  const dueSoonCount =
+    overdueFlags.length +
+    todayFlags.length +
+    upcomingFlags.length;
 
   async function handleAcceptWells(flagId: string) {
     const response = await fetch(
@@ -961,7 +1102,32 @@ export default function AlertsClient({
     );
   }
 
+    function renderFlag(flag: any) {
+    if (
+      flag.flagType ===
+      "Trade Reconciliation Review"
+    ) {
+      return (
+        <TradeReconciliationAlertCard
+          key={flag.id}
+          flag={flag}
+          onResolve={handleResolveFlag}
+          onAcceptWells={handleAcceptWells}
+          onKeepManual={handleKeepManual}
+          canResolve={userCanResolveFlags}
+        />
+      );
+    }
 
+    return (
+      <AlertCard
+        key={flag.id}
+        flag={flag}
+        onResolve={handleResolveFlag}
+        canResolve={userCanResolveFlags}
+      />
+    );
+  }
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
       <div className="flex h-full">
@@ -1087,10 +1253,10 @@ export default function AlertsClient({
                     Total Alerts
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-slate-950">
-                    {flags.length}
+                    {openFlags.length}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Flags in system
+                    Open flags and reminders
                   </p>
                 </div>
 
@@ -1114,19 +1280,21 @@ export default function AlertsClient({
                     {highPriority.length}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Elevated attention
+                    Open items requiring attention
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Resolved
+                    Due Soon
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-emerald-600">
-                    {resolvedFlags.length}
+
+                  <p className="mt-2 text-2xl font-semibold text-violet-600">
+                    {dueSoonCount}
                   </p>
+
                   <p className="mt-1 text-xs text-slate-500">
-                    Closed review items
+                    Overdue, today, or next 7 days
                   </p>
                 </div>
               </div>
@@ -1134,36 +1302,73 @@ export default function AlertsClient({
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search ticker, alert type, priority, status, description..."
+                  placeholder="Search ticker, General, reminder, alert type, priority, description, or date..."
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-slate-900"
                 />
               </div>
               <div className="space-y-3">
                 {filteredFlags.length ? (
-                  filteredFlags.map((flag) =>
-                    flag.flagType === "Trade Reconciliation Review" ? (                      
-                    <TradeReconciliationAlertCard
-                      key={flag.id}
-                      flag={flag}
-                      onResolve={handleResolveFlag}
-                      onAcceptWells={handleAcceptWells}
-                      onKeepManual={handleKeepManual}
-                      canResolve={userCanResolveFlags}
-                    />
-                    ) : (
-                      <AlertCard
-                        key={flag.id}
-                        flag={flag}
-                        onResolve={handleResolveFlag}
-                        canResolve={userCanResolveFlags}
-                      />
-                    )
-                  )
-                ) : (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
-                    No alerts matched your search.
-                  </div>
-                )}
+                <div className="space-y-6">
+                  {overdueFlags.length ? (
+                    <AlertGroup
+                      title="Overdue"
+                      description="Open items dated before today"
+                      count={overdueFlags.length}
+                      tone="red"
+                    >
+                      {overdueFlags.map(renderFlag)}
+                    </AlertGroup>
+                  ) : null}
+
+                  {todayFlags.length ? (
+                    <AlertGroup
+                      title="Today"
+                      description="Open items due today"
+                      count={todayFlags.length}
+                      tone="amber"
+                    >
+                      {todayFlags.map(renderFlag)}
+                    </AlertGroup>
+                  ) : null}
+
+                  {upcomingFlags.length ? (
+                    <AlertGroup
+                      title="Next 7 Days"
+                      description="Open items due during the next seven calendar days"
+                      count={upcomingFlags.length}
+                      tone="blue"
+                    >
+                      {upcomingFlags.map(renderFlag)}
+                    </AlertGroup>
+                  ) : null}
+
+                  {laterFlags.length ? (
+                    <AlertGroup
+                      title="Later"
+                      description="Dated items beyond the upcoming seven-day window"
+                      count={laterFlags.length}
+                      tone="slate"
+                    >
+                      {laterFlags.map(renderFlag)}
+                    </AlertGroup>
+                  ) : null}
+
+                  {undatedFlags.length ? (
+                    <AlertGroup
+                      title="No Date"
+                      description="Open flags without a scheduled date or time"
+                      count={undatedFlags.length}
+                      tone="slate"
+                    >
+                      {undatedFlags.map(renderFlag)}
+                    </AlertGroup>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
+                  No alerts matched your search.
+                </div>
+              )}
               </div>
             </div>
           </div>
