@@ -26,7 +26,8 @@ function getContextLabel(flag: any) {
   if (flag.watchlistEntryId) return "Watchlist";
   if (flag.position?.status === "CLOSED") return "Past Position";
   if (flag.position?.status === "ACTIVE") return "Active Position";
-  return "Security";
+  if (flag.securityId) return "Security";
+  return "General";
 }
 
 function parseFlagMetadata(flag: any) {
@@ -105,7 +106,7 @@ function AlertCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-slate-950">
-              {flag.security?.ticker || "N/A"}
+              {flag.security?.ticker || "General"}
             </h3>
 
             <Badge tone="blue">{flag.flagType}</Badge>
@@ -123,9 +124,19 @@ function AlertCard({
 
           <p className="mt-1 text-sm text-slate-600">
             {flag.description ||
-              `${flag.flagType} alert for ${flag.security?.ticker || "N/A"}.`}
+              `${flag.flagType} alert for ${
+                flag.security?.ticker || "General"
+              }.`}
           </p>
-
+          {flag.reminderAt ? (
+            <p className="mt-2 text-xs font-semibold text-violet-700">
+              Due{" "}
+              <LocalDateTime
+                value={flag.reminderAt}
+                className="text-xs font-semibold text-violet-700"
+              />
+            </p>
+          ) : null}
           <p className="mt-2 text-xs text-slate-400">
             Created{" "}
             <LocalDateTime
@@ -355,6 +366,438 @@ function TradeReconciliationAlertCard({
     </div>
   );
 }
+
+function CreateFlagModal({
+  open,
+  onClose,
+  onSave,
+  securities,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (payload: {
+    securityId: string | null;
+    flagType: string;
+    priority: string;
+    description: string;
+    reminderAt: string | null;
+  }) => Promise<void>;
+  securities: any[];
+}) {
+  const [associationType, setAssociationType] =
+    useState<"GENERAL" | "SECURITY">("GENERAL");
+
+  const [securityId, setSecurityId] = useState("");
+  const [flagType, setFlagType] = useState("REMINDER");
+  const [priority, setPriority] = useState("MEDIUM");
+  const [description, setDescription] = useState("");
+  const [reminderAt, setReminderAt] = useState("");
+  const [securityQuery, setSecurityQuery] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const flagTypes = [
+    "REMINDER",
+    "Risk Review",
+    "Earnings Upcoming",
+    "Valuation Stretched",
+    "Thesis Changed",
+    "Candidate",
+    "Under Review",
+    "Margin Pressure",
+    "Credit Watch",
+    "Quality Risk",
+    "Event-driven",
+    "Custom",
+  ];
+
+  const normalizedSecurityQuery =
+    securityQuery.trim().toLowerCase();
+
+  const filteredSecurities = securities.filter(
+    (security) => {
+      if (!normalizedSecurityQuery) {
+        return true;
+      }
+
+      const searchable = [
+        security.ticker,
+        security.name,
+        security.sector,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(
+        normalizedSecurityQuery
+      );
+    }
+  );
+
+  const isReminder =
+    flagType.trim().toUpperCase() === "REMINDER";
+
+  function resetForm() {
+    setAssociationType("GENERAL");
+    setSecurityId("");
+    setSecurityQuery("");
+    setFlagType("REMINDER");
+    setPriority("MEDIUM");
+    setDescription("");
+    setReminderAt("");
+    setError("");
+  }
+
+  function handleClose() {
+    if (isSaving) {
+      return;
+    }
+
+    resetForm();
+    onClose();
+  }
+
+  async function handleSave() {
+    setError("");
+
+    if (
+      associationType === "SECURITY" &&
+      !securityId
+    ) {
+      setError("Please select a Security.");
+      return;
+    }
+
+    if (!flagType.trim()) {
+      setError("Please select a flag type.");
+      return;
+    }
+
+    if (isReminder && !description.trim()) {
+      setError(
+        "A description is required for reminders."
+      );
+      return;
+    }
+
+    if (isReminder && !reminderAt) {
+      setError(
+        "A reminder date and time are required."
+      );
+      return;
+    }
+
+    let serializedReminderAt: string | null = null;
+
+    if (reminderAt) {
+      const parsedReminderAt = new Date(reminderAt);
+
+      if (
+        Number.isNaN(parsedReminderAt.getTime())
+      ) {
+        setError(
+          "Enter a valid reminder date and time."
+        );
+        return;
+      }
+
+      serializedReminderAt =
+        parsedReminderAt.toISOString();
+    }
+
+    setIsSaving(true);
+
+    try {
+      await onSave({
+        securityId:
+          associationType === "SECURITY"
+            ? securityId
+            : null,
+        flagType,
+        priority,
+        description,
+        reminderAt: serializedReminderAt,
+      });
+
+      resetForm();
+      onClose();
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to create flag."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              New Flag / Reminder
+            </h2>
+
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              Create a General operational item or
+              associate it with a Security.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Association
+            </label>
+
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAssociationType("GENERAL");
+                  setSecurityId("");
+                  setSecurityQuery("");
+                  setError("");
+                }}
+                disabled={isSaving}
+                className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                  associationType === "GENERAL"
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                General
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAssociationType("SECURITY");
+                  setError("");
+                }}
+                disabled={isSaving}
+                className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
+                  associationType === "SECURITY"
+                    ? "bg-slate-900 text-white"
+                    : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Security
+              </button>
+            </div>
+
+            <p className="mt-1 text-xs text-slate-500">
+              {associationType === "GENERAL"
+                ? "This item will appear as General and will not be tied to a stock."
+                : "This item will be associated with the selected Security."}
+            </p>
+          </div>
+
+          {associationType === "SECURITY" ? (
+            <div>
+              <label className="text-sm font-medium text-slate-700">
+                Security
+              </label>
+
+              <input
+                value={securityQuery}
+                onChange={(event) =>
+                  setSecurityQuery(event.target.value)
+                }
+                disabled={isSaving}
+                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+                placeholder="Search ticker, company, or sector..."
+              />
+
+              <select
+                value={securityId}
+                onChange={(event) =>
+                  setSecurityId(event.target.value)
+                }
+                disabled={isSaving}
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+              >
+                <option value="">
+                  Select a Security
+                </option>
+
+                {filteredSecurities.map(
+                  (security) => (
+                    <option
+                      key={security.id}
+                      value={security.id}
+                    >
+                      {security.ticker} —{" "}
+                      {security.name}
+                    </option>
+                  )
+                )}
+              </select>
+
+              {normalizedSecurityQuery &&
+              !filteredSecurities.length ? (
+                <p className="mt-2 text-xs font-medium text-amber-700">
+                  No Securities matched the search.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Flag Type
+            </label>
+
+            <select
+              value={flagType}
+              onChange={(event) => {
+                setFlagType(event.target.value);
+                setError("");
+              }}
+              disabled={isSaving}
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+            >
+              {flagTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type === "REMINDER"
+                    ? "Reminder"
+                    : type}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Priority
+            </label>
+
+            <select
+              value={priority}
+              onChange={(event) =>
+                setPriority(event.target.value)
+              }
+              disabled={isSaving}
+              className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">
+                Medium
+              </option>
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Date and Time{" "}
+              {isReminder ? (
+                <span className="text-rose-600">
+                  *
+                </span>
+              ) : (
+                <span className="font-normal text-slate-400">
+                  — Optional
+                </span>
+              )}
+            </label>
+
+            <input
+              value={reminderAt}
+              onChange={(event) =>
+                setReminderAt(event.target.value)
+              }
+              type="datetime-local"
+              required={isReminder}
+              disabled={isSaving}
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+            />
+
+            <p className="mt-1 text-xs text-slate-500">
+              {isReminder
+                ? "Required for reminders."
+                : "Optional for regular flags."}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Description{" "}
+              {isReminder ? (
+                <span className="text-rose-600">
+                  *
+                </span>
+              ) : null}
+            </label>
+
+            <textarea
+              value={description}
+              onChange={(event) =>
+                setDescription(event.target.value)
+              }
+              disabled={isSaving}
+              className="mt-2 h-28 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50"
+              placeholder={
+                isReminder
+                  ? "Describe what needs to be remembered..."
+                  : "Describe why this item needs attention..."
+              }
+            />
+          </div>
+        </div>
+
+        {error ? (
+          <div className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSaving
+              ? "Saving..."
+              : isReminder
+                ? "Create Reminder"
+                : "Create Flag"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AlertsClient({
   initialFlags,
   securities,
@@ -362,6 +805,7 @@ export default function AlertsClient({
   const [query, setQuery] = useState("");
   const [flags, setFlags] = useState<any[]>(initialFlags);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [isCreateFlagOpen, setIsCreateFlagOpen] = useState(false);
   useEffect(() => {
     async function loadCurrentUser() {
       const response = await fetch("/api/auth/me");
@@ -374,6 +818,45 @@ export default function AlertsClient({
 
     loadCurrentUser();
   }, []);
+    async function handleCreateFlag(payload: {
+    securityId: string | null;
+    flagType: string;
+    priority: string;
+    description: string;
+    reminderAt: string | null;
+  }) {
+    const response = await fetch("/api/flags", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        securityId: payload.securityId,
+        positionId: null,
+        watchlistEntryId: null,
+        flagType: payload.flagType,
+        priority: payload.priority,
+        description: payload.description,
+        reminderAt: payload.reminderAt,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || "Failed to create flag."
+      );
+    }
+
+    setFlags((currentFlags) => [
+      data.flag,
+      ...currentFlags.filter(
+        (flag) => flag.id !== data.flag.id
+      ),
+    ]);
+  }
   const filteredFlags = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -386,12 +869,14 @@ export default function AlertsClient({
     return sortedFlags.filter((flag) => {
       const searchable = [
         flag.security?.ticker,
-        flag.metadataJson,
         flag.security?.name,
+        flag.security ? null : "General",
+        flag.metadataJson,
         flag.flagType,
         flag.description,
         flag.priority,
         flag.status,
+        flag.reminderAt,
         getContextLabel(flag),
         flag.createdBy?.name,
         flag.createdBy?.email,
@@ -563,15 +1048,37 @@ export default function AlertsClient({
 
           <div className="min-w-0 flex-1 overflow-auto p-6">
             <div className="space-y-5">
-              <div>
-                <h2 className="text-3xl font-semibold tracking-tight">
-                  Alert Center
-                </h2>
+                            <div className="flex items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-semibold tracking-tight">
+                    Alert Center
+                  </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  Review price, risk, note-aging, catalyst, and thesis flags
-                  across active positions and watchlists.
-                </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Review flags and reminders across Securities,
+                    positions, watchlists, and General operations.
+                  </p>
+                </div>
+
+                {userCanResolveFlags ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setIsCreateFlagOpen(true)
+                    }
+                    className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                  >
+                    New Flag / Reminder
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="cursor-not-allowed rounded-2xl bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500"
+                  >
+                    Read Only
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-4 gap-4">
@@ -662,6 +1169,14 @@ export default function AlertsClient({
           </div>
         </section>
       </div>
+            <CreateFlagModal
+        open={isCreateFlagOpen}
+        onClose={() =>
+          setIsCreateFlagOpen(false)
+        }
+        onSave={handleCreateFlag}
+        securities={securities}
+      />
     </main>
   );
 }
