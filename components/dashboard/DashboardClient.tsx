@@ -482,7 +482,7 @@ function TickerDetailPanel({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-1.5">
           {canComment ? (
             <button
               onClick={() => onComment(position)}
@@ -1590,7 +1590,7 @@ function SectorModal({
       }
 
       onClose();
-      window.location.reload();
+      
     } catch {
       window.alert(
         "Failed to update sector."
@@ -2301,7 +2301,7 @@ async function handleSaveFlag(payload: {
               onClose={() => setFlagPosition(null)}
               onSave={handleSaveFlag}
             />
-            
+
             <SectorModal
               position={sectorPosition}
               availableSectors={availableSectors}
