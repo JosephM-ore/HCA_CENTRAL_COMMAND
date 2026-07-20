@@ -164,6 +164,13 @@ export async function POST(request: Request) {
     let rowsFailed = 0;
     let securitiesCreated = 0;
     let securitiesUpdated = 0;
+
+    const newlyCreatedSecurities: {
+      id: string;
+      ticker: string;
+      name: string;
+    }[] = [];
+
     let positionsCreated = 0;
     let positionsClosed = 0;
     let positionsUpdated = 0;
@@ -223,7 +230,11 @@ export async function POST(request: Request) {
               securityType: position.productType,
             },
           });
-
+          newlyCreatedSecurities.push({
+            id: security.id,
+            ticker: security.ticker,
+            name: security.name,
+          });
           securitiesCreated += 1;
         } else {
           await prisma.security.update({
@@ -360,13 +371,18 @@ export async function POST(request: Request) {
 
         if (!security) {
           security = await prisma.security.create({
+            
             data: {
               ticker: taxLot.ticker,
               name: taxLot.securityName,
               securityType: taxLot.productType ?? null,
             },
           });
-
+          newlyCreatedSecurities.push({
+            id: security.id,
+            ticker: security.ticker,
+            name: security.name,
+          });
           securitiesCreated += 1;
         } else {
           await prisma.security.update({
@@ -500,6 +516,11 @@ export async function POST(request: Request) {
                 isin: trade.isin,
                 sedol: trade.sedol,
               },
+            });
+            newlyCreatedSecurities.push({
+              id: security.id,
+              ticker: security.ticker,
+              name: security.name,
             });
 
             securitiesCreated += 1;
@@ -774,6 +795,7 @@ export async function POST(request: Request) {
       rowsProcessed,
       rowsFailed,
       securitiesCreated,
+      newlyCreatedSecurities,
       securitiesUpdated,
       positionsCreated,
       positionsUpdated,
