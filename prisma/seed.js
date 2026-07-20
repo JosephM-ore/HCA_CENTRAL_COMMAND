@@ -6,9 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding clean HCA Central Command database...");
 
-  // Delete operational data first.
-  // For trader testing, do not seed demo securities, positions, trades,
-  // tax lots, comments, flags, watchlist entries, or market data.
+  // Delete operational data
   await prisma.registrationApproval.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.ingestionRun.deleteMany();
@@ -23,59 +21,34 @@ async function main() {
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
 
-  const passwordHash = await bcrypt.hash("password123", 10);
+  console.log("Users after delete:", await prisma.user.count());
+console.log("Securities after delete:", await prisma.security.count());
+console.log("Positions after delete:", await prisma.position.count());
+console.log("Trades after delete:", await prisma.trade.count());
+
+  const adminEmail =
+    process.env.SEED_ADMIN_EMAIL;
+
+  const adminPassword =
+    process.env.SEED_ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    throw new Error(
+      "SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be defined."
+    );
+  }
+
+  const passwordHash = await bcrypt.hash(
+    adminPassword,
+    10
+  );
 
   const admin = await prisma.user.create({
     data: {
-      email: "admin@example.com",
-      name: "Admin User",
-      passwordHash,
-      role: "ADMIN",
-    },
-  });
-
-  await prisma.user.create({
-    data: {
-      email: "trader1@example.com",
+      email: adminEmail,
       name: "Joseph Moore",
       passwordHash,
-      role: "TRADER",
-    },
-  });
-
-  await prisma.user.create({
-    data: {
-      email: "trader2@example.com",
-      name: "Trader 2",
-      passwordHash,
-      role: "TRADER",
-    },
-  });
-
-  await prisma.user.create({
-    data: {
-      email: "pm@example.com",
-      name: "PM User",
-      passwordHash,
-      role: "PM",
-    },
-  });
-
-  await prisma.user.create({
-    data: {
-      email: "compliance@example.com",
-      name: "Compliance User",
-      passwordHash,
-      role: "COMPLIANCE",
-    },
-  });
-
-  await prisma.user.create({
-    data: {
-      email: "viewer@example.com",
-      name: "Viewer User",
-      passwordHash,
-      role: "VIEWER",
+      role: "ADMIN",
     },
   });
 
@@ -86,7 +59,7 @@ async function main() {
       entityType: "SYSTEM",
       entityId: "clean-seed",
       newValueJson: JSON.stringify({
-        users: 6,
+        users: 1,
         securities: 0,
         positions: 0,
         trades: 0,
@@ -99,15 +72,8 @@ async function main() {
     },
   });
 
-  console.log("Clean seed complete.");
-  console.log("");
-  console.log("Login users:");
-  console.log("admin@example.com / password123");
-  console.log("trader1@example.com / password123");
-  console.log("trader2@example.com / password123");
-  console.log("pm@example.com / password123");
-  console.log("compliance@example.com / password123");
-  console.log("viewer@example.com / password123");
+console.log("Login user:");
+console.log(adminEmail);
 }
 
 main()
