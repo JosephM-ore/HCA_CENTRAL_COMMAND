@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Badge from "@/components/common/Badge";
 import LocalDateTime from "@/components/common/LocalDateTime";
 import { getDisplayCurrentPrice } from "@/lib/dashboard/position-metrics";
@@ -217,11 +217,23 @@ function SummaryCard({
 
 function TradeHistoryTableRow({
   row,
+  confirmDeleteTradeId,
+  setConfirmDeleteTradeId,
+  deletingTradeId,
+  onDeleteTrade,
 }: {
   row: TradeHistoryRow;
+  confirmDeleteTradeId: string | null;
+  setConfirmDeleteTradeId: (
+    id: string | null
+  ) => void;
+  deletingTradeId: string | null;
+  onDeleteTrade: (
+    tradeId: string
+  ) => Promise<void>;
 }) {
   return (
-    <div className="grid min-w-[1650px] grid-cols-12 items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs last:border-b-0 hover:bg-slate-50">
+    <div className="grid min-w-[1800px] grid-cols-13 items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs last:border-b-0 hover:bg-slate-50">
       <div>
         <LocalDateTime
           value={row.trade.dateTraded}
@@ -339,6 +351,51 @@ function TradeHistoryTableRow({
       >
         {row.trade.comment || "—"}
       </div>
+      <div>
+        {row.trade.source === "MANUAL" &&
+        row.trade.reconciliationStatus ===
+          "MANUAL_PENDING" ? (
+          deletingTradeId === row.trade.id ? (
+            <span className="text-xs font-semibold text-slate-500">
+              Deleting...
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  confirmDeleteTradeId ===
+                  row.trade.id
+                ) {
+                  onDeleteTrade(
+                    row.trade.id
+                  );
+                  return;
+                }
+
+                setConfirmDeleteTradeId(
+                  row.trade.id
+                );
+              }}
+              className={`rounded-xl px-2 py-1 text-xs font-medium ${
+                confirmDeleteTradeId ===
+                row.trade.id
+                  ? "bg-rose-600 text-white hover:bg-rose-700"
+                  : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+              }`}
+            >
+              {confirmDeleteTradeId ===
+              row.trade.id
+                ? "Confirm Delete"
+                : "Delete"}
+            </button>
+          )
+        ) : (
+          <span className="text-slate-400">
+            —
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -353,9 +410,51 @@ export default function ExpandedTradeHistoryModal({
   const [tradeSort, setTradeSort] =
     useState<TradeSort>("NEWEST");
 
+  const [
+    hiddenTradeIds,
+    setHiddenTradeIds,
+  ] = useState<string[]>([]);
+
+  const [
+    confirmDeleteTradeId,
+    setConfirmDeleteTradeId,
+  ] = useState<string | null>(null);
+
+  const [
+    deletingTradeId,
+    setDeletingTradeId,
+  ] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!confirmDeleteTradeId) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setConfirmDeleteTradeId(null);
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [confirmDeleteTradeId]);
+  
   const currentPrice = position
     ? getDisplayCurrentPrice(position)
     : null;
+
+    const visibleTrades = useMemo(
+    () =>
+      (
+        Array.isArray(position?.trades)
+          ? position.trades
+          : []
+      ).filter(
+        (trade: any) =>
+          !hiddenTradeIds.includes(
+            trade.id
+          )
+      ),
+    [position, hiddenTradeIds]
+  );
 
   const analytics = useMemo(
     () =>
@@ -365,14 +464,51 @@ export default function ExpandedTradeHistoryModal({
         currentShares:
           position?.shares ?? null,
         currentPrice,
-        trades: Array.isArray(
-          position?.trades
-        )
-          ? position.trades
-          : [],
+        trades: visibleTrades,
       }),
-    [position, currentPrice]
+    [
+      position,
+      currentPrice,
+      visibleTrades,
+    ]
   );
+
+  async function handleDeleteTrade(
+    tradeId: string
+  ) {
+    try {
+      setDeletingTradeId(tradeId);
+
+      const response = await fetch(
+        `/api/trades/manual/${tradeId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error ||
+            "Failed to delete trade."
+        );
+      }
+
+      setHiddenTradeIds(
+        (currentIds) => [
+          ...currentIds,
+          tradeId,
+        ]
+      );
+
+      setConfirmDeleteTradeId(null);
+    } finally {
+      setDeletingTradeId(null);
+    }
+  }
 
   const displayedRows = useMemo(() => {
     const filteredRows =
@@ -746,7 +882,7 @@ export default function ExpandedTradeHistoryModal({
 
             <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="overflow-x-auto">
-                <div className="grid min-w-[1650px] grid-cols-12 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <div className="grid min-w-[1800px] grid-cols-13 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                     <div>Date Traded</div>
                     <div>Type</div>
                     <div>Shares</div>
@@ -760,6 +896,7 @@ export default function ExpandedTradeHistoryModal({
                     <div>Source</div>
                     <div>Reconciliation</div>
                     <div>Note</div>
+                    <div>Actions</div>
                 </div>
 
                 {displayedRows.length ? (
@@ -767,6 +904,18 @@ export default function ExpandedTradeHistoryModal({
                     <TradeHistoryTableRow
                       key={row.trade.id}
                       row={row}
+                      confirmDeleteTradeId={
+                        confirmDeleteTradeId
+                      }
+                      setConfirmDeleteTradeId={
+                        setConfirmDeleteTradeId
+                      }
+                      deletingTradeId={
+                        deletingTradeId
+                      }
+                      onDeleteTrade={
+                        handleDeleteTrade
+                      }
                     />
                   ))
                 ) : (

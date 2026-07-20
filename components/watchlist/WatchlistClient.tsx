@@ -155,6 +155,8 @@ function WatchlistGrid({
     onRemove,
     canComment,
     canEdit,
+    confirmRemoveEntryId,
+    setConfirmRemoveEntryId,
   }: {
     title: string;
     tone: "green" | "red";
@@ -166,6 +168,11 @@ function WatchlistGrid({
     onRemove: (entry: any) => void;
     canComment: boolean;
     canEdit: boolean;
+    confirmRemoveEntryId: string | null;
+    setConfirmRemoveEntryId: (
+      id: string | null
+    ) => void;
+    
   }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -294,10 +301,23 @@ function WatchlistGrid({
                     </button>
 
                     <button
-                      onClick={() => onRemove(entry)}
-                      className="rounded-xl bg-rose-50 px-2 py-1 font-medium text-rose-700 hover:bg-rose-100"
+                      onClick={() => {
+                        if (confirmRemoveEntryId === entry.id) {
+                          onRemove(entry);
+                          return;
+                        }
+
+                        setConfirmRemoveEntryId(entry.id);
+                      }}
+                      className={`rounded-xl px-2 py-1 font-medium ${
+                        confirmRemoveEntryId === entry.id
+                          ? "bg-rose-600 text-white hover:bg-rose-700"
+                          : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                      }`}
                     >
-                      Remove
+                      {confirmRemoveEntryId === entry.id
+                        ? "Confirm Remove"
+                        : "Remove"}
                     </button>
                   </>
                 ) : (
@@ -434,12 +454,18 @@ function WatchlistDetailPanel({
   onEdit,
   onRemove,
   canEdit,
+  confirmRemoveEntryId,
+  setConfirmRemoveEntryId,
 }: {
   entry: any | null;
   onClose: () => void;
   onEdit: (entry: any) => void;
   onRemove: (entry: any) => void;
   canEdit: boolean;
+  confirmRemoveEntryId: string | null;
+  setConfirmRemoveEntryId: (
+    id: string | null
+  ) => void;
 }) {
   const [showAllComments, setShowAllComments] = useState(false);
   const [showAllPtHistory, setShowAllPtHistory] = useState(false);
@@ -602,10 +628,23 @@ function WatchlistDetailPanel({
               </button>
 
               <button
-                onClick={() => onRemove(entry)}
-                className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
+                onClick={() => {
+                  if (confirmRemoveEntryId === entry.id) {
+                    onRemove(entry);
+                    return;
+                  }
+
+                  setConfirmRemoveEntryId(entry.id);
+                }}
+                className={`rounded-2xl px-4 py-2 text-sm font-medium ${
+                  confirmRemoveEntryId === entry.id
+                    ? "bg-rose-600 text-white hover:bg-rose-700"
+                    : "border border-rose-100 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                }`}
               >
-                Remove
+                {confirmRemoveEntryId === entry.id
+                  ? "Confirm Remove"
+                  : "Remove"}
               </button>
             </>
           ) : null}
@@ -1362,6 +1401,19 @@ export default function WatchlistClient({
   const [commentEntry, setCommentEntry] = useState<any | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
   const [editingEntry, setEditingEntry] = useState<any | null>(null);
+  const [confirmRemoveEntryId, setConfirmRemoveEntryId] =
+  useState<string | null>(null);
+    useEffect(() => {
+    if (!confirmRemoveEntryId) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setConfirmRemoveEntryId(null);
+    }, 5000);
+
+    return () => clearTimeout(timeout);
+  }, [confirmRemoveEntryId]);
 
   useEffect(() => {
   async function loadCurrentUser() {
@@ -1555,11 +1607,6 @@ const shortEntries = useMemo(
 }
 
 async function handleRemoveEntry(entry: any) {
-    const confirmed = window.confirm(
-      `Remove ${entry.security.ticker} from the watchlist?`
-    );
-
-    if (!confirmed) return;
 
     const response = await fetch(`/api/watchlist/${entry.id}`, {
       method: "DELETE",
@@ -1584,6 +1631,7 @@ async function handleRemoveEntry(entry: any) {
   setEditingEntry((currentEntry: any | null) =>
     currentEntry?.id === entry.id ? null : currentEntry
   );
+  setConfirmRemoveEntryId(null);
   }
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
@@ -1749,6 +1797,8 @@ async function handleRemoveEntry(entry: any) {
               />
             </div>
 
+         
+
             <WatchlistGrid
               title="Long Watchlist"
               tone="green"
@@ -1760,19 +1810,8 @@ async function handleRemoveEntry(entry: any) {
               onRemove={handleRemoveEntry}
               canComment={userCanCreateComments}
               canEdit={userCanEditWatchlist}
-            />
-
-            <WatchlistGrid
-              title="Short Watchlist"
-              tone="red"
-              entries={shortEntries}
-              onSelect={setSelectedEntry}
-              onMarketData={setMarketDataEntry}
-              onComment={setCommentEntry}
-              onEdit={setEditingEntry}
-              onRemove={handleRemoveEntry}
-              canComment={userCanCreateComments}
-              canEdit={userCanEditWatchlist}
+              confirmRemoveEntryId={confirmRemoveEntryId}
+              setConfirmRemoveEntryId={setConfirmRemoveEntryId}
             />
                 
               </div>
@@ -1784,6 +1823,8 @@ async function handleRemoveEntry(entry: any) {
               onEdit={setEditingEntry}
               onRemove={handleRemoveEntry}
               canEdit={userCanEditWatchlist}
+              confirmRemoveEntryId={confirmRemoveEntryId}
+              setConfirmRemoveEntryId={setConfirmRemoveEntryId}
             />
           </div>
         </section>

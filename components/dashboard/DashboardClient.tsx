@@ -870,6 +870,20 @@ function AddTradeModal({
   const [comment, setComment] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const [confirmingSave, setConfirmingSave] =
+  useState(false);
+  useEffect(() => {
+  if (!confirmingSave) {
+    return;
+  }
+
+  const timeout = setTimeout(() => {
+    setConfirmingSave(false);
+  }, 5000);
+
+  return () => clearTimeout(timeout);
+}, [confirmingSave]);
+
 
     useEffect(() => {
     if (!position) return;
@@ -1058,11 +1072,26 @@ function AddTradeModal({
           </button>
 
           <button
-            onClick={handleSave}
+            onClick={() => {
+              if (confirmingSave) {
+                handleSave();
+                return;
+              }
+
+              setConfirmingSave(true);
+            }}
             disabled={isSaving}
-            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+            className={`rounded-2xl px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 ${
+              confirmingSave
+                ? "bg-amber-600 hover:bg-emerald-700"
+                : "bg-slate-900 hover:bg-slate-800"
+            }`}
           >
-            {isSaving ? "Saving..." : "Add Trade"}
+            {isSaving
+              ? "Saving..."
+              : confirmingSave
+                ? "Confirm Trade"
+                : "Add Trade"}
           </button>
         </div>
       </div>
