@@ -1211,7 +1211,7 @@ export default function AlertsClient({
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">Live data mock</Badge>
+         
 
               <CurrentUserPill />
             </div>

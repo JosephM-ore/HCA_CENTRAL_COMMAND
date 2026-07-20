@@ -161,9 +161,7 @@ export default function TradeCalculatorClient({
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="blue">
-                Calculation only
-              </Badge>
+             
 
               <CurrentUserPill />
             </div>

@@ -1917,7 +1917,7 @@ async function handleSaveFlag(payload: {
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">Wells-derived metrics</Badge>
+              
               <CurrentUserPill />
             </div>
           </header>

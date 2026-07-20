@@ -1790,7 +1790,7 @@ async function handleRemoveEntry(entry: any) {
             </div>
 
             <div className="ml-4 flex items-center gap-3">
-              <Badge tone="green">Finnhub current prices</Badge>
+              
               <CurrentUserPill />
             </div>
           </header>
