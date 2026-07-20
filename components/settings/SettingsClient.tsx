@@ -185,6 +185,8 @@ export default function SettingsClient({
   canManageUserAccess,
 }: SettingsClientProps) {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [sectors, setSectors] =
+  useState<{ name: string; count: number }[]>([]);
 
   const [registrationApprovals, setRegistrationApprovals] =
     useState<any[]>(initialRegistrationApprovals);
@@ -244,6 +246,28 @@ export default function SettingsClient({
       }
 
       loadCurrentUser();
+    }, []);
+
+    useEffect(() => {
+      async function loadSectors() {
+        try {
+          const response = await fetch("/api/sectors");
+
+          if (!response.ok) {
+            return;
+          }
+
+          const data = await response.json();
+
+          setSectors(data.sectors || []);
+        } catch {
+          console.error(
+            "Failed to load sectors."
+          );
+        }
+      }
+
+      loadSectors();
     }, []);
 
     async function handleApproveUser(
@@ -801,7 +825,35 @@ async function handleWellsUpload() {
 
                     </div>
                 </SettingsCard>
+                
+                <SettingsCard
+                  eyebrow="Classification"
+                  title="Sector Management"
+                  description="Current security classifications used for future portfolio exposure reporting."
+                >
+                  <div className="space-y-2">
+                    {sectors.length ? (
+                      sectors.map((sector) => (
+                        <div
+                          key={sector.name}
+                          className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
+                        >
+                          <span className="text-sm font-medium text-slate-900">
+                            {sector.name}
+                          </span>
 
+                          <span className="text-xs font-semibold text-slate-500">
+                            {sector.count} securities
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                        No sectors configured.
+                      </div>
+                    )}
+                  </div>
+                </SettingsCard>
                 
                 <div className="lg:col-span-2">
                   <SettingsCard
