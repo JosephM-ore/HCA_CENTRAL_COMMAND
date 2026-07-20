@@ -12,8 +12,85 @@ import CurrentUserPill from "@/components/auth/CurrentUserPill";
 import HcaLogo from "@/components/common/HcaLogo";
 
 type WatchlistClientProps = {
-  initialEntries: any[];
-  portfolioSecurities: any[];
+  initialEntries: WatchlistEntry[];
+  portfolioSecurities: PortfolioSecurity[];
+};
+
+type WatchlistAuthor = {
+  id?: string;
+  name?: string | null;
+  email?: string | null;
+};
+
+type WatchlistComment = {
+  id: string;
+  tag: string;
+  content: string;
+  createdAt: string;
+  author?: WatchlistAuthor | null;
+};
+
+type WatchlistFlag = {
+  id: string;
+  flagType: string;
+};
+
+type WatchlistMarketData = {
+  currentPrice?: number | null;
+  marketDataSource?: string | null;
+  fundamentalsSource?: string | null;
+  dataQuality?: string | null;
+
+  vwap?: number | null;
+  high52w?: number | null;
+  low52w?: number | null;
+  beta?: number | null;
+  avgVolume?: number | null;
+  shortFloat?: number | null;
+  marketCap?: number | null;
+
+  peLtm?: number | null;
+  priceToTangBook?: number | null;
+  peNtm?: number | null;
+  priceToBook?: number | null;
+  debtToEbitda?: number | null;
+  eps?: number | null;
+
+  lastMarketDataRefreshAt?: string | Date | null;
+  lastFundamentalsRefreshAt?: string | Date | null;
+};
+
+type PortfolioSecurity = {
+  id: string;
+  ticker: string;
+  name: string;
+};
+
+type WatchlistEntry = {
+  id: string;
+
+  securityId: string;
+
+  side: "LONG" | "SHORT";
+
+  targetPrice?: number | null;
+  entryTargetPrice?: number | null;
+  exitTargetPrice?: number | null;
+
+  notes?: string | null;
+
+  comments?: WatchlistComment[];
+  flags?: WatchlistFlag[];
+
+  security: {
+    ticker: string;
+    name: string;
+    sector?: string | null;
+
+    comments?: WatchlistComment[];
+
+    marketData?: WatchlistMarketData[];
+  };
 };
 
 function SectionBar({
@@ -77,7 +154,7 @@ function pctClass(value: number | null | undefined) {
   return value >= 0 ? "text-emerald-600" : "text-rose-600";
 }
 
-function getWatchlistCurrentPrice(entry: any) {
+function getWatchlistCurrentPrice(entry: WatchlistEntry) {
   const marketData = entry.security?.marketData?.[0];
 
   if (marketData?.marketDataSource !== "FINNHUB") {
@@ -103,11 +180,11 @@ function calculateFromTarget(
 
   return ((targetPrice - currentPrice) / currentPrice) * 100;
 }
-function getEntryTargetPrice(entry: any) {
+function getEntryTargetPrice(entry: WatchlistEntry) {
   return entry.entryTargetPrice ?? entry.targetPrice ?? null;
 }
 
-function getExitTargetPrice(entry: any) {
+function getExitTargetPrice(entry: WatchlistEntry) {
   return entry.exitTargetPrice ?? null;
 }
 
@@ -124,7 +201,7 @@ function formatPercent(value: number | null | undefined) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-function getWatchlistComments(entry: any) {
+function getWatchlistComments(entry: WatchlistEntry) {
   const byId = new Map<string, any>();
 
   const securityComments = entry.security?.comments ?? [];
@@ -161,11 +238,11 @@ function WatchlistGrid({
     title: string;
     tone: "green" | "red";
     entries: any[];
-    onSelect: (entry: any) => void;
-    onMarketData: (entry: any) => void;
-    onComment: (entry: any) => void;
-    onEdit: (entry: any) => void;
-    onRemove: (entry: any) => void;
+    onSelect: (entry: WatchlistEntry) => void;
+    onMarketData: (entry: WatchlistEntry) => void;
+    onComment: (entry: WatchlistEntry) => void;
+    onEdit: (entry: WatchlistEntry) => void;
+    onRemove: (entry: WatchlistEntry) => void;
     canComment: boolean;
     canEdit: boolean;
     confirmRemoveEntryId: string | null;
@@ -338,7 +415,7 @@ function MarketDataModal({
   entry,
   onClose,
 }: {
-  entry: any | null;
+  entry: WatchlistEntry | null;
   onClose: () => void;
 }) {
   if (!entry) return null;
@@ -457,10 +534,10 @@ function WatchlistDetailPanel({
   confirmRemoveEntryId,
   setConfirmRemoveEntryId,
 }: {
-  entry: any | null;
+  entry: WatchlistEntry | null;
   onClose: () => void;
-  onEdit: (entry: any) => void;
-  onRemove: (entry: any) => void;
+  onEdit: (entry: WatchlistEntry) => void;
+  onRemove: (entry: WatchlistEntry) => void;
   canEdit: boolean;
   confirmRemoveEntryId: string | null;
   setConfirmRemoveEntryId: (
@@ -782,7 +859,7 @@ function AddStockModal({
     targetPrice: string;
     comment: string;
   }) => Promise<void>;
-  portfolioSecurities: any[];
+  portfolioSecurities: PortfolioSecurity[];
 }) {
 
 
