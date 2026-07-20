@@ -332,6 +332,7 @@ function TickerDetailPanel({
   canFlag,
   canEditSectors,
   availableSectors,
+  onSector,
 }: {
   position: any | null;
   onClose: () => void;
@@ -345,12 +346,59 @@ function TickerDetailPanel({
   canFlag: boolean;
   canEditSectors: boolean;
   availableSectors: string[];
+  onSector: (position: any) => void;
 }) {
+  const [selectedSector, setSelectedSector] =
+  useState("");
+
+  const [isSavingSector, setIsSavingSector] =
+    useState(false);
   const [showAllTrades, setShowAllTrades] = useState(false);
 
-    useEffect(() => {
+  useEffect(() => {
+    setSelectedSector(
+      position?.security?.sector || ""
+      );
+  }, [position]);
+
+  useEffect(() => {
     setShowAllTrades(false);
   }, [position?.id]);
+
+  async function handleSaveSector() {
+    if (!position?.security?.id) return;
+
+    setIsSavingSector(true);
+
+    try {
+      const response = await fetch(
+        `/api/securities/${position.security.id}/sector`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sector: selectedSector,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error();
+      }
+
+      window.alert(
+        "Sector updated successfully."
+      );
+    } catch {
+      window.alert(
+        "Failed to update sector."
+      );
+    } finally {
+      setIsSavingSector(false);
+    }
+  }
 
   if (!position) return null;
 
@@ -402,6 +450,7 @@ function TickerDetailPanel({
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+          
           <div className="rounded-2xl bg-slate-50 p-3">
             <p className="text-xs text-slate-500">Current Price</p>
             
@@ -486,6 +535,15 @@ function TickerDetailPanel({
           >
             Add Trade
           </button>
+
+          {canEditSectors ? (
+            <button
+              onClick={() => onSector(position)}
+              className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Sector
+            </button>
+          ) : null}
         </div>
       </div>
       
@@ -1488,6 +1546,127 @@ function FlagModal({
   );
 }
 
+function SectorModal({
+  position,
+  availableSectors,
+  onClose,
+}: {
+  position: any | null;
+  availableSectors: string[];
+  onClose: () => void;
+}) {
+  const [sector, setSector] = useState("");
+
+  const [isSaving, setIsSaving] =
+    useState(false);
+
+  useEffect(() => {
+    setSector(
+      position?.security?.sector || ""
+    );
+  }, [position]);
+
+  if (!position) return null;
+
+  async function handleSave() {
+    setIsSaving(true);
+
+    try {
+      const response = await fetch(
+        `/api/securities/${position.security.id}/sector`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sector,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error();
+      }
+
+      onClose();
+      window.location.reload();
+    } catch {
+      window.alert(
+        "Failed to update sector."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Edit Sector
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {position.security.ticker} • {position.security.name}
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5">
+          <label className="text-sm font-medium text-slate-700">
+            Sector
+          </label>
+
+          <select
+            value={sector}
+            onChange={(event) =>
+              setSector(event.target.value)
+            }
+            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+          >
+            {availableSectors.map((value) => (
+              <option
+                key={value}
+                value={value}
+              >
+                {value}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+          >
+            {isSaving
+              ? "Saving..."
+              : "Save Sector"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardClient({ positions }: DashboardClientProps) {
   const [localPositions, setLocalPositions] = useState<any[]>(positions);
@@ -1500,6 +1679,8 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
   const [flagPosition, setFlagPosition] = useState<any | null>(null);
   const [availableSectors, setAvailableSectors] =
   useState<string[]>([]);
+  const [sectorPosition, setSectorPosition] =
+  useState<any | null>(null);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
@@ -2081,6 +2262,7 @@ async function handleSaveFlag(payload: {
               canFlag={userCanCreateFlags}
               canEditSectors={userCanEditSectors}
               availableSectors={availableSectors}
+              onSector={setSectorPosition}
             />
 
                           
@@ -2118,6 +2300,14 @@ async function handleSaveFlag(payload: {
               position={flagPosition}
               onClose={() => setFlagPosition(null)}
               onSave={handleSaveFlag}
+            />
+            
+            <SectorModal
+              position={sectorPosition}
+              availableSectors={availableSectors}
+              onClose={() =>
+                setSectorPosition(null)
+              }
             />
           </div>
         </section>
