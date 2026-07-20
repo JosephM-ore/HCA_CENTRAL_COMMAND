@@ -9,6 +9,7 @@ import ExpandedTradeHistoryModal from "@/components/dashboard/ExpandedTradeHisto
 import {
   canCreateComments,
   canCreateFlags,
+  canEditSectors,
 } from "@/lib/client-permissions";
 
 import {
@@ -1505,6 +1506,9 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
 
   const userCanCreateComments = canCreateComments(currentUser?.role);
   const userCanCreateFlags = canCreateFlags(currentUser?.role);
+  const userCanEditSectors =
+  canEditSectors(currentUser?.role);
+
 
   useEffect(() => {
     async function loadCurrentUser() {
