@@ -330,6 +330,8 @@ function TickerDetailPanel({
   onExpandHistory,
   canComment,
   canFlag,
+  canEditSectors,
+  availableSectors,
 }: {
   position: any | null;
   onClose: () => void;
@@ -341,6 +343,8 @@ function TickerDetailPanel({
   onExpandHistory: (position: any) => void;
   canComment: boolean;
   canFlag: boolean;
+  canEditSectors: boolean;
+  availableSectors: string[];
 }) {
   const [showAllTrades, setShowAllTrades] = useState(false);
 
@@ -1494,6 +1498,8 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
   const [marketDataPosition, setMarketDataPosition] = useState<any | null>(null);
   const [commentPosition, setCommentPosition] = useState<any | null>(null);
   const [flagPosition, setFlagPosition] = useState<any | null>(null);
+  const [availableSectors, setAvailableSectors] =
+  useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
@@ -1523,7 +1529,32 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
     loadCurrentUser();
   }, []);
 
- 
+  useEffect(() => {
+  async function loadSectors() {
+    try {
+      const response = await fetch("/api/sectors");
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+
+      setAvailableSectors(
+        (data.sectors || []).map(
+          (sector: any) => sector.name ?? sector
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Failed to load sectors.",
+        error
+      );
+    }
+  }
+
+  loadSectors();
+}, []);
 
 useEffect(() => {
   const konamiCode = [
@@ -2048,6 +2079,8 @@ async function handleSaveFlag(payload: {
               onExpandHistory={setExpandedTradeHistoryPosition}
               canComment={userCanCreateComments}
               canFlag={userCanCreateFlags}
+              canEditSectors={userCanEditSectors}
+              availableSectors={availableSectors}
             />
 
                           
