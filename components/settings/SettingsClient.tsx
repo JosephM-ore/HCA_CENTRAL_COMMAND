@@ -563,13 +563,7 @@ async function handleWellsUpload() {
             ))}
           </nav>
 
-          <div className="mt-auto rounded-3xl bg-slate-50 p-4">
-            <div className="mb-2 text-sm font-medium">Compliance Mode</div>
-            <p className="text-xs leading-5 text-slate-500">
-              Settings describe permissions, audit logging, data refresh, and
-              future integration controls. Trading execution remains excluded.
-            </p>
-          </div>
+         
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col">
@@ -591,8 +585,7 @@ async function handleWellsUpload() {
                   Settings
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Prototype controls for permissions, audit logs, data refresh,
-                  integrations, and trader workflow shortcuts.
+                  Control user access, view audit logs, manage data refreshes 
                 </p>
               </div>
 

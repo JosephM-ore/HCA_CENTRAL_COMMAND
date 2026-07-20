@@ -239,13 +239,7 @@ return (
             </Link>
           </nav>
 
-          <div className="mt-auto rounded-3xl bg-slate-50 p-4">
-            <div className="mb-2 text-sm font-medium">Compliance Mode</div>
-            <p className="text-xs leading-5 text-slate-500">
-              Global comments preserve internal rationale, risk updates, exit
-              notes, and trade context across positions and watchlists.
-            </p>
-          </div>
+          
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col">
