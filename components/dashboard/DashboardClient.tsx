@@ -1550,10 +1550,15 @@ function SectorModal({
   position,
   availableSectors,
   onClose,
+  onSectorUpdated,
 }: {
   position: any | null;
   availableSectors: string[];
   onClose: () => void;
+  onSectorUpdated: (
+  securityId: string,
+  sector: string
+) => void;
 }) {
   const [sector, setSector] = useState("");
 
@@ -1589,8 +1594,13 @@ function SectorModal({
         throw new Error();
       }
 
+      onSectorUpdated(
+        position.security.id,
+        sector
+      );
+
       onClose();
-      
+            
     } catch {
       window.alert(
         "Failed to update sector."
@@ -1998,6 +2008,45 @@ setSelectedPosition((currentPosition: any | null) => {
 });
 }
 
+function handleSectorUpdated(
+  securityId: string,
+  sector: string
+) {
+  setLocalPositions((currentPositions) =>
+    currentPositions.map((position) => {
+      if (position.security.id !== securityId) {
+        return position;
+      }
+
+      return {
+        ...position,
+        security: {
+          ...position.security,
+          sector,
+        },
+      };
+    })
+  );
+
+  setSelectedPosition((currentPosition: any) => {
+    if (
+      !currentPosition ||
+      currentPosition.security.id !== securityId
+    ) {
+      return currentPosition;
+    }
+
+    return {
+      ...currentPosition,
+      security: {
+        ...currentPosition.security,
+        sector,
+      },
+    };
+  });
+}
+
+
 function handleOpenComment(position: any) {
   setSelectedPosition(position);
   setCommentPosition(position);
@@ -2307,6 +2356,9 @@ async function handleSaveFlag(payload: {
               availableSectors={availableSectors}
               onClose={() =>
                 setSectorPosition(null)
+              }
+              onSectorUpdated={
+                handleSectorUpdated
               }
             />
           </div>
