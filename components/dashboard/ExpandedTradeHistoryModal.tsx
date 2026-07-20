@@ -386,7 +386,7 @@ function TradeHistoryTableRow({
             >
               {confirmDeleteTradeId ===
               row.trade.id
-                ? "Confirm Delete"
+                ? "Confirm"
                 : "Delete"}
             </button>
           )
