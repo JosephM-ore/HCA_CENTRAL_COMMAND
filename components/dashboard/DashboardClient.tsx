@@ -208,17 +208,17 @@ function PositionGrid({
       <SectionBar title={title} tone={tone} />
 
       <div className="overflow-x-auto">
-        <div className="grid min-w-[1300x] grid-cols-13 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <div className="grid min-w-[1300px] grid-cols-13 justify-items-center border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
           <div>Ticker</div>
           <div className="col-span-2">Company Name</div>
-          <div>Sector</div>
           <div>Current Price</div>
           <div>% Change In Trading Day</div>
-          <div>Mrkt Value Of Position</div>
           <div>% Of Portfolio</div>
           <div>Total # Of Shares</div>
           <div>WAP</div>
+          <div>Mrkt Value Of Position</div>
           <div>Total % Change</div>
+          <div>Sector</div>
           <div>Market Data</div>
           <div>Comment Section</div>
         </div>
@@ -239,13 +239,14 @@ function PositionGrid({
           return (
             <div
               key={position.id}
-              className={`grid min-w-[1300] grid-cols-13 items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50 ${
+              className={`grid min-w-[1300px] grid-cols-13 justify-items-center items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50 ${
                 selectedId === position.id ? "bg-slate-100" : "bg-white"
               }`}
             >
+            
               <button
                 onClick={() => onSelect(position)}
-                className="flex items-center gap-1 text-left font-semibold text-slate-950 hover:underline"
+                className="flex items-center justify-center gap-1 font-semibold text-slate-950 hover:underline"
               >
                 {position.security.ticker}
                 {openFlag ? (
@@ -255,45 +256,36 @@ function PositionGrid({
                 ) : null}
               </button>
 
-              <div className="col-span-2 truncate text-slate-600">
+              <div className="col-span-2 text-slate-600 text-center truncate">
                 {position.security.name}
               </div>
 
-              <div>
-                {position.security.sector || "—"}
-              </div>
-
-              
               <div className="font-medium">
                 {formatPrice(currentPrice)}
               </div>
 
-
-                            
               <div className={`font-semibold ${pnlClass(dayPctChange)}`}>
                 {formatPercent(dayPctChange)}
               </div>
 
-
-              <div>{formatMoney(position.marketValue)}</div>
-
-              
               <div>
                 {portfolioPct != null ? `${portfolioPct.toFixed(2)}%` : "—"}
               </div>
-
 
               <div>{formatNumber(position.shares)}</div>
 
               <div>{formatPrice(wap)}</div>
 
-              
+              <div>{formatMoney(position.marketValue)}</div>
+
               <div className={`font-semibold ${pnlClass(totalPctChange)}`}>
+
                 {formatPercent(totalPctChange)}
               </div>
+              
+              <div>{position.security.sector || "—"}</div>
 
-
-              <div>              
+              <div className="flex justify-center">            
                 <button
                   onClick={() => openCapitalIq(position.security.ticker)}
                   className="rounded-xl bg-slate-100 px-2 py-1 font-medium text-slate-700 hover:bg-slate-200"
@@ -302,7 +294,7 @@ function PositionGrid({
                 </button>
               </div>
 
-              <div>
+              <div className="flex justify-center">
                 {canComment ? (
                   <button
                     onClick={() => onComment(position)}
