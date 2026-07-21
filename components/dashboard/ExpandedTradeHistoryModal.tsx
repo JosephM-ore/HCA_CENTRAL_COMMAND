@@ -351,51 +351,63 @@ function TradeHistoryTableRow({
       >
         {row.trade.comment || "—"}
       </div>
-      <div>
+      <div className="flex items-center gap-2">
         {row.trade.source === "MANUAL" &&
         row.trade.reconciliationStatus ===
           "MANUAL_PENDING" ? (
-          deletingTradeId === row.trade.id ? (
-            <span className="text-xs font-semibold text-slate-500">
-              Deleting...
-            </span>
-          ) : (
+          <>
             <button
               type="button"
-              onClick={() => {
-                if (
-                  confirmDeleteTradeId ===
-                  row.trade.id
-                ) {
-                  onDeleteTrade(
+              className="rounded-xl bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+            >
+              {row.trade.comment
+                ? "Edit Note"
+                : "Add Note"}
+            </button>
+
+            {deletingTradeId === row.trade.id ? (
+              <span className="text-xs font-semibold text-slate-500">
+                Deleting...
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    confirmDeleteTradeId ===
+                    row.trade.id
+                  ) {
+                    onDeleteTrade(
+                      row.trade.id
+                    );
+                    return;
+                  }
+
+                  setConfirmDeleteTradeId(
                     row.trade.id
                   );
-                  return;
-                }
-
-                setConfirmDeleteTradeId(
+                }}
+                className={`rounded-xl px-2 py-1 text-xs font-medium ${
+                  confirmDeleteTradeId ===
                   row.trade.id
-                );
-              }}
-              className={`rounded-xl px-2 py-1 text-xs font-medium ${
-                confirmDeleteTradeId ===
+                    ? "bg-rose-600 text-white hover:bg-rose-700"
+                    : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                }`}
+              >
+                {confirmDeleteTradeId ===
                 row.trade.id
-                  ? "bg-rose-600 text-white hover:bg-rose-700"
-                  : "bg-rose-50 text-rose-700 hover:bg-rose-100"
-              }`}
-            >
-              {confirmDeleteTradeId ===
-              row.trade.id
-                ? "Confirm"
-                : "Delete"}
-            </button>
-          )
+                  ? "Confirm"
+                  : "Delete"}
+              </button>
+            )}
+          </>
         ) : (
           <span className="text-slate-400">
             —
           </span>
         )}
       </div>
+
     </div>
   );
 }
