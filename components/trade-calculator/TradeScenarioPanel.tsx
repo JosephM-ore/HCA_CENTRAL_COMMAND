@@ -219,13 +219,13 @@ function ResultCard({
   valueClassName?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>
 
       <div
-        className={`mt-2 text-xl font-semibold ${valueClassName}`}
+        className={`mt-1 text-lg font-semibold ${valueClassName}`}
       >
         {value}
       </div>
@@ -582,7 +582,7 @@ export default function TradeScenarioPanel({
     Boolean(targetPriceInput.trim());
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="grid gap-5 xl:grid-cols-[420px_minmax(0,1fr)]">
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
@@ -607,7 +607,7 @@ export default function TradeScenarioPanel({
             </Badge>
           </div>
 
-          <div className="mt-5">
+          <div className="mt-4">
             <label className="text-sm font-medium text-slate-700">
               Trade Action
             </label>
@@ -639,7 +639,7 @@ export default function TradeScenarioPanel({
             </div>
           </div>
 
-          <div className="mt-5">
+          <div className="mt-4">
             <label className="text-sm font-medium text-slate-700">
               Sizing Mode
             </label>
@@ -879,7 +879,7 @@ export default function TradeScenarioPanel({
                 )
               }
               placeholder="Optional rationale or scenario note..."
-              className="mt-2 h-24 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+              className="mt-2 h-20 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
             />
           </div>
 
@@ -1076,15 +1076,12 @@ export default function TradeScenarioPanel({
               detail="Scenario assumption"
             />
           </div>
-        </section>
-      </div>
-
-      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Risk / Reward
         </p>
 
-        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <div className="mt-4 grid grid-cols-2 gap-4 xl:grid-cols-3">
           <ResultCard
             label="Risk Per Share"
             value={formatPrice(
@@ -1142,6 +1139,14 @@ export default function TradeScenarioPanel({
           />
         </div>
       </section>
+
+
+
+
+        </section>
+      </div>
+
+      
 
       
 
