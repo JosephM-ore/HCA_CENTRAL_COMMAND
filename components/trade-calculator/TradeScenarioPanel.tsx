@@ -938,13 +938,21 @@ export default function TradeScenarioPanel({
           </div>
 
           <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-            <ResultCard
-              label="Proposed Shares"
-              value={formatNumber(
-                result.proposedShares
-              )}
-              detail={`${tradeAction} quantity`}
-            />
+           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Proposed Shares
+              </p>
+
+              <div className="mt-1 text-lg font-semibold text-amber-900">
+                {formatNumber(
+                  result.proposedShares
+                )}
+              </div>
+
+              <p className="mt-1 text-xs leading-5 text-amber-700">
+                {tradeAction} quantity
+              </p>
+            </div>
 
             <ResultCard
               label="Trade Notional"
