@@ -172,65 +172,7 @@ export default function TradeCalculatorClient({
               </div>
 
               <div className="grid grid-cols-4 gap-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Securities
-                  </p>
-
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">
-                    {initialSecurities.length}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Available for calculation
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Active Positions
-                  </p>
-
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">
-                    {activePositionCount}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Across{" "}
-                    {securitiesWithPositions}{" "}
-                    Securities
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Pending Manual Trades
-                  </p>
-
-                  <p className="mt-2 text-2xl font-semibold text-violet-700">
-                    {pendingManualTradeCount}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Available for baseline projection
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Gross Portfolio
-                  </p>
-
-                  <p className="mt-2 text-2xl font-semibold text-slate-950">
-                    {formatMoney(
-                      grossPortfolioMarketValue
-                    )}
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Absolute Wells market value
-                  </p>
-                </div>
+                
             </div>
 
                 <TradeCalculatorWorkspace
