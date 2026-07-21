@@ -595,11 +595,7 @@ export default function TradeScenarioPanel({
                 Define the Proposed Trade
               </h3>
 
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                Model the trade against the selected
-                baseline. No record is created in
-                this step.
-              </p>
+             
             </div>
 
             <Badge tone="blue">
