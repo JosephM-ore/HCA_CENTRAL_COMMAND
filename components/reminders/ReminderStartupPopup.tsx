@@ -49,7 +49,7 @@ function ReminderList({
   title: string;
   description: string;
   reminders: Reminder[];
-  tone: "red" | "amber" | "blue";
+  tone: "red" | "amber" | "blue" | "green";
   canResolve: boolean;
   resolvingId: string | null;
   onResolve: (reminder: Reminder) => Promise<void>;
@@ -62,7 +62,9 @@ function ReminderList({
     red: "border-rose-200 bg-rose-50 text-rose-700",
     amber: "border-amber-200 bg-amber-50 text-amber-700",
     blue: "border-blue-200 bg-blue-50 text-blue-700",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
   };
+
 
   return (
     <section>
@@ -298,6 +300,10 @@ export default function ReminderStartupPopup() {
     );
 
     const overdue = reminders.filter((reminder) => {
+      if (reminder.flagType === "Agenda") {
+        return false;
+      }
+
       const reminderDate = new Date(
         reminder.reminderAt
       );
@@ -305,7 +311,12 @@ export default function ReminderStartupPopup() {
       return reminderDate < startOfToday;
     });
 
+
     const today = reminders.filter((reminder) => {
+      if (reminder.flagType === "Agenda") {
+        return false;
+      }
+
       const reminderDate = new Date(
         reminder.reminderAt
       );
@@ -317,6 +328,10 @@ export default function ReminderStartupPopup() {
     });
 
     const upcoming = reminders.filter((reminder) => {
+      if (reminder.flagType === "Agenda") {
+        return false;
+      }
+
       const reminderDate = new Date(
         reminder.reminderAt
       );
@@ -327,11 +342,17 @@ export default function ReminderStartupPopup() {
       );
     });
 
+    const agenda = reminders.filter(
+      (reminder) => reminder.flagType === "Agenda"
+    );
+
     return {
       overdue,
       today,
       upcoming,
+      agenda,
     };
+
   }, [reminders]);
 
   const userCanResolve = canCreateFlags(
@@ -419,8 +440,7 @@ export default function ReminderStartupPopup() {
             </h2>
 
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              Open reminders that are overdue, due today,
-              or due during the next seven calendar days.
+              Open reminders and agenda items that require attention.
             </p>
           </div>
 
@@ -463,7 +483,15 @@ export default function ReminderStartupPopup() {
             resolvingId={resolvingId}
             onResolve={handleResolve}
           />
-
+          <ReminderList
+            title="Agenda"
+            description="Open operational items and ongoing work"
+            reminders={groupedReminders.agenda}
+            tone="green"
+            canResolve={userCanResolve}
+            resolvingId={resolvingId}
+            onResolve={handleResolve}
+          />
           {error ? (
             <div className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
               {error}

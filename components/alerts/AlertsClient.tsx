@@ -376,13 +376,14 @@ function AlertGroup({
   title: string;
   description: string;
   count: number;
-  tone: "red" | "amber" | "blue" | "slate";
+  tone: "red" | "amber" | "blue" | "green" | "slate";
   children: React.ReactNode;
 }) {
   const toneClasses = {
     red: "border-rose-200 bg-rose-50 text-rose-700",
     amber: "border-amber-200 bg-amber-50 text-amber-700",
     blue: "border-blue-200 bg-blue-50 text-blue-700",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
     slate: "border-slate-200 bg-slate-50 text-slate-700",
   };
 
@@ -444,6 +445,7 @@ function CreateFlagModal({
 
   const flagTypes = [
     "REMINDER",
+    "Agenda",
     "Risk Review",
     "Earnings Upcoming",
     "Valuation Stretched",
@@ -1020,8 +1022,16 @@ export default function AlertsClient({
     }
   );
 
+  const agendaFlags = filteredFlags.filter(
+    (flag) =>
+      flag.status === "OPEN" &&
+      flag.flagType === "Agenda"
+  );
+
   const undatedFlags = filteredFlags.filter(
-    (flag) => !flag.reminderAt
+    (flag) =>
+      !flag.reminderAt &&
+      flag.flagType !== "Agenda"
   );
 
   const datedFlagCount =
@@ -1351,7 +1361,16 @@ export default function AlertsClient({
                       {laterFlags.map(renderFlag)}
                     </AlertGroup>
                   ) : null}
-
+                  {agendaFlags.length ? (
+                    <AlertGroup
+                      title="Agenda"
+                      description="Open operational items and ongoing work"
+                      count={agendaFlags.length}
+                      tone="green"
+                    >
+                      {agendaFlags.map(renderFlag)}
+                    </AlertGroup>
+                  ) : null}
                   {undatedFlags.length ? (
                     <AlertGroup
                       title="No Date"

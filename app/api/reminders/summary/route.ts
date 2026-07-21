@@ -102,14 +102,21 @@ export async function GET(request: Request) {
       );
     }
 
-    const reminders = await prisma.flag.findMany({
-      where: {
-        status: "OPEN",
-        reminderAt: {
-          not: null,
-          lte: throughDate,
+   const reminders = await prisma.flag.findMany({
+    where: {
+      status: "OPEN",
+      OR: [
+        {
+          reminderAt: {
+            not: null,
+            lte: throughDate,
+          },
         },
-      },
+        {
+          flagType: "Agenda",
+        },
+      ],
+    },
       select: {
         id: true,
         flagType: true,
