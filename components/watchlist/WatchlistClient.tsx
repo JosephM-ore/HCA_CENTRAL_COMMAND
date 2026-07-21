@@ -14,6 +14,7 @@ import HcaLogo from "@/components/common/HcaLogo";
 type WatchlistClientProps = {
   initialEntries: WatchlistEntry[];
   portfolioSecurities: PortfolioSecurity[];
+  mode?: "WATCHLIST" | "PORTFOLIO";
 };
 
 type WatchlistAuthor = {
@@ -1467,6 +1468,7 @@ function CommentModal({
 export default function WatchlistClient({
   initialEntries,
   portfolioSecurities,
+  mode = "WATCHLIST",
 }: WatchlistClientProps) {
   const [entries, setEntries] = useState<any[]>(initialEntries);
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -1480,6 +1482,15 @@ export default function WatchlistClient({
   const [editingEntry, setEditingEntry] = useState<any | null>(null);
   const [confirmRemoveEntryId, setConfirmRemoveEntryId] =
   useState<string | null>(null);
+  const activeSecurityIds = useMemo(
+    () =>
+      new Set(
+        portfolioSecurities.map(
+          (security) => security.id
+        )
+      ),
+    [portfolioSecurities]
+  );
     useEffect(() => {
     if (!confirmRemoveEntryId) {
       return;
@@ -1506,10 +1517,25 @@ export default function WatchlistClient({
 }, []);
   const filteredEntries = useMemo(() => {
   const normalizedQuery = query.trim().toLowerCase();
+  const modeFilteredEntries =
+    mode === "PORTFOLIO"
+      ? entries.filter((entry) =>
+          activeSecurityIds.has(
+            entry.securityId
+          )
+        )
+      : entries.filter(
+          (entry) =>
+            !activeSecurityIds.has(
+              entry.securityId
+            )
+        );
+  if (!normalizedQuery) {
+    return modeFilteredEntries;
+  }
 
-  if (!normalizedQuery) return entries;
-
-  return entries.filter((entry) => {
+  return modeFilteredEntries.filter(
+    (entry) => {
     const commentText =
     entry.comments?.map((comment: any) => comment.content).join(" ") || "";
     const flagText =
@@ -1534,7 +1560,12 @@ export default function WatchlistClient({
 
     return searchable.includes(normalizedQuery);
   });
-}, [entries, query]);
+}, [
+  entries,
+  query,
+  mode,
+  activeSecurityIds,
+]);
 
 const longEntries = useMemo(
   () => filteredEntries.filter((entry) => entry.side === "LONG"),
@@ -1733,10 +1764,24 @@ async function handleRemoveEntry(entry: any) {
                 </Link>
 
                 <Link
-                    href="/watchlist"
-                    className="block rounded-2xl bg-slate-900 px-3 py-2.5 text-sm text-white shadow-sm"
+                  href="/watchlist"
+                  className={`block rounded-2xl px-3 py-2.5 text-sm ${
+                    mode === "WATCHLIST"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
                 >
-                    Watchlist
+                  Watchlist
+                </Link>
+                <Link
+                  href="/portfolio"
+                  className={`block rounded-2xl px-3 py-2.5 text-sm ${
+                    mode === "PORTFOLIO"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  Portfolio
                 </Link>
 
                 <Link
@@ -1779,7 +1824,12 @@ async function handleRemoveEntry(entry: any) {
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
             <div>
-              <p className="text-sm font-medium text-slate-900">Watchlist</p>
+              <p className="text-sm font-medium text-slate-900">
+                {mode === "PORTFOLIO"
+                  ? "Portfolio"
+                  : "Watchlist"}
+              </p>
+
               <p className="text-xs text-slate-500">Long and short idea pipeline</p>
             </div>
 
@@ -1796,14 +1846,16 @@ async function handleRemoveEntry(entry: any) {
                             <div className="flex items-end justify-between">
                               <div>
                                 <h2 className="text-3xl font-semibold tracking-tight">
-                                  Watchlist
+                                  {mode === "PORTFOLIO"
+                                    ? "Portfolio"
+                                    : "Watchlist"}
                                 </h2>
-                                <p className="mt-1 text-sm text-slate-500">
-                                  Long and short watchlists with entry and exit
-                                  targets, percent from target, market data, flags,
-                                  and comments.
-                                </p>
-                              </div>
+                                  <p className="mt-1 text-sm text-slate-500">
+                                    {mode === "PORTFOLIO"
+                                      ? "Active portfolio positions with targets, comments, flags, and market intelligence."
+                                      : "Long and short idea pipeline with entry and exit targets, comments, and market data."}
+                                  </p>
+                                </div>
 
                               {userCanEditWatchlist ? (
                                 <button

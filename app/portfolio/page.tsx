@@ -100,12 +100,12 @@ export default async function WatchlistPage() {
   );
 
   return (
-  <WatchlistClient
-    initialEntries={serializedEntries}
-    portfolioSecurities={
-      serializedPortfolioSecurities
-    }
-    mode="WATCHLIST"
-  />
-);
+    <WatchlistClient
+        initialEntries={serializedEntries}
+        portfolioSecurities={
+        serializedPortfolioSecurities
+        }
+        mode="PORTFOLIO"
+    />
+    );
 }
