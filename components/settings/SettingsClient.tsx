@@ -163,26 +163,7 @@ function WellsUploadResultPanel({
           </span>
         </div>
       </div>
-      {result?.newlyCreatedSecurities?.length > 0 ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-semibold text-amber-900">
-                Sector Classification Required
-              </p>
-
-              <div className="mt-2 space-y-1">
-                {result.newlyCreatedSecurities.map(
-                  (security: any) => (
-                    <div
-                      key={security.id}
-                      className="text-sm text-amber-800"
-                    >
-                      {security.ticker} — {security.name}
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-          ) : null}
+      
       {result.failures?.length ? (
         <div className="max-h-56 overflow-auto rounded-2xl border border-amber-200 bg-amber-50">
           {result.failures.map((failure: string, index: number) => (
@@ -944,6 +925,36 @@ async function handleWellsUpload() {
                         title="Tax lots / positions upload complete"
                         result={wellsTaxLotsUploadResult}
                       />
+                    ) : null}
+                    {wellsTaxLotsUploadResult?.newlyCreatedSecurities?.length > 0 ? (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <p className="font-semibold text-amber-900">
+                          Sector Classification Required
+                        </p>
+
+                        <p className="mt-1 text-sm text-amber-700">
+                          New securities were created during the Wells upload and require sector assignment.
+                        </p>
+
+                        <div className="mt-3 space-y-2">
+                          {wellsTaxLotsUploadResult.newlyCreatedSecurities.map(
+                            (security: any) => (
+                              <div
+                                key={security.id}
+                                className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700"
+                              >
+                                <span className="font-semibold">
+                                  {security.ticker}
+                                </span>
+
+                                {" — "}
+
+                                {security.name}
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
                     ) : null}
 
                     {wellsTransactionsUploadResult ? (
