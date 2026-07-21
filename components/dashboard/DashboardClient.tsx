@@ -2211,10 +2211,10 @@ async function handleSaveFlag(payload: {
                   />
  
                    <StatCard
-                    label="Net Portfolio"
-                    value={formatMoney(netMarketValue)}
-                    sub="Long exposure less short exposure"
-                  />
+                      label="Net Investments"
+                      value={formatMoney(netMarketValue)}
+                      sub="Long exposure less short exposure"
+                    />
 
                   
                   <StatCard
