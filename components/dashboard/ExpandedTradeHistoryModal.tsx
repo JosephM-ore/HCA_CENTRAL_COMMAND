@@ -235,7 +235,7 @@ function TradeHistoryTableRow({
   onEditNote: (trade: any) => void;
 }) {
   return (
-    <div className="grid min-w-[1800px] grid-cols-13 items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs last:border-b-0 hover:bg-slate-50">
+    <div className="grid min-w-[1800px] grid-cols-13 items-center gap-1 border-b border-slate-100 px-4 py-3 text-xs last:border-b-0 hover:bg-slate-50">
       <div>
         <LocalDateTime
           value={row.trade.dateTraded}
@@ -353,7 +353,7 @@ function TradeHistoryTableRow({
       >
         {row.trade.comment || "—"}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {row.trade.source === "MANUAL" &&
         row.trade.reconciliationStatus ===
           "MANUAL_PENDING" ? (
@@ -390,17 +390,34 @@ function TradeHistoryTableRow({
                     row.trade.id
                   );
                 }}
-                className={`rounded-xl px-2 py-1 text-xs font-medium ${
+                className={`inline-flex items-center justify-center rounded-xl ${
                   confirmDeleteTradeId ===
                   row.trade.id
                     ? "bg-rose-600 text-white hover:bg-rose-700"
-                    : "bg-rose-50 text-rose-700 hover:bg-rose-100"
+                    : "h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                 }`}
               >
                 {confirmDeleteTradeId ===
-                row.trade.id
-                  ? "Confirm"
-                  : "Delete"}
+                  row.trade.id ? (
+                    "Confirm"
+                  ) : (
+                    <svg
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="M6 6l1 15h10l1-15" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                    </svg>
+                  )}
               </button>
             )}
           </>
@@ -952,7 +969,7 @@ export default function ExpandedTradeHistoryModal({
 
             <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white">
               <div className="overflow-x-auto">
-                <div className="grid min-w-[1800px] grid-cols-13 gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <div className="grid min-w-[1800px] grid-cols-13 gap-1 border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                     <div>Date Traded</div>
                     <div>Type</div>
                     <div>Shares</div>
