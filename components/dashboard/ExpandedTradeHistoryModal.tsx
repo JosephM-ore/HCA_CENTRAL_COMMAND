@@ -221,6 +221,7 @@ function TradeHistoryTableRow({
   setConfirmDeleteTradeId,
   deletingTradeId,
   onDeleteTrade,
+  onEditNote,
 }: {
   row: TradeHistoryRow;
   confirmDeleteTradeId: string | null;
@@ -231,6 +232,7 @@ function TradeHistoryTableRow({
   onDeleteTrade: (
     tradeId: string
   ) => Promise<void>;
+  onEditNote: (trade: any) => void;
 }) {
   return (
     <div className="grid min-w-[1800px] grid-cols-13 items-center gap-3 border-b border-slate-100 px-4 py-3 text-xs last:border-b-0 hover:bg-slate-50">
@@ -358,6 +360,7 @@ function TradeHistoryTableRow({
           <>
             <button
               type="button"
+              onClick={() => onEditNote(row.trade)}
               className="rounded-xl bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
             >
               {row.trade.comment
@@ -436,6 +439,12 @@ export default function ExpandedTradeHistoryModal({
     deletingTradeId,
     setDeletingTradeId,
   ] = useState<string | null>(null);
+
+  const [editingTrade, setEditingTrade] =
+  useState<any | null>(null);
+
+  const [tradeNote, setTradeNote] =
+    useState("");
 
   useEffect(() => {
     if (!confirmDeleteTradeId) {
@@ -913,22 +922,28 @@ export default function ExpandedTradeHistoryModal({
 
                 {displayedRows.length ? (
                   displayedRows.map((row) => (
-                    <TradeHistoryTableRow
-                      key={row.trade.id}
-                      row={row}
-                      confirmDeleteTradeId={
-                        confirmDeleteTradeId
-                      }
-                      setConfirmDeleteTradeId={
-                        setConfirmDeleteTradeId
-                      }
-                      deletingTradeId={
-                        deletingTradeId
-                      }
-                      onDeleteTrade={
-                        handleDeleteTrade
-                      }
-                    />
+                  <TradeHistoryTableRow
+                    key={row.trade.id}
+                    row={row}
+                    confirmDeleteTradeId={
+                      confirmDeleteTradeId
+                    }
+                    setConfirmDeleteTradeId={
+                      setConfirmDeleteTradeId
+                    }
+                    deletingTradeId={
+                      deletingTradeId
+                    }
+                    onDeleteTrade={
+                      handleDeleteTrade
+                    }
+                    onEditNote={(trade) => {
+                      setEditingTrade(trade);
+                      setTradeNote(
+                        trade.comment || ""
+                      );
+                    }}
+                  />
                   ))
                 ) : (
                   <div className="px-6 py-10 text-center text-sm text-slate-500">
@@ -955,7 +970,65 @@ export default function ExpandedTradeHistoryModal({
 
           </section>
         </div>
+        {editingTrade ? (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/30 p-4">
+            <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-950">
+                    {editingTrade.comment
+                      ? "Edit Trade Note"
+                      : "Add Trade Note"}
+                  </h3>
 
+                  <p className="mt-1 text-sm text-slate-500">
+                    {position.security.ticker}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingTrade(null)
+                  }
+                  className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <textarea
+                value={tradeNote}
+                onChange={(event) =>
+                  setTradeNote(
+                    event.target.value
+                  )
+                }
+                className="mt-4 h-32 w-full resize-none rounded-2xl border border-slate-200 p-4 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                placeholder="Enter trade note..."
+              />
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingTrade(null)
+                  }
+                  className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                >
+                  Save Note
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div className="flex shrink-0 justify-end border-t border-slate-200 bg-white p-4">
           <button
             type="button"
