@@ -7,7 +7,9 @@ export type TradeAction =
 export type TradeSizingMode =
   | "SHARES"
   | "NOTIONAL"
-  | "TARGET_WEIGHT";
+  | "TARGET_WEIGHT"
+  | "AMOUNT_BPS";
+
 
 export type TradeBaselineMode =
   | "WELLS"
@@ -47,12 +49,14 @@ export type TradeCalculatorInput = {
   sizingMode: TradeSizingMode;
   sharesInput?: number | null;
   notionalInput?: number | null;
+  basisPointsInput?: number | null;
   targetWeightPctInput?: number | null;
   estimatedPrice?: number | null;
   stopPrice?: number | null;
   targetPrice?: number | null;
   dateTraded?: string | null;
   comment?: string | null;
+  
 };
 
 export type TradeCalculatorResult = {
@@ -528,7 +532,55 @@ export function calculateTradeScenario(
         ) * proposedShares;
     }
   }
+  if (
+    input.sizingMode === "AMOUNT_BPS"
+  ) {
+    const basisPointsInput =
+      toFiniteNumber(
+        input.basisPointsInput
+      );
 
+    if (
+      basisPointsInput == null ||
+      basisPointsInput <= 0
+    ) {
+      errors.push(
+        "Amount (BPS) must be greater than zero."
+      );
+    } else if (
+      grossPortfolioMarketValue <= 0
+    ) {
+      errors.push(
+        "Gross portfolio market value is required for Amount (BPS) sizing."
+      );
+    } else if (
+      estimatedPrice != null &&
+      estimatedPrice > 0
+    ) {
+      const notionalAmount =
+        grossPortfolioMarketValue *
+        (basisPointsInput / 10000);
+
+      proposedShares =
+        roundShares(
+          notionalAmount /
+            estimatedPrice
+        );
+
+      if (
+        proposedShares === 0
+      ) {
+        errors.push(
+          "The Amount (BPS) value is too small to purchase one share."
+        );
+      }
+
+      proposedSignedShareChange =
+        getActionDirection(
+          input.tradeAction
+        ) * proposedShares;
+    }
+  }
   if (
     input.sizingMode === "TARGET_WEIGHT"
   ) {

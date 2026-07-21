@@ -266,6 +266,10 @@ export default function TradeScenarioPanel({
     useState("");
 
   const [
+    basisPointsInput,
+    setBasisPointsInput,
+  ] = useState("");
+  const [
     targetWeightPctInput,
     setTargetWeightPctInput,
   ] = useState("");
@@ -317,6 +321,7 @@ export default function TradeScenarioPanel({
     setSizingMode("TARGET_WEIGHT");
     setSharesInput("");
     setNotionalInput("");
+    setBasisPointsInput("");
     setTargetWeightPctInput("");
 
     setEstimatedPriceInput(
@@ -370,6 +375,10 @@ export default function TradeScenarioPanel({
           toInputNumber(sharesInput),
         notionalInput:
           toInputNumber(notionalInput),
+        basisPointsInput:
+            toInputNumber(
+              basisPointsInput
+            ),
         targetWeightPctInput:
           toInputNumber(
             targetWeightPctInput
@@ -423,6 +432,9 @@ export default function TradeScenarioPanel({
     if (nextMode !== "NOTIONAL") {
       setNotionalInput("");
     }
+    if (nextMode !== "AMOUNT_BPS") {
+      setBasisPointsInput("");
+    }
 
     if (
       nextMode !== "TARGET_WEIGHT"
@@ -439,6 +451,7 @@ export default function TradeScenarioPanel({
     setSizingMode("TARGET_WEIGHT");
     setSharesInput("");
     setNotionalInput("");
+    setBasisPointsInput("");
     setTargetWeightPctInput("");
 
     setEstimatedPriceInput(
@@ -529,6 +542,7 @@ export default function TradeScenarioPanel({
       setSizingMode("TARGET_WEIGHT");
       setSharesInput("");
       setNotionalInput("");
+      setBasisPointsInput("");
       setTargetWeightPctInput("");
 
       setEstimatedPriceInput(
@@ -640,14 +654,15 @@ export default function TradeScenarioPanel({
               Sizing Mode
             </label>
 
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="mt-2 grid grid-cols-4 gap-2">
               {(
                 [
+                  ["AMOUNT_BPS", "Amount (BPS)"],
+                  ["SHARES", "Shares"],
                   [
                     "TARGET_WEIGHT",
                     "Target Weight",
                   ],
-                  ["SHARES", "Shares"],
                   ["NOTIONAL", "Notional"],
                 ] as const
               ).map(([value, label]) => (
@@ -745,6 +760,38 @@ export default function TradeScenarioPanel({
               </div>
             </div>
           ) : null}
+
+          {sizingMode ===
+            "AMOUNT_BPS" ? (
+              <div className="mt-4">
+                <label className="text-sm font-medium text-slate-700">
+                  Amount (BPS)
+                </label>
+
+                <div className="relative mt-2">
+                  <input
+                    value={
+                      basisPointsInput
+                    }
+                    onChange={(event) =>
+                      setBasisPointsInput(
+                        event.target.value
+                      )
+                    }
+                    inputMode="decimal"
+                    placeholder="50"
+                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 pr-12 text-sm outline-none focus:ring-2 focus:ring-slate-900"
+                  />
+
+                  <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm text-slate-400">
+                    bps
+                  </span>
+                </div>
+
+                
+              </div>
+            ) : null}
+
           {result.warnings.length > 0 ? (
             <section className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
               <ul className="space-y-1 text-xs leading-5 text-amber-800">
