@@ -429,6 +429,8 @@ export default function ExpandedTradeHistoryModal({
     hiddenTradeIds,
     setHiddenTradeIds,
   ] = useState<string[]>([]);
+  const [localTrades, setLocalTrades] =
+  useState<any[]>([]);
 
   const [
     confirmDeleteTradeId,
@@ -457,24 +459,28 @@ export default function ExpandedTradeHistoryModal({
 
     return () => clearTimeout(timeout);
   }, [confirmDeleteTradeId]);
-  
+
+  useEffect(() => {
+    setLocalTrades(
+      Array.isArray(position?.trades)
+        ? position.trades
+        : []
+    );
+  }, [position]);
+
   const currentPrice = position
     ? getDisplayCurrentPrice(position)
     : null;
 
     const visibleTrades = useMemo(
-    () =>
-      (
-        Array.isArray(position?.trades)
-          ? position.trades
-          : []
-      ).filter(
+      () =>
+        localTrades.filter(
         (trade: any) =>
           !hiddenTradeIds.includes(
             trade.id
           )
       ),
-    [position, hiddenTradeIds]
+    [localTrades, hiddenTradeIds]
   );
 
   const analytics = useMemo(
@@ -560,7 +566,17 @@ export default function ExpandedTradeHistoryModal({
       return;
     }
 
-    editingTrade.comment = tradeNote;
+    setLocalTrades((currentTrades) =>
+      currentTrades.map((trade) =>
+        trade.id === editingTrade.id
+          ? {
+              ...trade,
+              comment:
+                tradeNote || null,
+            }
+          : trade
+      )
+    );
 
     setEditingTrade(null);
   }
