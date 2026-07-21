@@ -15,6 +15,15 @@ type TradeSort = "NEWEST" | "OLDEST";
 type ExpandedTradeHistoryModalProps = {
   position: any | null;
   onClose: () => void;
+  onTradeDeleted: (
+    positionId: string,
+    tradeId: string
+  ) => void;
+  onTradeNoteUpdated: (
+    positionId: string,
+    tradeId: string,
+    comment: string | null
+  ) => void;
 };
 
 function formatMoney(
@@ -435,7 +444,10 @@ function TradeHistoryTableRow({
 export default function ExpandedTradeHistoryModal({
   position,
   onClose,
+  onTradeDeleted,
+  onTradeNoteUpdated,
 }: ExpandedTradeHistoryModalProps) {
+
   const [tradeFilter, setTradeFilter] =
     useState<TradeFilter>("ALL");
 
@@ -547,6 +559,10 @@ export default function ExpandedTradeHistoryModal({
           tradeId,
         ]
       );
+      onTradeDeleted(
+        position.id,
+        tradeId
+      );
 
       setConfirmDeleteTradeId(null);
     } finally {
@@ -593,6 +609,11 @@ export default function ExpandedTradeHistoryModal({
             }
           : trade
       )
+    );
+    onTradeNoteUpdated(
+      position.id,
+      editingTrade.id,
+      tradeNote || null
     );
 
     setEditingTrade(null);

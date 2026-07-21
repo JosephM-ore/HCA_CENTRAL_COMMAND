@@ -2011,6 +2011,135 @@ setSelectedPosition((currentPosition: any | null) => {
 });
 }
 
+function handleTradeDeleted(
+  positionId: string,
+  tradeId: string
+) {
+  setLocalPositions((currentPositions) =>
+    currentPositions.map((position) => {
+      if (position.id !== positionId) {
+        return position;
+      }
+
+      return {
+        ...position,
+        trades: (position.trades || []).filter(
+          (trade: any) =>
+            trade.id !== tradeId
+        ),
+      };
+    })
+  );
+
+  setSelectedPosition(
+    (currentPosition: any) => {
+      if (
+        !currentPosition ||
+        currentPosition.id !==
+          positionId
+      ) {
+        return currentPosition;
+      }
+
+      return {
+        ...currentPosition,
+        trades: (
+          currentPosition.trades || []
+        ).filter(
+          (trade: any) =>
+            trade.id !== tradeId
+        ),
+      };
+    }
+  );
+
+  setExpandedTradeHistoryPosition(
+    (currentPosition: any) => {
+      if (
+        !currentPosition ||
+        currentPosition.id !==
+          positionId
+      ) {
+        return currentPosition;
+      }
+
+      return {
+        ...currentPosition,
+        trades: (
+          currentPosition.trades || []
+        ).filter(
+          (trade: any) =>
+            trade.id !== tradeId
+        ),
+      };
+    }
+  );
+}
+
+function handleTradeNoteUpdated(
+  positionId: string,
+  tradeId: string,
+  comment: string | null
+) {
+  function updateTrade(
+    position: any
+  ) {
+    return {
+      ...position,
+      trades: (
+        position.trades || []
+      ).map((trade: any) =>
+        trade.id === tradeId
+          ? {
+              ...trade,
+              comment,
+            }
+          : trade
+      ),
+    };
+  }
+
+  setLocalPositions((currentPositions) =>
+    currentPositions.map((position) =>
+      position.id === positionId
+        ? updateTrade(position)
+        : position
+    )
+  );
+
+  setSelectedPosition(
+    (currentPosition: any) => {
+      if (
+        !currentPosition ||
+        currentPosition.id !==
+          positionId
+      ) {
+        return currentPosition;
+      }
+
+      return updateTrade(
+        currentPosition
+      );
+    }
+  );
+
+  setExpandedTradeHistoryPosition(
+    (currentPosition: any) => {
+      if (
+        !currentPosition ||
+        currentPosition.id !==
+          positionId
+      ) {
+        return currentPosition;
+      }
+
+      return updateTrade(
+        currentPosition
+      );
+    }
+  );
+}
+
 function handleSectorUpdated(
   securityId: string,
   sector: string
@@ -2353,6 +2482,12 @@ async function handleSaveFlag(payload: {
               position={expandedTradeHistoryPosition}
               onClose={() =>
                 setExpandedTradeHistoryPosition(null)
+              }
+              onTradeDeleted={
+                handleTradeDeleted
+              }
+              onTradeNoteUpdated={
+                handleTradeNoteUpdated
               }
             />
 
