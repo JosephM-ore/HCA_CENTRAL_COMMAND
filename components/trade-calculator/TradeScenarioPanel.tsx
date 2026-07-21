@@ -762,6 +762,21 @@ export default function TradeScenarioPanel({
               </ul>
             </section>
           ) : null}
+          {showValidation &&
+            result.errors.length > 0 ? (
+              <section className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2">
+
+                <ul className="space-y-1 text-xs leading-5 text-rose-700">
+                  {result.errors.map(
+                    (error) => (
+                      <li key={error}>
+                        • {error}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </section>
+            ) : null}
           <div className="mt-4">
             <label className="text-sm font-medium text-slate-700">
               Estimated Execution Price
@@ -1128,24 +1143,7 @@ export default function TradeScenarioPanel({
         </div>
       </section>
 
-      {showValidation &&
-      result.errors.length > 0 ? (
-        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-          <p className="text-sm font-semibold text-rose-800">
-            Scenario needs attention
-          </p>
-
-          <ul className="mt-2 space-y-1 text-sm text-rose-700">
-            {result.errors.map(
-              (error) => (
-                <li key={error}>
-                  • {error}
-                </li>
-              )
-            )}
-          </ul>
-        </section>
-      ) : null}
+      
 
       
       {submissionMessage ? (
