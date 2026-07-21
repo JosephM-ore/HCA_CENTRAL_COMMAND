@@ -530,7 +530,40 @@ export default function ExpandedTradeHistoryModal({
       setDeletingTradeId(null);
     }
   }
+  async function handleSaveTradeNote() {
+    if (!editingTrade) {
+      return;
+    }
 
+    const response = await fetch(
+      `/api/trades/manual/${editingTrade.id}/note`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          comment: tradeNote,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      window.alert(
+        data.error ||
+          "Failed to save trade note."
+      );
+
+      return;
+    }
+
+    editingTrade.comment = tradeNote;
+
+    setEditingTrade(null);
+  }
   const displayedRows = useMemo(() => {
     const filteredRows =
       analytics.rows.filter((row) => {
@@ -1021,6 +1054,7 @@ export default function ExpandedTradeHistoryModal({
 
                 <button
                   type="button"
+                  onClick={handleSaveTradeNote}
                   className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
                 >
                   Save Note
