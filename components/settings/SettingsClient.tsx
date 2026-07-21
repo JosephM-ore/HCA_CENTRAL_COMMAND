@@ -188,7 +188,11 @@ export default function SettingsClient({
 }: SettingsClientProps) {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [sectors, setSectors] =
-  useState<{ name: string; count: number }[]>([]);
+  useState<string[]>([]);
+  const [
+    pendingClassifications,
+    setPendingClassifications,
+  ] = useState<Record<string, string>>({});
 
   const [registrationApprovals, setRegistrationApprovals] =
     useState<any[]>(initialRegistrationApprovals);
@@ -261,7 +265,12 @@ export default function SettingsClient({
 
           const data = await response.json();
 
-          setSectors(data.sectors || []);
+          setSectors(
+            (data.sectors || []).map(
+              (sector: any) => sector.name
+            )
+          );
+
         } catch {
           console.error(
             "Failed to load sectors."
@@ -424,7 +433,23 @@ async function handleWellsUpload() {
 
   try {
     const taxLotsResult = await uploadSingleWellsFile(wellsTaxLotsFile);
+
     setWellsTaxLotsUploadResult(taxLotsResult);
+
+    if (
+      taxLotsResult?.newlyCreatedSecurities?.length
+    ) {
+      setPendingClassifications(
+        Object.fromEntries(
+          taxLotsResult.newlyCreatedSecurities.map(
+            (security: any) => [
+              security.id,
+              "",
+            ]
+          )
+        )
+      );
+    }
 
     const transactionsResult = await uploadSingleWellsFile(
       wellsTransactionsFile
@@ -443,7 +468,61 @@ async function handleWellsUpload() {
   }
 }
 
-    async function handleRefreshMarketData() {
+async function handleSaveClassifications() {
+  const securities =
+    wellsTaxLotsUploadResult?.newlyCreatedSecurities || [];
+
+  for (const security of securities) {
+    const sector =
+      pendingClassifications[security.id];
+
+    if (!sector) {
+      window.alert(
+        "Every security must have a sector."
+      );
+
+      return;
+    }
+  }
+
+  try {
+    for (const security of securities) {
+      await fetch(
+        `/api/securities/${security.id}/sector`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            sector:
+              pendingClassifications[
+                security.id
+              ],
+          }),
+        }
+      );
+    }
+
+    setWellsTaxLotsUploadResult(
+      (current: any) => ({
+        ...current,
+        newlyCreatedSecurities: [],
+      })
+    );
+
+    window.alert(
+      "Sector classifications saved."
+    );
+  } catch {
+    window.alert(
+      "Failed to save classifications."
+    );
+  }
+}
+
+async function handleRefreshMarketData() {
         setIsRefreshingMarketData(true);
         setMarketDataRefreshResult(null);
         setMarketDataRefreshError("");
@@ -926,34 +1005,76 @@ async function handleWellsUpload() {
                         result={wellsTaxLotsUploadResult}
                       />
                     ) : null}
-                    {wellsTaxLotsUploadResult?.newlyCreatedSecurities?.length > 0 ? (
+                    {wellsTaxLotsUploadResult?.newlyCreatedSecurities
+                      ?.length > 0 ? (
                       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                         <p className="font-semibold text-amber-900">
                           Sector Classification Required
                         </p>
 
                         <p className="mt-1 text-sm text-amber-700">
-                          New securities were created during the Wells upload and require sector assignment.
+                          New securities were created during
+                          the Wells upload.
                         </p>
 
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-4 space-y-3">
                           {wellsTaxLotsUploadResult.newlyCreatedSecurities.map(
                             (security: any) => (
                               <div
                                 key={security.id}
-                                className="rounded-xl bg-white px-3 py-2 text-sm text-slate-700"
+                                className="flex items-center justify-between gap-4"
                               >
-                                <span className="font-semibold">
-                                  {security.ticker}
-                                </span>
+                                <div>
+                                  <div className="font-semibold text-slate-900">
+                                    {security.ticker}
+                                  </div>
 
-                                {" — "}
+                                  <div className="text-sm text-slate-500">
+                                    {security.name}
+                                  </div>
+                                </div>
 
-                                {security.name}
+                                <select
+                                  value={
+                                    pendingClassifications[
+                                      security.id
+                                    ] || ""
+                                  }
+                                  onChange={(event) =>
+                                    setPendingClassifications(
+                                      (current) => ({
+                                        ...current,
+                                        [security.id]:
+                                          event.target.value,
+                                      })
+                                    )
+                                  }
+                                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                                >
+                                  <option value="">
+                                    Select Sector
+                                  </option>
+
+                                  {sectors.map((sector) => (
+                                    <option
+                                      key={sector}
+                                      value={sector}
+                                    >
+                                      {sector}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                             )
                           )}
                         </div>
+
+                        <button
+                          onClick={handleSaveClassifications}
+                          className="mt-4 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                        >
+                          Save Classifications
+                        </button>
                       </div>
                     ) : null}
 
