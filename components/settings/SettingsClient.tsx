@@ -130,6 +130,8 @@ function WellsUploadResultPanel({
             {result.securitiesCreated ?? "N/A"}
           </span>
 
+          
+
           <span>Securities updated</span>
           <span className="font-semibold">
             {result.securitiesUpdated ?? "N/A"}
@@ -161,7 +163,26 @@ function WellsUploadResultPanel({
           </span>
         </div>
       </div>
+      {result?.newlyCreatedSecurities?.length > 0 ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900">
+                Sector Classification Required
+              </p>
 
+              <div className="mt-2 space-y-1">
+                {result.newlyCreatedSecurities.map(
+                  (security: any) => (
+                    <div
+                      key={security.id}
+                      className="text-sm text-amber-800"
+                    >
+                      {security.ticker} — {security.name}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          ) : null}
       {result.failures?.length ? (
         <div className="max-h-56 overflow-auto rounded-2xl border border-amber-200 bg-amber-50">
           {result.failures.map((failure: string, index: number) => (
@@ -826,34 +847,7 @@ async function handleWellsUpload() {
                     </div>
                 </SettingsCard>
                 
-                <SettingsCard
-                  eyebrow="Classification"
-                  title="Sector Management"
-                  description="Current security classifications used for future portfolio exposure reporting."
-                >
-                  <div className="space-y-2">
-                    {sectors.length ? (
-                      sectors.map((sector) => (
-                        <div
-                          key={sector.name}
-                          className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
-                        >
-                          <span className="text-sm font-medium text-slate-900">
-                            {sector.name}
-                          </span>
-
-                          <span className="text-xs font-semibold text-slate-500">
-                            {sector.count} securities
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                        No sectors configured.
-                      </div>
-                    )}
-                  </div>
-                </SettingsCard>
+                
                 
                 <div className="lg:col-span-2">
                   <SettingsCard
