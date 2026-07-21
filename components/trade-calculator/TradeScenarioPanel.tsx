@@ -749,7 +749,19 @@ export default function TradeScenarioPanel({
               </div>
             </div>
           ) : null}
-
+          {result.warnings.length > 0 ? (
+            <section className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+              <ul className="space-y-1 text-xs leading-5 text-amber-800">
+                {result.warnings.map(
+                  (warning) => (
+                    <li key={warning}>
+                      • {warning}
+                    </li>
+                  )
+                )}
+              </ul>
+            </section>
+          ) : null}
           <div className="mt-4">
             <label className="text-sm font-medium text-slate-700">
               Estimated Execution Price
@@ -863,23 +875,7 @@ export default function TradeScenarioPanel({
           >
             Reset Scenario
           </button>
-          {result.warnings.length > 0 ? (
-            <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-semibold text-amber-900">
-                Scenario Notes
-              </p>
-
-              <ul className="mt-2 space-y-1 text-sm leading-6 text-amber-800">
-                {result.warnings.map(
-                  (warning) => (
-                    <li key={warning}>
-                      • {warning}
-                    </li>
-                  )
-                )}
-              </ul>
-            </section>
-          ) : null}
+          
         </section>
 
         <section className="min-w-0 space-y-4">
