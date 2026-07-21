@@ -208,9 +208,10 @@ function PositionGrid({
       <SectionBar title={title} tone={tone} />
 
       <div className="overflow-x-auto">
-        <div className="grid min-w-[1180px] grid-cols-12 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        <div className="grid min-w-[1300x] grid-cols-13 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
           <div>Ticker</div>
           <div className="col-span-2">Company Name</div>
+          <div>Sector</div>
           <div>Current Price</div>
           <div>% Change In Trading Day</div>
           <div>Mrkt Value Of Position</div>
@@ -238,7 +239,7 @@ function PositionGrid({
           return (
             <div
               key={position.id}
-              className={`grid min-w-[1180px] grid-cols-12 items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50 ${
+              className={`grid min-w-[1300] grid-cols-13 items-center border-b border-slate-100 px-4 py-3 text-xs transition hover:bg-slate-50 ${
                 selectedId === position.id ? "bg-slate-100" : "bg-white"
               }`}
             >
@@ -256,6 +257,10 @@ function PositionGrid({
 
               <div className="col-span-2 truncate text-slate-600">
                 {position.security.name}
+              </div>
+
+              <div>
+                {position.security.sector || "—"}
               </div>
 
               
@@ -432,6 +437,12 @@ function TickerDetailPanel({
               <Badge tone={position.side === "SHORT" ? "red" : "green"}>
                 {position.side}
               </Badge>
+
+              {security.sector ? (
+                <Badge tone="blue">
+                  {security.sector}
+                </Badge>
+              ) : null}
 
               {openFlag ? <Badge tone="amber">{openFlag.flagType}</Badge> : null}
             </div>
@@ -2242,9 +2253,17 @@ async function handleSaveFlag(payload: {
                     "All",
                     "Long",
                     "Short",
-                    
                     "Flagged",
-                    
+                    ...Array.from(
+                      new Set(
+                        localPositions
+                          .map(
+                            (position) =>
+                              position.security?.sector
+                          )
+                          .filter(Boolean)
+                      )
+                    ).sort(),
                   ].map((filter) => (
                     <button
                       key={filter}
