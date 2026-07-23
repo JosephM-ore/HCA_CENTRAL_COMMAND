@@ -148,22 +148,30 @@ export default function SummaryModal({
       }));
 
     const profitRankings =
-      [...positionsWithDayPnl]
-        .sort(
-          (a, b) =>
-            b.calculatedDayPnl -
-            a.calculatedDayPnl
-        )
-        .slice(0, 10);
+        positionsWithDayPnl
+            .filter(
+            (position) =>
+                position.calculatedDayPnl > 0
+            )
+            .sort(
+            (a, b) =>
+                b.calculatedDayPnl -
+                a.calculatedDayPnl
+            )
+            .slice(0, 10);
 
     const lossRankings =
-      [...positionsWithDayPnl]
-        .sort(
-          (a, b) =>
-            a.calculatedDayPnl -
-            b.calculatedDayPnl
-        )
-        .slice(0, 10);
+        positionsWithDayPnl
+            .filter(
+            (position) =>
+                position.calculatedDayPnl < 0
+            )
+            .sort(
+            (a, b) =>
+                a.calculatedDayPnl -
+                b.calculatedDayPnl
+            )
+            .slice(0, 10);
 
     const longPositions =
       positionsWithDayPnl.filter(
