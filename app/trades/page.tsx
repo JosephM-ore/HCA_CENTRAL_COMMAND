@@ -4,29 +4,29 @@ import TradesClient from "@/components/trades/TradesClient";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
- const [
-  wellsActivePositionCount,
-  latestFundEquitySnapshot,
-] = await Promise.all([
-  prisma.position.count({
-    where: {
-      status: "ACTIVE",
-      source: "WELLS_FARGO",
-    },
-  }),
+const [
+    wellsActivePositionCount,
+    fundEquitySnapshots,
+  ] = await Promise.all([
+    prisma.position.count({
+      where: {
+        status: "ACTIVE",
+        source: "WELLS_FARGO",
+      },
+    }),
 
-  prisma.fundEquitySnapshot.findFirst({
-    orderBy: {
-      asOfDate: "desc",
-    },
-    select: {
-      id: true,
-      asOfDate: true,
-      netEquity: true,
-      source: true,
-    },
-  }),
-]);
+    prisma.fundEquitySnapshot.findMany({
+      orderBy: {
+        asOfDate: "desc",
+      },
+      select: {
+        id: true,
+        asOfDate: true,
+        netEquity: true,
+        source: true,
+      },
+    }),
+  ]);
 
 const positions =
   await prisma.position.findMany({
@@ -146,20 +146,18 @@ const positions =
       JSON.stringify(positions)
     );
 
-  const serializedFundEquitySnapshot =
-    latestFundEquitySnapshot
-      ? JSON.parse(
-          JSON.stringify(
-            latestFundEquitySnapshot
-          )
-        )
-      : null;
+  const serializedFundEquitySnapshots =
+    JSON.parse(
+      JSON.stringify(
+        fundEquitySnapshots
+      )
+    );
 
   return (
     <TradesClient
       positions={serializedPositions}
-      fundEquitySnapshot={
-        serializedFundEquitySnapshot
+      fundEquitySnapshots={
+        serializedFundEquitySnapshots
       }
     />
   );

@@ -7,14 +7,16 @@ import Badge from "@/components/common/Badge";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 import LocalDateTime from "@/components/common/LocalDateTime";
 
+type FundEquitySnapshot = {
+  id: string;
+  asOfDate: string;
+  netEquity: number;
+  source: string;
+};
+
 type TradesClientProps = {
   positions: any[];
-  fundEquitySnapshot: {
-    id: string;
-    asOfDate: string;
-    netEquity: number;
-    source: string;
-  } | null;
+  fundEquitySnapshots: FundEquitySnapshot[];
 };
 
 function formatMoney(
@@ -33,7 +35,25 @@ function formatMoney(
     maximumFractionDigits: 0,
   });
 }
+function formatBps(
+  value: number | null
+) {
+  if (
+    value == null ||
+    !Number.isFinite(value)
+  ) {
+    return "—";
+  }
 
+  const roundedValue =
+    Math.round(value);
+
+  return `${
+    roundedValue > 0 ? "+" : ""
+  }${roundedValue.toLocaleString(
+    "en-US"
+  )} bps`;
+}
 function sourceTone(source?: string | null) {
   if (source === "WELLS_FARGO") {
     return "green";
@@ -95,10 +115,54 @@ function formatReconciliationStatus(
     )
     .join(" ");
 }
+function getLocalDateKey(
+  value: string | Date
+) {
+  const date = new Date(value);
 
+  const year =
+    date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getSnapshotDateKey(
+  value: string | Date
+) {
+  const date = new Date(value);
+
+  const year =
+    date.getUTCFullYear();
+
+  const month = String(
+    date.getUTCMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getUTCDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
 function formatDay(
   value: string
 ) {
+  const [
+    year,
+    month,
+    day,
+  ] = value
+    .split("-")
+    .map(Number);
+
   return new Intl.DateTimeFormat(
     "en-US",
     {
@@ -106,15 +170,22 @@ function formatDay(
       day: "numeric",
       year: "numeric",
     }
-  ).format(new Date(value));
+  ).format(
+    new Date(
+      year,
+      month - 1,
+      day
+    )
+  );
 }
-
 function SummaryCard({
   label,
   value,
+  detail,
 }: {
   label: string;
   value: React.ReactNode;
+  detail?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -122,16 +193,24 @@ function SummaryCard({
         {label}
       </p>
 
-      <p className="mt-2 text-2xl font-semibold text-slate-950">
-        {value}
-      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <p className="text-2xl font-semibold text-slate-950 tabular-nums">
+          {value}
+        </p>
+
+        {detail ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {detail}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
 
 export default function TradesClient({
   positions,
-  fundEquitySnapshot,
+  fundEquitySnapshots,
 }: TradesClientProps) {
   const [query, setQuery] =
     useState("");
@@ -219,11 +298,10 @@ export default function TradesClient({
           ).getTime()
       )
       .forEach((trade) => {
-        const dateKey = new Date(
+       const dateKey =
+        getLocalDateKey(
           trade.dateTraded
-        )
-          .toISOString()
-          .slice(0, 10);
+        );
 
         if (!groups.has(dateKey)) {
           groups.set(dateKey, []);
@@ -301,6 +379,8 @@ export default function TradesClient({
                   grossNotional
                 )}
               />
+              
+            
 
               <SummaryCard
                 label="Pending Trades"
@@ -377,7 +457,88 @@ export default function TradesClient({
                         ),
                       0
                     );
+                  const dayExposureChanges =
+                    trades.reduce(
+                      (
+                        totals,
+                        trade
+                      ) => {
+                        const tradeNotional =
+                          Math.abs(
+                            Number(
+                              trade.shares ?? 0
+                            ) *
+                              Number(
+                                trade.avgPrice ?? 0
+                              )
+                          );
 
+                        if (
+                          trade.tradeType === "BUY"
+                        ) {
+                          totals.longNotional +=
+                            tradeNotional;
+                        } else if (
+                          trade.tradeType === "SELL"
+                        ) {
+                          totals.longNotional -=
+                            tradeNotional;
+                        } else if (
+                          trade.tradeType === "SHORT"
+                        ) {
+                          totals.shortNotional +=
+                            tradeNotional;
+                        } else if (
+                          trade.tradeType === "COVER"
+                        ) {
+                          totals.shortNotional -=
+                            tradeNotional;
+                        }
+
+                        return totals;
+                      },
+                      {
+                        longNotional: 0,
+                        shortNotional: 0,
+                      }
+                    );
+
+                  const applicableFundEquity =
+                    fundEquitySnapshots.find(
+                      (snapshot) =>
+                        getSnapshotDateKey(
+                          snapshot.asOfDate
+                        ) <= date
+                    ) ?? null;
+
+                  const dayNetEquity = Number(
+                    applicableFundEquity
+                      ?.netEquity
+                  );
+
+                  const hasValidDayNetEquity =
+                    Number.isFinite(
+                      dayNetEquity
+                    ) &&
+                    dayNetEquity > 0;
+
+                  const dayLongExposureBps =
+                    hasValidDayNetEquity
+                      ? (
+                          dayExposureChanges
+                            .longNotional /
+                          dayNetEquity
+                        ) * 10_000
+                      : null;
+
+                  const dayShortExposureBps =
+                    hasValidDayNetEquity
+                      ? (
+                          dayExposureChanges
+                            .shortNotional /
+                          dayNetEquity
+                        ) * 10_000
+                      : null;
                   const dayPending =
                     trades.filter(
                       (
@@ -409,15 +570,63 @@ export default function TradesClient({
                                 </p>
                           </div>
 
-                          <div className="text-right">
-                            <p className="text-xs uppercase tracking-wide text-slate-500">
-                                Gross Notional
-                            </p>
+                          <div className="flex items-center gap-5">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <span
+                                title={
+                                  applicableFundEquity
+                                    ? `Calculated using Net Equity of ${formatMoney(
+                                        dayNetEquity
+                                      )} as of ${formatDay(
+                                        getSnapshotDateKey(
+                                          applicableFundEquity
+                                            .asOfDate
+                                        )
+                                      )}`
+                                    : "No Net Equity snapshot was available on or before this trade date."
+                                }
+                                className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 tabular-nums"
+                              >
+                                Long{" "}
+                                {formatBps(
+                                  dayLongExposureBps
+                                )}
+                              </span>
 
-                            <p className="text-xl font-semibold text-slate-950">
-                                {formatMoney(dayNotional)}
-                            </p>
+                              <span
+                                title={
+                                  applicableFundEquity
+                                    ? `Calculated using Net Equity of ${formatMoney(
+                                        dayNetEquity
+                                      )} as of ${formatDay(
+                                        getSnapshotDateKey(
+                                          applicableFundEquity
+                                            .asOfDate
+                                        )
+                                      )}`
+                                    : "No Net Equity snapshot was available on or before this trade date."
+                                }
+                                className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 tabular-nums"
+                              >
+                                Short{" "}
+                                {formatBps(
+                                  dayShortExposureBps
+                                )}
+                              </span>
                             </div>
+
+                            <div className="text-right">
+                              <p className="text-xs uppercase tracking-wide text-slate-500">
+                                Gross Notional
+                              </p>
+
+                              <p className="text-xl font-semibold text-slate-950 tabular-nums">
+                                {formatMoney(
+                                  dayNotional
+                                )}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
