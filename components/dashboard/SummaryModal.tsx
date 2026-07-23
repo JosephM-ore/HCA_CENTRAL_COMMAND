@@ -393,9 +393,7 @@ export default function SummaryModal({
                     position.security?.ticker,
                     formatNumber(position.shares),
                     formatPrice(
-                        position.security
-                        ?.marketData?.[0]
-                        ?.currentPrice
+                        getDisplayCurrentPrice(position)
                     ),
                     formatMoney(
                         position.marketValue
