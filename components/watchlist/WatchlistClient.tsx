@@ -1,5 +1,6 @@
 "use client";
 
+import AppSidebar from "@/components/common/AppSidebar";
 import Link from "next/link";
 import LocalDateTime from "@/components/common/LocalDateTime";
 import Badge from "@/components/common/Badge";
@@ -850,6 +851,7 @@ function AddStockModal({
   onClose,
   onAdd,
   portfolioSecurities,
+  mode,
 }: {
   open: boolean;
   onClose: () => void;
@@ -861,6 +863,7 @@ function AddStockModal({
     comment: string;
   }) => Promise<void>;
   portfolioSecurities: PortfolioSecurity[];
+  mode: "WATCHLIST" | "PORTFOLIO";
 }) {
 
 
@@ -871,6 +874,10 @@ function AddStockModal({
   const [comment, setComment] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  const isActivePortfolioSecurity = portfolioSecurities.some(
+    (security) =>
+      security.ticker.toUpperCase() === ticker.trim().toUpperCase()
+  );
 
   if (!open) return null;
 
@@ -879,6 +886,15 @@ function AddStockModal({
 
     if (!ticker.trim()) {
       setError("Ticker is required.");
+      return;
+    }
+    if (
+      mode === "WATCHLIST" &&
+      isActivePortfolioSecurity
+    ) {
+      setError(
+        "This security is already an active portfolio position. Use the Portfolio view instead."
+      );
       return;
     }
 
@@ -932,14 +948,21 @@ function AddStockModal({
         </div>
 
         <div className="mt-5 space-y-3">
-          <input
+         <input
             value={ticker}
             onChange={(event) => setTicker(event.target.value)}
             className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-slate-900"
             placeholder="Ticker, e.g. AMD"
           />
 
-          {portfolioSecurities.length ? (
+          {mode === "WATCHLIST" && isActivePortfolioSecurity ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              This security is currently an active portfolio position and will appear in
+              the Portfolio view instead of the Watchlist.
+            </div>
+          ) : null}
+
+          {mode === "PORTFOLIO" && portfolioSecurities.length ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Current Portfolio
@@ -1068,7 +1091,10 @@ function AddStockModal({
 
           <button
             onClick={handleSubmit}
-            disabled={isSaving}
+            disabled={
+              isSaving ||
+              (mode === "WATCHLIST" && isActivePortfolioSecurity)
+            }
             className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSaving ? "Adding..." : "Add Stock"}
@@ -1744,82 +1770,14 @@ async function handleRemoveEntry(entry: any) {
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
       <div className="flex h-full">
-        <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
-          <div className="mb-6 flex items-center gap-3 px-2 py-2">
-            <HcaLogo />
-            <div>
-              <h1 className="font-semibold leading-tight">
-                HCA Central Command
-              </h1>
-              <p className="text-xs text-slate-500">Portfolio operations hub</p>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-                <Link
-                    href="/"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Home / Positions
-                </Link>
-
-                <Link
-                  href="/watchlist"
-                  className={`block rounded-2xl px-3 py-2.5 text-sm ${
-                    mode === "WATCHLIST"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  Watchlist
-                </Link>
-                <Link
-                  href="/portfolio"
-                  className={`block rounded-2xl px-3 py-2.5 text-sm ${
-                    mode === "PORTFOLIO"
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  Portfolio
-                </Link>
-
-                <Link
-                    href="/past-positions"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Past Positions
-                </Link>
-
-                <Link
-                    href="/comments"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Comments
-                </Link>
-
-                <Link
-                    href="/alerts"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Alerts
-                </Link>
-                <a
-                    href="/trade-calculator"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Trade Calculator
-                </a>
-                <Link
-                    href="/settings"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Settings
-                </Link>
-                </nav>
-
-          
-        </aside>
+        
+        <AppSidebar
+          activePage={
+            mode === "PORTFOLIO"
+              ? "/portfolio"
+              : "/watchlist"
+          }
+        />
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
@@ -1936,6 +1894,20 @@ async function handleRemoveEntry(entry: any) {
               confirmRemoveEntryId={confirmRemoveEntryId}
               setConfirmRemoveEntryId={setConfirmRemoveEntryId}
             />
+             <WatchlistGrid
+              title="Short Watchlist"
+              tone="red"
+              entries={shortEntries}
+              onSelect={setSelectedEntry}
+              onMarketData={setMarketDataEntry}
+              onComment={setCommentEntry}
+              onEdit={setEditingEntry}
+              onRemove={handleRemoveEntry}
+              canComment={userCanCreateComments}
+              canEdit={userCanEditWatchlist}
+              confirmRemoveEntryId={confirmRemoveEntryId}
+              setConfirmRemoveEntryId={setConfirmRemoveEntryId}
+            />
                 
               </div>
             </div>
@@ -1960,6 +1932,7 @@ async function handleRemoveEntry(entry: any) {
         onClose={() => setAddModalOpen(false)}
         onAdd={handleAddEntry}
         portfolioSecurities={portfolioSecurities}
+        mode={mode}
       />
 
       <EditWatchlistModal
