@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 import AppSidebar from "@/components/common/AppSidebar";
 import ExpandedTradeHistoryModal from "@/components/dashboard/ExpandedTradeHistoryModal";
+import SummaryModal from "@/components/dashboard/SummaryModal";
 import {
   canCreateComments,
   canCreateFlags,
@@ -1702,6 +1703,8 @@ export default function DashboardClient({ positions }: DashboardClientProps) {
     expandedTradeHistoryPosition,
     setExpandedTradeHistoryPosition,
   ] = useState<any | null>(null);
+  const [showSummaryModal, setShowSummaryModal] =
+  useState(false);
 
   const userCanCreateComments = canCreateComments(currentUser?.role);
   const userCanCreateFlags = canCreateFlags(currentUser?.role);
@@ -2263,7 +2266,15 @@ async function handleSaveFlag(payload: {
                       flags, and comments.
                     </p>
                   </div>
-
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowSummaryModal(true)
+                    }
+                    className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                  >
+                    Summaries
+                  </button>
                  
                 </div>
 
@@ -2426,7 +2437,12 @@ async function handleSaveFlag(payload: {
                 handleTradeNoteUpdated
               }
             />
-
+            <SummaryModal
+              open={showSummaryModal}
+              onClose={() =>
+                setShowSummaryModal(false)
+              }
+            />
             <FlagModal
               position={flagPosition}
               onClose={() => setFlagPosition(null)}
