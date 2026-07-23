@@ -197,7 +197,33 @@ export default function SettingsClient({
   const [revokingApprovalId, setRevokingApprovalId] =
     useState<string | null>(null);
 
-  const [isUploadingWells, setIsUploadingWells] = useState(false);
+  const [isUploadingWells, setIsUploadingWells] =
+    useState(false);
+
+  const [wellsNetEquity, setWellsNetEquity] =
+    useState("");
+
+  const [
+    wellsNetEquityDate,
+    setWellsNetEquityDate,
+  ] = useState(
+    getTodayDateInputValue
+  );
+
+  const [
+    isSavingFundEquity,
+    setIsSavingFundEquity,
+  ] = useState(false);
+
+  const [
+    wellsFundEquityResult,
+    setWellsFundEquityResult,
+  ] = useState<any | null>(null);
+
+  const [
+    wellsFundEquityError,
+    setWellsFundEquityError,
+  ] = useState("");
   const [wellsTaxLotsFile, setWellsTaxLotsFile] = useState<File | null>(null);
   const [wellsTransactionsFile, setWellsTransactionsFile] = useState<File | null>(
     null
@@ -400,8 +426,136 @@ async function uploadSingleWellsFile(file: File) {
   return data;
 }
 
+async function saveFundEquity(
+  asOfDate: string,
+  netEquity: number
+) {
+  const response = await fetch(
+    "/api/fund-equity",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        asOfDate,
+        netEquity,
+      }),
+    }
+  );
+
+  const text = await response.text();
+
+  let data: any = null;
+
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(
+      text ||
+        "Unexpected Net Equity response."
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data.error ||
+        "Failed to save Net Equity."
+    );
+  }
+
+  return data;
+}
+function getTodayDateInputValue() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(
+    now.getMonth() + 1
+  ).padStart(2, "0");
+  const day = String(
+    now.getDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+function parseMoneyInput(
+  value: string
+): number | null {
+  const cleanedValue = value.replace(
+    /[$,\s]/g,
+    ""
+  );
+
+  if (!cleanedValue) {
+    return null;
+  }
+
+  const numericValue =
+    Number(cleanedValue);
+
+  if (
+    !Number.isFinite(numericValue) ||
+    numericValue <= 0
+  ) {
+    return null;
+  }
+
+  return numericValue;
+}
+async function handleSaveFundEquity() {
+  const parsedNetEquity =
+    parseMoneyInput(
+      wellsNetEquity
+    );
+
+  if (!wellsNetEquityDate) {
+    setWellsFundEquityError(
+      "Please select an As of Date."
+    );
+    return;
+  }
+
+  if (parsedNetEquity == null) {
+    setWellsFundEquityError(
+      "Please enter a valid Net Equity amount greater than zero."
+    );
+    return;
+  }
+
+  setIsSavingFundEquity(true);
+  setWellsFundEquityResult(null);
+  setWellsFundEquityError("");
+
+  try {
+    const result =
+      await saveFundEquity(
+        wellsNetEquityDate,
+        parsedNetEquity
+      );
+
+    setWellsFundEquityResult(
+      result
+    );
+
+    setWellsNetEquity("");
+  } catch (error) {
+    setWellsFundEquityError(
+      error instanceof Error
+        ? error.message
+        : "Failed to save Net Equity."
+    );
+  } finally {
+    setIsSavingFundEquity(false);
+  }
+}
 async function handleWellsUpload() {
-  if (!wellsTaxLotsFile || !wellsTransactionsFile) {
+  if (
+    !wellsTaxLotsFile ||
+    !wellsTransactionsFile
+  ) {
     setWellsUploadError(
       "Please select both Wells files before uploading: TaxLotDailyTD and ActTDDaily."
     );
@@ -414,41 +568,61 @@ async function handleWellsUpload() {
   setWellsUploadError("");
 
   try {
-    const taxLotsResult = await uploadSingleWellsFile(wellsTaxLotsFile);
+    const taxLotsResult =
+      await uploadSingleWellsFile(
+        wellsTaxLotsFile
+      );
 
-    setWellsTaxLotsUploadResult(taxLotsResult);
+    setWellsTaxLotsUploadResult(
+      taxLotsResult
+    );
 
     if (
-      taxLotsResult?.newlyCreatedSecurities?.length
+      taxLotsResult
+        ?.newlyCreatedSecurities
+        ?.length
     ) {
       setPendingClassifications(
         Object.fromEntries(
-          taxLotsResult.newlyCreatedSecurities.map(
-            (security: any) => [
-              security.id,
-              "",
-            ]
-          )
+          taxLotsResult
+            .newlyCreatedSecurities
+            .map(
+              (security: any) => [
+                security.id,
+                "",
+              ]
+            )
         )
       );
     }
 
-    const transactionsResult = await uploadSingleWellsFile(
-      wellsTransactionsFile
+    const transactionsResult =
+      await uploadSingleWellsFile(
+        wellsTransactionsFile
+      );
+
+    setWellsTransactionsUploadResult(
+      transactionsResult
     );
-    setWellsTransactionsUploadResult(transactionsResult);
 
     setWellsTaxLotsFile(null);
     setWellsTransactionsFile(null);
-    setWellsFileInputResetKey((currentKey) => currentKey + 1);
+
+    setWellsFileInputResetKey(
+      (currentKey) =>
+        currentKey + 1
+    );
   } catch (error) {
     setWellsUploadError(
-      error instanceof Error ? error.message : "Wells upload failed."
+      error instanceof Error
+        ? error.message
+        : "Wells upload failed."
     );
   } finally {
     setIsUploadingWells(false);
   }
 }
+
 
 async function handleSaveClassifications() {
   const securities =
@@ -888,10 +1062,100 @@ async function handleRefreshMarketData() {
                       step="1"
                       title="Wells CSV Upload"
                       description="Upload Wells files first. TaxLotDailyTD refreshes positions, tax lots, and closed-position detection. ActTDDaily refreshes trade history and reconciliation."
-                      details="Updates: positions, past-position detection, tax lots, trades, and trade reconciliation. Does not update current prices or SEC fundamentals."
+                      details="Daily Net Equity can be saved independently. CSV uploads update positions, past-position detection, tax lots, trades, and trade reconciliation. Neither operation updates current prices or SEC fundamentals."
                     >
                       {userCanViewAuditLogs ? (
                         <div className="w-96 max-w-full space-y-3">
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Daily Fund Equity
+                              </p>
+
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                Save the Wells Net Equity / NAV independently from the CSV uploads.
+                              </p>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-xs font-semibold text-slate-600">
+                                  As of Date
+                                </label>
+
+                                <input
+                                  type="date"
+                                  value={wellsNetEquityDate}
+                                  disabled={
+                                    isSavingFundEquity
+                                  }
+                                  onChange={(event) => {
+                                    setWellsNetEquityDate(
+                                      event.target.value
+                                    );
+                                    setWellsFundEquityResult(
+                                      null
+                                    );
+                                    setWellsFundEquityError(
+                                      ""
+                                    );
+                                  }}
+                                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-xs font-semibold text-slate-600">
+                                  Net Equity / NAV
+                                </label>
+
+                                <div className="relative mt-1">
+                                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-500">
+                                    $
+                                  </span>
+
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={wellsNetEquity}
+                                    disabled={
+                                      isSavingFundEquity
+                                    }
+                                    onChange={(event) => {
+                                      setWellsNetEquity(
+                                        event.target.value
+                                      );
+                                      setWellsFundEquityResult(
+                                        null
+                                      );
+                                      setWellsFundEquityError(
+                                        ""
+                                      );
+                                    }}
+                                    placeholder="184,250,000"
+                                    className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm font-medium tabular-nums text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={handleSaveFundEquity}
+                              disabled={isSavingFundEquity}
+                              className="mt-3 w-full rounded-2xl bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isSavingFundEquity
+                                ? "Saving Net Equity..."
+                                : "Save Net Equity"}
+                            </button>
+
+                            {wellsFundEquityError ? (
+                              <div className="mt-3 rounded-xl bg-rose-100 px-3 py-2 text-xs font-medium text-rose-700">
+                                {wellsFundEquityError}
+                              </div>
+                            ) : null}
+                          </div>
                           <div>
                             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                               TaxLotDailyTD / Positions
@@ -933,7 +1197,14 @@ async function handleRefreshMarketData() {
                           <button
                             type="button"
                             onClick={handleWellsUpload}
-                            disabled={isUploadingWells || !wellsTaxLotsFile || !wellsTransactionsFile}
+                            disabled={
+                              isUploadingWells ||
+                              !wellsTaxLotsFile ||
+                              !wellsTransactionsFile ||
+                              parseMoneyInput(
+                                wellsNetEquity
+                              ) == null
+                            }
                             className="w-full rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {isUploadingWells ? "Uploading Wells files..." : "Upload both Wells files"}
@@ -945,7 +1216,56 @@ async function handleRefreshMarketData() {
                         </div>
                       )}
                     </DataOperationStep>
+                    {wellsFundEquityResult?.snapshot ? (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                        <p className="font-semibold">
+                          Net Equity saved
+                        </p>
 
+                        <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          <span>Report date</span>
+
+                          <span className="font-semibold">
+                            {new Date(
+                              wellsFundEquityResult
+                                .snapshot.asOfDate
+                            ).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "long",
+                                day: "numeric",
+                                year: "numeric",
+                                timeZone: "UTC",
+                              }
+                            )}
+                          </span>
+
+                          <span>Net Equity</span>
+
+                          <span className="font-semibold tabular-nums">
+                            {Number(
+                              wellsFundEquityResult
+                                .snapshot.netEquity
+                            ).toLocaleString(
+                              "en-US",
+                              {
+                                style: "currency",
+                                currency: "USD",
+                                maximumFractionDigits: 0,
+                              }
+                            )}
+                          </span>
+
+                          <span>Action</span>
+
+                          <span className="font-semibold">
+                            {wellsFundEquityResult.created
+                              ? "Created"
+                              : "Updated"}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null}
                     {wellsTaxLotsUploadResult ? (
                       <WellsUploadResultPanel
                         title="Tax lots / positions upload complete"
@@ -1075,11 +1395,7 @@ async function handleRefreshMarketData() {
                         {wellsUploadError}
                       </div>
                     ) : null}
-                    {wellsUploadError ? (
-                      <div className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-700">
-                        {wellsUploadError}
-                      </div>
-                    ) : null}
+                   
 
 
 
