@@ -37,6 +37,7 @@ const navItems = [
   { href: "/", label: "Home / Positions" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/alerts", label: "Alerts" },
+  { href: "/meetings", label: "Meetings" },
 
   { href: "/comments", label: "Comments" },
   { href: "/trades", label: "Trades" },
