@@ -1,17 +1,9 @@
 "use client";
-
-import { useState } from "react";
-
-function formatMoney(value: number) {
-  return value.toLocaleString(
-    "en-US",
-    {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }
-  );
-}
+import {
+  getDisplayCurrentPrice,
+  getDisplayDayPctChange,
+} from "@/lib/dashboard/position-metrics";
+import { useMemo, useState } from "react";
 
 type SummaryModalProps = {
   open: boolean;
@@ -19,63 +11,105 @@ type SummaryModalProps = {
   positions: any[];
 };
 
-function SummaryCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-xs uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
+function formatMoney(value: number | null | undefined) {
+  return (value ?? 0).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
 
-      <p className="mt-2 text-2xl font-semibold">
-        {value}
-      </p>
-    </div>
+function formatPrice(value: number | null | undefined) {
+  if (value == null) return "—";
+
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatNumber(value: number | null | undefined) {
+  if (value == null) return "—";
+
+  return value.toLocaleString("en-US", {
+    maximumFractionDigits: 0,
+  });
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (value == null) {
+    return "—";
+  }
+
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
+function getDayPnl(position: any) {
+  const marketValue = Number(
+    position.marketValue || 0
+  );
+
+  const dayPctChange =
+  getDisplayDayPctChange(position) || 0;
+
+  return (
+    (marketValue * dayPctChange) /
+    100
   );
 }
 
-function RankingCard({
+function ReportTable({
   title,
-  positions,
+  columns,
+  rows,
 }: {
   title: string;
-  positions: any[];
+  columns: string[];
+  rows: React.ReactNode[][];
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 px-4 py-3 font-semibold">
-        {title}
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+        <h3 className="font-semibold text-slate-900">
+          {title}
+        </h3>
       </div>
 
-      <div>
-        {positions.map(position => (
-          <div
-            key={position.id}
-            className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-sm last:border-b-0"
-          >
-            <span>
-              {
-                position.security
-                  .ticker
-              }
-            </span>
+      <div className="overflow-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              {columns.map((column) => (
+                <th
+                  key={column}
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                >
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
 
-           <span>
-            {formatMoney(
-                Number(
-                position.marketValue ||
-                position.unrealizedPnl ||
-                0
-                )
-            )}
-            </span>
-          </div>
-        ))}
+          <tbody>
+            {rows.map((row, index) => (
+              <tr
+                key={index}
+                className="border-b border-slate-100 hover:bg-slate-50"
+              >
+                {row.map((cell, cellIndex) => (
+                  <td
+                    key={cellIndex}
+                    className="px-4 py-3"
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -85,228 +119,123 @@ export default function SummaryModal({
   open,
   onClose,
   positions,
-}: SummaryModalProps)
- {
+}: SummaryModalProps) {
   const [activeTab, setActiveTab] =
     useState("EXECUTIVE");
 
-    const grossInvestments =
-  positions.reduce(
-    (sum, position) =>
-      sum +
-      Math.abs(
-        Number(
-          position.marketValue || 0
+  const analytics = useMemo(() => {
+    const positionsWithDayPnl =
+      positions.map((position) => ({
+        ...position,
+        calculatedDayPnl:
+          getDayPnl(position),
+      }));
+
+    const profitRankings =
+      [...positionsWithDayPnl]
+        .sort(
+          (a, b) =>
+            b.calculatedDayPnl -
+            a.calculatedDayPnl
         )
-      ),
-    0
-  );
+        .slice(0, 10);
 
-const netInvestments =
-  positions.reduce(
-    (sum, position) =>
-      sum +
-      Number(
-        position.marketValue || 0
-      ),
-    0
-  );
-
-const totalUnrealizedPnl =
-  positions.reduce(
-    (sum, position) =>
-      sum +
-      Number(
-        position.unrealizedPnl || 0
-      ),
-    0
-  );
-
-const dayPnl =
-  positions.reduce(
-    (sum, position) =>
-      sum +
-      ((Number(
-        position.marketValue || 0
-      ) *
-        Number(
-          position.dayPctChange || 0
-        )) /
-        100),
-    0
-  );
-
-const topWinners = [...positions]
-  .sort(
-    (a, b) =>
-      Number(
-        b.unrealizedPnl || 0
-      ) -
-      Number(
-        a.unrealizedPnl || 0
-      )
-  )
-  .slice(0, 10);
-
-const topLosers = [...positions]
-  .sort(
-    (a, b) =>
-      Number(
-        a.unrealizedPnl || 0
-      ) -
-      Number(
-        b.unrealizedPnl || 0
-      )
-  )
-  .slice(0, 10);
-
-const bestLongsToday =
-  positions
-    .filter(
-      p => p.side === "LONG"
-    )
-    .sort(
-      (a, b) =>
-        Number(
-          b.dayPctChange || 0
-        ) -
-        Number(
-          a.dayPctChange || 0
+    const lossRankings =
+      [...positionsWithDayPnl]
+        .sort(
+          (a, b) =>
+            a.calculatedDayPnl -
+            b.calculatedDayPnl
         )
-    )
-    .slice(0, 10);
+        .slice(0, 10);
 
-const worstShortsToday =
-  positions
-    .filter(
-      p => p.side === "SHORT"
-    )
-    .sort(
-      (a, b) =>
-        Number(
-          a.dayPctChange || 0
-        ) -
-        Number(
-          b.dayPctChange || 0
+    const longPositions =
+      positionsWithDayPnl.filter(
+        (position) =>
+          position.side === "LONG"
+      );
+
+    const shortPositions =
+      positionsWithDayPnl.filter(
+        (position) =>
+          position.side === "SHORT"
+      );
+
+    const sectorExposure =
+      Object.entries(
+        positions.reduce(
+          (
+            accumulator,
+            position
+          ) => {
+            const sector =
+              position.security
+                ?.sector ||
+              "Unclassified";
+
+            const exposure =
+              Math.abs(
+                Number(
+                  position.marketValue ||
+                    0
+                )
+              );
+
+            accumulator[sector] =
+              (accumulator[
+                sector
+              ] || 0) + exposure;
+
+            return accumulator;
+          },
+          {} as Record<
+            string,
+            number
+          >
         )
-    )
-    .slice(0, 10);
-const longPositions =
-  positions.filter(
-    p => p.side === "LONG"
-  );
+      ).sort(
+        (a, b) =>
+          Number(b[1]) -
+          Number(a[1])
+      );
 
-const shortPositions =
-  positions.filter(
-    p => p.side === "SHORT"
-  );
+    const totalExposure =
+      sectorExposure.reduce(
+        (
+          sum,
+          [, exposure]
+        ) =>
+          sum +
+          Number(exposure),
+        0
+      );
 
-const totalLongExposure =
-  longPositions.reduce(
-    (sum, position) =>
-      sum +
-      Number(
-        position.marketValue || 0
-      ),
-    0
-  );
-
-const totalShortExposure =
-  shortPositions.reduce(
-    (sum, position) =>
-      sum +
-      Math.abs(
-        Number(
-          position.marketValue || 0
-        )
-      ),
-    0
-  );
-
-const grossExposure =
-  totalLongExposure +
-  totalShortExposure;
-
-const sectorExposure = Object.entries(
-  positions.reduce(
-    (
-      accumulator,
-      position
-    ) => {
-      const sector =
-        position.security?.sector ||
-        "Unclassified";
-
-      accumulator[sector] =
-        (accumulator[
-          sector
-        ] || 0) +
-        Math.abs(
-          Number(
-            position.marketValue || 0
-          )
-        );
-
-      return accumulator;
-    },
-    {} as Record<
-      string,
-      number
-    >
-  )
-)
-  .sort(
-    (a, b) =>
-      Number(b[1]) -
-      Number(a[1])
-  )
-  .slice(0, 15);
-
-const largestLongs =
-  [...longPositions]
-    .sort(
-      (a, b) =>
-        Number(
-          b.marketValue || 0
-        ) -
-        Number(
-          a.marketValue || 0
-        )
-    )
-    .slice(0, 15);
-
-const largestShorts =
-  [...shortPositions]
-    .sort(
-      (a, b) =>
-        Math.abs(
-          Number(
-            b.marketValue || 0
-          )
-        ) -
-        Math.abs(
-          Number(
-            a.marketValue || 0
-          )
-        )
-    )
-    .slice(0, 15);
+    return {
+      profitRankings,
+      lossRankings,
+      longPositions,
+      shortPositions,
+      sectorExposure,
+      totalExposure,
+    };
+  }, [positions]);
 
   if (!open) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm">
-      <div className="flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+      <div className="flex h-[92vh] w-full max-w-[1700px] flex-col overflow-hidden rounded-3xl bg-slate-100 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white p-6">
           <div>
             <h2 className="text-2xl font-semibold text-slate-950">
-              Fund Summaries
+              Fund Report Center
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Executive dashboard and portfolio analytics.
+              Executive summary and
+              portfolio reporting.
             </p>
           </div>
 
@@ -318,7 +247,7 @@ const largestShorts =
           </button>
         </div>
 
-        <div className="border-b border-slate-200 px-6 py-3">
+        <div className="border-b border-slate-200 bg-white px-6 py-3">
           <div className="flex gap-2">
             <button
               onClick={() =>
@@ -357,148 +286,191 @@ const largestShorts =
         <div className="flex-1 overflow-auto p-6">
           {activeTab ===
           "EXECUTIVE" ? (
-            <div className="space-y-5">
+            <div className="space-y-6">
 
-        <div className="grid grid-cols-4 gap-4">
-            <SummaryCard
-            label="Gross Investments"
-            value={formatMoney(
-                grossInvestments
-            )}
-            />
+              <ReportTable
+                title="Top 10 Profit Rankings"
+                columns={[
+                  "Ticker",
+                  "Side",
+                  "Quantity",
+                  "Day P&L",
+                ]}
+                rows={analytics.profitRankings.map(
+                  (
+                    position
+                  ) => [
+                    position
+                      .security
+                      ?.ticker,
+                    position.side,
+                    formatNumber(
+                      position.shares
+                    ),
+                    <span className="font-semibold text-emerald-600">
+                      {formatMoney(
+                        position.calculatedDayPnl
+                      )}
+                    </span>,
+                  ]
+                )}
+              />
 
-            <SummaryCard
-            label="Net Investments"
-            value={formatMoney(
-                netInvestments
-            )}
-            />
+              <ReportTable
+                title="Top 10 Loss Rankings"
+                columns={[
+                  "Ticker",
+                  "Side",
+                  "Quantity",
+                  "Day P&L",
+                ]}
+                rows={analytics.lossRankings.map(
+                  (
+                    position
+                  ) => [
+                    position
+                      .security
+                      ?.ticker,
+                    position.side,
+                    formatNumber(
+                      position.shares
+                    ),
+                    <span className="font-semibold text-rose-600">
+                      {formatMoney(
+                        position.calculatedDayPnl
+                      )}
+                    </span>,
+                  ]
+                )}
+              />
 
-            <SummaryCard
-            label="Unrealized P&L"
-            value={formatMoney(
-                totalUnrealizedPnl
-            )}
-            />
+              <ReportTable
+                title="Long Positions Day Change"
+                columns={[
+                    "Ticker",
+                    "Quantity",
+                    "Last Price",
+                    "Market Value",
+                    "Net ($)",
+                    "Change %",
+                ]}
+                rows={analytics.longPositions.map(
+                    (position) => [
+                    position.security?.ticker,
+                    formatNumber(position.shares),
+                    formatPrice(
+                        getDisplayCurrentPrice(position)
+                    ),
+                    formatMoney(
+                        position.marketValue
+                    ),
+                    <span className="font-semibold text-emerald-600">
+                        {formatMoney(
+                        position.calculatedDayPnl
+                        )}
+                    </span>,
+                    <span className="font-semibold text-emerald-600">
+                        {formatPercent(
+                        getDisplayDayPctChange(position)
+                        )}
+                    </span>,
+                    ]
+                )}
+                />
 
-            <SummaryCard
-            label="Day P&L"
-            value={formatMoney(
-                dayPnl
-            )}
-            />
-        </div>
-
-        <div className="grid grid-cols-2 gap-5">
-
-            <RankingCard
-            title="Top Winners"
-            positions={topWinners}
-            />
-
-            <RankingCard
-            title="Top Losers"
-            positions={topLosers}
-            />
-
-            <RankingCard
-            title="Best Longs Today"
-            positions={bestLongsToday}
-            />
-
-            <RankingCard
-            title="Worst Shorts Today"
-            positions={worstShortsToday}
-            />
-
-        </div>
-
-        </div>
+             <ReportTable
+                title="Short Positions Day Change"
+                columns={[
+                    "Ticker",
+                    "Quantity",
+                    "Last Price",
+                    "Market Value",
+                    "Net ($)",
+                    "Change %",
+                ]}
+                rows={analytics.shortPositions.map(
+                    (position) => [
+                    position.security?.ticker,
+                    formatNumber(position.shares),
+                    formatPrice(
+                        position.security
+                        ?.marketData?.[0]
+                        ?.currentPrice
+                    ),
+                    formatMoney(
+                        position.marketValue
+                    ),
+                    <span className="font-semibold text-rose-600">
+                        {formatMoney(
+                        position.calculatedDayPnl
+                        )}
+                    </span>,
+                    <span className="font-semibold text-rose-600">
+                        {formatPercent(
+                        getDisplayDayPctChange(position)
+                        )}
+                    </span>,
+                    ]
+                )}
+                />
+            </div>
           ) : (
-            <div className="space-y-5">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                <h3 className="font-semibold text-slate-900">
+                  Position Sizes By Category
+                </h3>
+              </div>
 
-                <div className="grid grid-cols-4 gap-4">
+              <div className="p-6">
+                <div className="space-y-4">
+                  {analytics.sectorExposure.map(
+                    ([
+                      sector,
+                      exposure,
+                    ]) => {
+                      const pct =
+                        (Number(
+                          exposure
+                        ) /
+                          Math.max(
+                            analytics.totalExposure,
+                            1
+                          )) *
+                        100;
 
-                    <SummaryCard
-                    label="Long Exposure"
-                    value={formatMoney(
-                        totalLongExposure
-                    )}
-                    />
-
-                    <SummaryCard
-                    label="Short Exposure"
-                    value={formatMoney(
-                        totalShortExposure
-                    )}
-                    />
-
-                    <SummaryCard
-                    label="Gross Exposure"
-                    value={formatMoney(
-                        grossExposure
-                    )}
-                    />
-
-                    <SummaryCard
-                    label="Net Exposure"
-                    value={formatMoney(
-                        totalLongExposure -
-                        totalShortExposure
-                    )}
-                    />
-
-                </div>
-
-                <div className="grid grid-cols-3 gap-5">
-
-                    <div className="rounded-2xl border border-slate-200 bg-white">
-                    <div className="border-b border-slate-200 px-4 py-3 font-semibold">
-                        Sector Exposure
-                    </div>
-
-                    <div>
-                        {sectorExposure.map(
-                        ([sector, value]) => (
-                            <div
-                            key={sector}
-                            className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-sm"
-                            >
-                            <span>{sector}</span>
+                      return (
+                        <div
+                          key={sector}
+                        >
+                          <div className="mb-1 flex items-center justify-between text-sm font-medium">
+                            <span>
+                              {sector}
+                            </span>
 
                             <span>
-                                {(
-                                (Number(
-                                    value
-                                ) /
-                                    grossExposure) *
-                                100
-                                ).toFixed(1)}
-                                %
+                              {pct.toFixed(
+                                2
+                              )}
+                              %
                             </span>
-                            </div>
-                        )
-                        )}
-                    </div>
-                    </div>
+                          </div>
 
-                    <RankingCard
-                    title="Largest Longs"
-                    positions={
-                        largestLongs
+                          <div className="h-3 rounded-full bg-slate-100">
+                            <div
+                              className="h-3 rounded-full bg-blue-600"
+                              style={{
+                                width: `${pct}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
                     }
-                    />
-
-                    <RankingCard
-                    title="Largest Shorts"
-                    positions={
-                        largestShorts
-                    }
-                    />
-
+                  )}
                 </div>
-
-                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
