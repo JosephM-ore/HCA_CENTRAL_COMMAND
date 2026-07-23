@@ -32,14 +32,15 @@ export default function AppSidebar({
 
 
 const navItems = [
+  { href: "/trade-calculator", label: "Trade Calculator" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/", label: "Home / Positions" },
   { href: "/watchlist", label: "Watchlist" },
-  { href: "/portfolio", label: "Portfolio" },
-  { href: "/past-positions", label: "Past Positions" },
-  { href: "/comments", label: "Comments" },
   { href: "/alerts", label: "Alerts" },
-  { href: "/trade-calculator", label: "Trade Calculator" },
+
+  { href: "/comments", label: "Comments" },
   { href: "/trades", label: "Trades" },
+  { href: "/past-positions", label: "Past Positions" },
   { href: "/settings", label: "Settings" },
 ];
 

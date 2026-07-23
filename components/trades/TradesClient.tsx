@@ -1,77 +1,258 @@
 "use client";
 
+import { useMemo, useState } from "react";
+
 import AppSidebar from "@/components/common/AppSidebar";
+import Badge from "@/components/common/Badge";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
-import { useMemo } from "react";
+import LocalDateTime from "@/components/common/LocalDateTime";
 
 type TradesClientProps = {
   positions: any[];
 };
 
+function formatMoney(
+  value: number | null | undefined
+) {
+  if (
+    value == null ||
+    !Number.isFinite(value)
+  ) {
+    return "—";
+  }
+
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}
+
+function sourceTone(source?: string | null) {
+  if (source === "WELLS_FARGO") {
+    return "green";
+  }
+
+  if (source === "MANUAL") {
+    return "amber";
+  }
+
+  return "slate";
+}
+
+function formatSource(
+  source?: string | null
+) {
+  if (source === "WELLS_FARGO") {
+    return "Wells";
+  }
+
+  if (source === "MANUAL") {
+    return "Manual";
+  }
+
+  return source || "Unknown";
+}
+
+function reconciliationTone(
+  status?: string | null
+) {
+  if (status === "MATCHED") {
+    return "blue";
+  }
+
+  if (status === "REVIEW_REQUIRED") {
+    return "red";
+  }
+
+  if (status === "MANUAL_PENDING") {
+    return "amber";
+  }
+
+  return "slate";
+}
+
+function formatReconciliationStatus(
+  status?: string | null
+) {
+  if (!status) {
+    return "—";
+  }
+
+  return status
+    .split("_")
+    .map(
+      word =>
+        `${word.charAt(0)}${word
+          .slice(1)
+          .toLowerCase()}`
+    )
+    .join(" ");
+}
+
+function formatDay(
+  value: string
+) {
+  return new Intl.DateTimeFormat(
+    "en-US",
+    {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    }
+  ).format(new Date(value));
+}
+
+function SummaryCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-semibold text-slate-950">
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export default function TradesClient({
   positions,
 }: TradesClientProps) {
+  const [query, setQuery] =
+    useState("");
 
-    function formatMoney(value: number) {
-    return value.toLocaleString("en-US", {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits: 0,
-    });
-    }
+  const [tradeFilter, setTradeFilter] =
+    useState("ALL");
 
-    function formatDate(date: string) {
-    return new Intl.DateTimeFormat("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-    }).format(new Date(date));
-    }
   const allTrades = useMemo(() => {
-    return positions.flatMap((position) =>
-      (position.trades || []).map((trade: any) => ({
-        ...trade,
-        ticker: position.security.ticker,
-        company: position.security.name,
-        side: position.side,
-      }))
+    return positions.flatMap(
+      (position) =>
+        (position.trades || []).map(
+          (trade: any) => ({
+            ...trade,
+            ticker:
+              position.security.ticker,
+            company:
+              position.security.name,
+            side: position.side,
+          })
+        )
     );
   }, [positions]);
 
+  const filteredTrades = useMemo(() => {
+    return allTrades.filter(
+      (trade) => {
+        const searchable =
+          [
+            trade.ticker,
+            trade.company,
+            trade.tradeType,
+            trade.comment,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
 
-    const groupedTrades = useMemo(() => {
-    const groups = new Map<string, any[]>();
+        const matchesSearch =
+          !query.trim() ||
+          searchable.includes(
+            query.toLowerCase()
+          );
 
-    [...allTrades]
-        .sort(
+        const matchesFilter =
+          tradeFilter === "ALL" ||
+          trade.tradeType ===
+            tradeFilter ||
+          (tradeFilter ===
+            "PENDING" &&
+            trade.reconciliationStatus ===
+              "MANUAL_PENDING") ||
+          (tradeFilter === "MANUAL" &&
+            trade.source ===
+              "MANUAL") ||
+          (tradeFilter === "WELLS" &&
+            trade.source ===
+              "WELLS_FARGO");
+
+        return (
+          matchesSearch &&
+          matchesFilter
+        );
+      }
+    );
+  }, [
+    allTrades,
+    query,
+    tradeFilter,
+  ]);
+
+  const groupedTrades = useMemo(() => {
+    const groups = new Map<
+      string,
+      any[]
+    >();
+
+    [...filteredTrades]
+      .sort(
         (a, b) =>
-            new Date(b.dateTraded).getTime() -
-            new Date(a.dateTraded).getTime()
+          new Date(
+            b.dateTraded
+          ).getTime() -
+          new Date(
+            a.dateTraded
+          ).getTime()
+      )
+      .forEach((trade) => {
+        const dateKey = new Date(
+          trade.dateTraded
         )
-        .forEach((trade) => {
-        const dateKey = new Date(trade.dateTraded)
-            .toISOString()
-            .slice(0, 10);
+          .toISOString()
+          .slice(0, 10);
 
         if (!groups.has(dateKey)) {
-            groups.set(dateKey, []);
+          groups.set(dateKey, []);
         }
 
-        groups.get(dateKey)!.push(trade);
-        });
+        groups
+          .get(dateKey)!
+          .push(trade);
+      });
 
-    return Array.from(groups.entries());
-    }, [allTrades]);
-  console.log(
-    "Positions:",
-    positions.length
+    return Array.from(
+      groups.entries()
+    );
+  }, [filteredTrades]);
+
+  const grossNotional =
+    filteredTrades.reduce(
+      (sum, trade) =>
+        sum +
+        Math.abs(
+          Number(
+            trade.shares || 0
+          ) *
+            Number(
+              trade.avgPrice || 0
+            )
+        ),
+      0
     );
 
-    console.log(
-    "Trades:",
-    allTrades?.length
-    );
-
+  const pendingTradeCount =
+    filteredTrades.filter(
+      (trade) =>
+        trade.reconciliationStatus ===
+        "MANUAL_PENDING"
+    ).length;
 
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
@@ -95,122 +276,299 @@ export default function TradesClient({
 
           <div className="overflow-auto p-6">
             <div className="mb-6">
-                <h2 className="text-3xl font-semibold">
+              <h2 className="text-3xl font-semibold tracking-tight">
                 Trades
-                </h2>
+              </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
-                Global trade history grouped by trading day.
-                </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Global trade history
+                grouped by day.
+              </p>
+            </div>
+
+            <div className="mb-6 grid grid-cols-4 gap-4">
+              
+              <SummaryCard
+                label="Gross Notional"
+                value={formatMoney(
+                  grossNotional
+                )}
+              />
+
+              <SummaryCard
+                label="Pending Trades"
+                value={
+                  pendingTradeCount
+                }
+              />
+
+             
+            </div>
+
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3">
+              <input
+                value={query}
+                onChange={(event) =>
+                  setQuery(
+                    event.target.value
+                  )
+                }
+                placeholder="Search ticker, company, trade type, note..."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+
+            <div className="mb-6 flex flex-wrap gap-2">
+              {[
+                "ALL",
+                "BUY",
+                "SELL",
+                "SHORT",
+                "COVER",
+                "PENDING",
+                "MANUAL",
+                "WELLS",
+              ].map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() =>
+                    setTradeFilter(
+                      filter
+                    )
+                  }
+                  className={`rounded-xl px-3 py-2 text-sm ${
+                    tradeFilter ===
+                    filter
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-200 bg-white"
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
             </div>
 
             <div className="space-y-6">
-                {groupedTrades.map(([date, trades]) => {
-                const grossNotional = trades.reduce(
-                    (sum, trade) =>
-                    sum +
-                    Math.abs(
-                        Number(trade.shares || 0) *
-                        Number(trade.avgPrice || 0)
-                    ),
-                    0
-                );
+              {groupedTrades.map(
+                ([date, trades]) => {
+                  const dayNotional =
+                    trades.reduce(
+                      (
+                        sum,
+                        trade
+                      ) =>
+                        sum +
+                        Math.abs(
+                          Number(
+                            trade.shares ||
+                              0
+                          ) *
+                            Number(
+                              trade.avgPrice ||
+                                0
+                            )
+                        ),
+                      0
+                    );
 
-                return (
+                  const dayPending =
+                    trades.filter(
+                      (
+                        trade
+                      ) =>
+                        trade.reconciliationStatus ===
+                        "MANUAL_PENDING"
+                    ).length;
+
+                  return (
                     <div
-                    key={date}
-                    className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                      key={date}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                     >
-                    <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                      <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
                         <div className="flex items-center justify-between">
-                        <div>
+                          <div>
                             <h3 className="text-lg font-semibold text-slate-950">
-                            {formatDate(date)}
+                              {formatDay(
+                                date
+                              )}
                             </h3>
 
-                            <p className="mt-1 text-sm text-slate-500">
-                            {trades.length} trades
-                            </p>
-                        </div>
+                           <p className="mt-1 text-sm text-slate-500">
+                                Trade Count: {trades.length}
+                                {dayPending > 0
+                                    ? ` • ${dayPending} Pending`
+                                    : ""}
+                                </p>
+                          </div>
 
-                        <div className="text-right">
+                          <div className="text-right">
                             <p className="text-xs uppercase tracking-wide text-slate-500">
-                            Gross Notional
+                                Gross Notional
                             </p>
 
-                            <p className="font-semibold text-slate-950">
-                            {formatMoney(grossNotional)}
+                            <p className="text-xl font-semibold text-slate-950">
+                                {formatMoney(dayNotional)}
                             </p>
+                            </div>
                         </div>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <div className="grid grid-cols-[0.8fr_2fr_1.4fr_0.9fr_1fr_1fr_1.2fr_1fr_1.4fr_2.2fr] border-b bg-slate-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          <div>
+                            Ticker
+                          </div>
+                          <div>
+                            Company
+                          </div>
+                          <div>
+                            Time
+                          </div>
+                          <div>
+                            Type
+                          </div>
+                          <div>
+                            Shares
+                          </div>
+                          <div>
+                            Avg
+                            Price
+                          </div>
+                          <div>
+                            Notional
+                          </div>
+                          <div>
+                            Source
+                          </div>
+                          <div>
+                            Reconciliation
+                          </div>
+                          <div>
+                            Note
+                          </div>
                         </div>
-                    </div>
 
-                    <div className="overflow-x-auto">
-                        <div className="grid min-w-[1200px] grid-cols-8 border-b bg-slate-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <div>Ticker</div>
-                        <div>Date Traded</div>
-                        <div>Type</div>
-                        <div>Shares</div>
-                        <div>Avg Price</div>
-                        <div>Notional</div>
-                        <div>Source</div>
-                        <div>Note</div>
-                        </div>
-
-                        {trades.map((trade) => (
-                        <div
-                            key={trade.id}
-                            className="grid min-w-[1200px] grid-cols-8 items-center border-b border-slate-100 px-4 py-3 text-xs last:border-b-0 hover:bg-slate-50"
-                        >
-                            <div className="font-semibold text-slate-950">
-                            {trade.ticker}
-                            </div>
-
-                            <div className="text-slate-600">
-                            {new Date(
-                                trade.dateTraded
-                            ).toLocaleString()}
-                            </div>
-
-                            <div>{trade.tradeType}</div>
-
-                            <div>
-                            {Number(
-                                trade.shares || 0
-                            ).toLocaleString()}
-                            </div>
-
-                            <div>
-                            {formatMoney(
-                                Number(trade.avgPrice || 0)
-                            )}
-                            </div>
-
-                            <div>
-                            {formatMoney(
-                                Number(trade.shares || 0) *
-                                Number(trade.avgPrice || 0)
-                            )}
-                            </div>
-
-                            <div>
-                            {trade.source || "—"}
-                            </div>
-
+                        {trades.map(
+                          (trade) => (
                             <div
-                            className="truncate text-slate-500"
-                            title={trade.comment || ""}
-                            >
-                            {trade.comment || "—"}
+                                key={trade.id}
+                                className="grid grid-cols-[0.8fr_2fr_1.4fr_0.9fr_1fr_1fr_1.2fr_1fr_1.4fr_2.2fr] items-center border-b border-slate-100 px-3 py-2 text-xs hover:bg-slate-50"
+                                >
+                              <div className="font-semibold text-slate-950">
+                                {
+                                  trade.ticker
+                                }
+                              </div>
+
+                              <div className="truncate text-slate-700">
+                                {
+                                  trade.company
+                                }
+                              </div>
+
+                              <div>
+                                <LocalDateTime
+                                  value={
+                                    trade.dateTraded
+                                  }
+                                />
+                              </div>
+
+                              <div>
+                                <Badge
+                                  tone={
+                                    trade.tradeType ===
+                                      "BUY" ||
+                                    trade.tradeType ===
+                                      "SHORT"
+                                      ? "green"
+                                      : "red"
+                                  }
+                                >
+                                  {
+                                    trade.tradeType
+                                  }
+                                </Badge>
+                              </div>
+
+                              <div>
+                                {Number(
+                                  trade.shares ||
+                                    0
+                                ).toLocaleString()}
+                              </div>
+
+                              <div>
+                                {formatMoney(
+                                  Number(
+                                    trade.avgPrice ||
+                                      0
+                                  )
+                                )}
+                              </div>
+
+                              <div>
+                                {formatMoney(
+                                  Number(
+                                    trade.shares ||
+                                      0
+                                  ) *
+                                    Number(
+                                      trade.avgPrice ||
+                                        0
+                                    )
+                                )}
+                              </div>
+
+                              <div>
+                                <Badge
+                                  tone={
+                                    sourceTone(
+                                      trade.source
+                                    ) as any
+                                  }
+                                >
+                                  {formatSource(
+                                    trade.source
+                                  )}
+                                </Badge>
+                              </div>
+
+                              <div>
+                                <Badge
+                                  tone={
+                                    reconciliationTone(
+                                      trade.reconciliationStatus
+                                    ) as any
+                                  }
+                                >
+                                  {formatReconciliationStatus(
+                                    trade.reconciliationStatus
+                                  )}
+                                </Badge>
+                              </div>
+
+                              <div
+                                title={
+                                  trade.comment ||
+                                  ""
+                                }
+                                className="truncate text-slate-500"
+                              >
+                                {trade.comment ||
+                                  "—"}
+                              </div>
                             </div>
-                        </div>
-                        ))}
+                          )
+                        )}
+                      </div>
                     </div>
-                    </div>
-                );
-                })}
+                  );
+                }
+              )}
             </div>
-            </div>
+          </div>
         </section>
       </div>
     </main>
