@@ -1,7 +1,7 @@
 "use client";
 
 import AppSidebar from "@/components/common/AppSidebar";
-import Link from "next/link";
+
 import LocalDateTime from "@/components/common/LocalDateTime";
 import Badge from "@/components/common/Badge";
 import { useEffect, useMemo, useState } from "react";
@@ -10,7 +10,7 @@ import {
   canEditWatchlist,
 } from "@/lib/client-permissions";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
-import HcaLogo from "@/components/common/HcaLogo";
+
 
 type WatchlistClientProps = {
   initialEntries: WatchlistEntry[];

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Badge from "@/components/common/Badge";
+import AppSidebar from "@/components/common/AppSidebar";
 import { useEffect, useMemo, useState } from "react";
 import CurrentUserPill from "@/components/auth/CurrentUserPill";
 import { canCreateComments } from "@/lib/client-permissions";
@@ -593,68 +593,7 @@ const closedPositions = useMemo(() => {
   return (
     <main className="h-screen overflow-hidden bg-slate-100 text-slate-900">
       <div className="flex h-full">
-        <aside className="flex w-72 shrink-0 flex-col border-r border-slate-200 bg-white p-4">
-          <div className="mb-6 flex items-center gap-3 px-2 py-2">
-            <HcaLogo />
-            <div>
-              <h1 className="font-semibold leading-tight">
-                HCA Central Command
-              </h1>
-              <p className="text-xs text-slate-500">Portfolio operations hub</p>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-                <Link
-                    href="/"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Home / Positions
-                </Link>
-
-                <Link
-                    href="/watchlist"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Watchlist
-                </Link>
-
-                <Link
-                    href="/past-positions"
-                    className="block rounded-2xl bg-slate-900 px-3 py-2.5 text-sm text-white shadow-sm"
-                >
-                    Past Positions
-                </Link>
-
-                <Link
-                    href="/comments"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Comments
-                </Link>
-
-                <Link
-                    href="/alerts"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Alerts
-                </Link>
-                <a
-                    href="/trade-calculator"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Trade Calculator
-                </a>
-                <Link
-                    href="/settings"
-                    className="block rounded-2xl px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                >
-                    Settings
-                </Link>
-                </nav>
-
-          
-        </aside>
+        <AppSidebar activePage="/past-positions" />
 
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
