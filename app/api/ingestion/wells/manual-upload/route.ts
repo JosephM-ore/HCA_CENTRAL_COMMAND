@@ -179,6 +179,9 @@ export async function POST(request: Request) {
     let taxLotsCreated = 0;
     let taxLotsUpdated = 0;
 
+    let resolvedSourceReportDate =
+      new Date();
+
     const failures: string[] = [];
 
     if (reportType === "TAX_LOT_POSITION_PNL") {
@@ -306,6 +309,8 @@ export async function POST(request: Request) {
               Math.max(...positionSnapshotDates.map((date) => date.getTime()))
             )
           : new Date();
+      resolvedSourceReportDate =
+        latestSnapshotDate;
 
       if (activeWellsPositionKeys.size > 0 && accountsInPositionSnapshot.size > 0) {
         const previouslyActivePositions = await prisma.position.findMany({
@@ -775,8 +780,10 @@ export async function POST(request: Request) {
         }
       }
 
-    const sourceReportDate = new Date();
-    const finalStatus = rowsFailed > 0 ? "COMPLETED_WITH_WARNINGS" : "COMPLETED";
+   const finalStatus =
+    rowsFailed > 0
+      ? "COMPLETED_WITH_WARNINGS"
+      : "COMPLETED";
 
     await completeIngestionRun({
       id: ingestionRun.id,
@@ -784,7 +791,8 @@ export async function POST(request: Request) {
       message: `Wells ingestion ${reportType} completed. Processed ${rowsProcessed} rows, failed ${rowsFailed}.`,
       rowsProcessed,
       rowsFailed,
-      sourceReportDate,
+      sourceReportDate:
+      resolvedSourceReportDate,
       accountNumber: undefined,
       details: { failures },
     });
@@ -792,6 +800,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       source: "WELLS_FARGO",
       reportType,
+      sourceReportDate:
+        resolvedSourceReportDate.toISOString(),
       rowsProcessed,
       rowsFailed,
       securitiesCreated,
