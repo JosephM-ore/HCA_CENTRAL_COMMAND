@@ -2,17 +2,196 @@
 
 import { useState } from "react";
 
+function formatMoney(value: number) {
+  return value.toLocaleString(
+    "en-US",
+    {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }
+  );
+}
+
 type SummaryModalProps = {
   open: boolean;
   onClose: () => void;
+  positions: any[];
 };
+
+function SummaryCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <p className="text-xs uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-semibold">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function RankingCard({
+  title,
+  positions,
+}: {
+  title: string;
+  positions: any[];
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white">
+      <div className="border-b border-slate-200 px-4 py-3 font-semibold">
+        {title}
+      </div>
+
+      <div>
+        {positions.map(position => (
+          <div
+            key={position.id}
+            className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-sm last:border-b-0"
+          >
+            <span>
+              {
+                position.security
+                  .ticker
+              }
+            </span>
+
+            <span>
+              {formatMoney(
+                Number(
+                  position.unrealizedPnl ||
+                    position.marketValue ||
+                    0
+                )
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function SummaryModal({
   open,
   onClose,
-}: SummaryModalProps) {
+  positions,
+}: SummaryModalProps)
+ {
   const [activeTab, setActiveTab] =
     useState("EXECUTIVE");
+
+    const grossInvestments =
+  positions.reduce(
+    (sum, position) =>
+      sum +
+      Math.abs(
+        Number(
+          position.marketValue || 0
+        )
+      ),
+    0
+  );
+
+const netInvestments =
+  positions.reduce(
+    (sum, position) =>
+      sum +
+      Number(
+        position.marketValue || 0
+      ),
+    0
+  );
+
+const totalUnrealizedPnl =
+  positions.reduce(
+    (sum, position) =>
+      sum +
+      Number(
+        position.unrealizedPnl || 0
+      ),
+    0
+  );
+
+const dayPnl =
+  positions.reduce(
+    (sum, position) =>
+      sum +
+      ((Number(
+        position.marketValue || 0
+      ) *
+        Number(
+          position.dayPctChange || 0
+        )) /
+        100),
+    0
+  );
+
+const topWinners = [...positions]
+  .sort(
+    (a, b) =>
+      Number(
+        b.unrealizedPnl || 0
+      ) -
+      Number(
+        a.unrealizedPnl || 0
+      )
+  )
+  .slice(0, 10);
+
+const topLosers = [...positions]
+  .sort(
+    (a, b) =>
+      Number(
+        a.unrealizedPnl || 0
+      ) -
+      Number(
+        b.unrealizedPnl || 0
+      )
+  )
+  .slice(0, 10);
+
+const bestLongsToday =
+  positions
+    .filter(
+      p => p.side === "LONG"
+    )
+    .sort(
+      (a, b) =>
+        Number(
+          b.dayPctChange || 0
+        ) -
+        Number(
+          a.dayPctChange || 0
+        )
+    )
+    .slice(0, 10);
+
+const worstShortsToday =
+  positions
+    .filter(
+      p => p.side === "SHORT"
+    )
+    .sort(
+      (a, b) =>
+        Number(
+          a.dayPctChange || 0
+        ) -
+        Number(
+          b.dayPctChange || 0
+        )
+    )
+    .slice(0, 10);
+
 
   if (!open) {
     return null;
@@ -79,16 +258,63 @@ export default function SummaryModal({
         <div className="flex-1 overflow-auto p-6">
           {activeTab ===
           "EXECUTIVE" ? (
-            <div className="rounded-2xl border border-slate-200 p-8 text-center">
-              <h3 className="text-xl font-semibold">
-                Executive Summary
-              </h3>
+            <div className="space-y-5">
 
-              <p className="mt-2 text-slate-500">
-                Analytics coming in
-                Commit 2.
-              </p>
-            </div>
+        <div className="grid grid-cols-4 gap-4">
+            <SummaryCard
+            label="Gross Investments"
+            value={formatMoney(
+                grossInvestments
+            )}
+            />
+
+            <SummaryCard
+            label="Net Investments"
+            value={formatMoney(
+                netInvestments
+            )}
+            />
+
+            <SummaryCard
+            label="Unrealized P&L"
+            value={formatMoney(
+                totalUnrealizedPnl
+            )}
+            />
+
+            <SummaryCard
+            label="Day P&L"
+            value={formatMoney(
+                dayPnl
+            )}
+            />
+        </div>
+
+        <div className="grid grid-cols-2 gap-5">
+
+            <RankingCard
+            title="Top Winners"
+            positions={topWinners}
+            />
+
+            <RankingCard
+            title="Top Losers"
+            positions={topLosers}
+            />
+
+            <RankingCard
+            title="Best Longs Today"
+            positions={bestLongsToday}
+            />
+
+            <RankingCard
+            title="Worst Shorts Today"
+            positions={worstShortsToday}
+            />
+
+        </div>
+
+        </div>
           ) : (
             <div className="rounded-2xl border border-slate-200 p-8 text-center">
               <h3 className="text-xl font-semibold">

@@ -2442,6 +2442,7 @@ async function handleSaveFlag(payload: {
               onClose={() =>
                 setShowSummaryModal(false)
               }
+              positions={localPositions}
             />
             <FlagModal
               position={flagPosition}
