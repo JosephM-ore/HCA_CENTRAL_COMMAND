@@ -65,14 +65,14 @@ function RankingCard({
               }
             </span>
 
-            <span>
-              {formatMoney(
+           <span>
+            {formatMoney(
                 Number(
-                  position.unrealizedPnl ||
-                    position.marketValue ||
-                    0
+                position.marketValue ||
+                position.unrealizedPnl ||
+                0
                 )
-              )}
+            )}
             </span>
           </div>
         ))}
@@ -191,7 +191,106 @@ const worstShortsToday =
         )
     )
     .slice(0, 10);
+const longPositions =
+  positions.filter(
+    p => p.side === "LONG"
+  );
 
+const shortPositions =
+  positions.filter(
+    p => p.side === "SHORT"
+  );
+
+const totalLongExposure =
+  longPositions.reduce(
+    (sum, position) =>
+      sum +
+      Number(
+        position.marketValue || 0
+      ),
+    0
+  );
+
+const totalShortExposure =
+  shortPositions.reduce(
+    (sum, position) =>
+      sum +
+      Math.abs(
+        Number(
+          position.marketValue || 0
+        )
+      ),
+    0
+  );
+
+const grossExposure =
+  totalLongExposure +
+  totalShortExposure;
+
+const sectorExposure = Object.entries(
+  positions.reduce(
+    (
+      accumulator,
+      position
+    ) => {
+      const sector =
+        position.security?.sector ||
+        "Unclassified";
+
+      accumulator[sector] =
+        (accumulator[
+          sector
+        ] || 0) +
+        Math.abs(
+          Number(
+            position.marketValue || 0
+          )
+        );
+
+      return accumulator;
+    },
+    {} as Record<
+      string,
+      number
+    >
+  )
+)
+  .sort(
+    (a, b) =>
+      Number(b[1]) -
+      Number(a[1])
+  )
+  .slice(0, 15);
+
+const largestLongs =
+  [...longPositions]
+    .sort(
+      (a, b) =>
+        Number(
+          b.marketValue || 0
+        ) -
+        Number(
+          a.marketValue || 0
+        )
+    )
+    .slice(0, 15);
+
+const largestShorts =
+  [...shortPositions]
+    .sort(
+      (a, b) =>
+        Math.abs(
+          Number(
+            b.marketValue || 0
+          )
+        ) -
+        Math.abs(
+          Number(
+            a.marketValue || 0
+          )
+        )
+    )
+    .slice(0, 15);
 
   if (!open) {
     return null;
@@ -316,16 +415,90 @@ const worstShortsToday =
 
         </div>
           ) : (
-            <div className="rounded-2xl border border-slate-200 p-8 text-center">
-              <h3 className="text-xl font-semibold">
-                Fund Report
-              </h3>
+            <div className="space-y-5">
 
-              <p className="mt-2 text-slate-500">
-                Portfolio reporting
-                coming in Commit 3.
-              </p>
-            </div>
+                <div className="grid grid-cols-4 gap-4">
+
+                    <SummaryCard
+                    label="Long Exposure"
+                    value={formatMoney(
+                        totalLongExposure
+                    )}
+                    />
+
+                    <SummaryCard
+                    label="Short Exposure"
+                    value={formatMoney(
+                        totalShortExposure
+                    )}
+                    />
+
+                    <SummaryCard
+                    label="Gross Exposure"
+                    value={formatMoney(
+                        grossExposure
+                    )}
+                    />
+
+                    <SummaryCard
+                    label="Net Exposure"
+                    value={formatMoney(
+                        totalLongExposure -
+                        totalShortExposure
+                    )}
+                    />
+
+                </div>
+
+                <div className="grid grid-cols-3 gap-5">
+
+                    <div className="rounded-2xl border border-slate-200 bg-white">
+                    <div className="border-b border-slate-200 px-4 py-3 font-semibold">
+                        Sector Exposure
+                    </div>
+
+                    <div>
+                        {sectorExposure.map(
+                        ([sector, value]) => (
+                            <div
+                            key={sector}
+                            className="flex items-center justify-between border-b border-slate-100 px-4 py-2 text-sm"
+                            >
+                            <span>{sector}</span>
+
+                            <span>
+                                {(
+                                (Number(
+                                    value
+                                ) /
+                                    grossExposure) *
+                                100
+                                ).toFixed(1)}
+                                %
+                            </span>
+                            </div>
+                        )
+                        )}
+                    </div>
+                    </div>
+
+                    <RankingCard
+                    title="Largest Longs"
+                    positions={
+                        largestLongs
+                    }
+                    />
+
+                    <RankingCard
+                    title="Largest Shorts"
+                    positions={
+                        largestShorts
+                    }
+                    />
+
+                </div>
+
+                </div>
           )}
         </div>
       </div>
