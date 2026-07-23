@@ -4,15 +4,32 @@ import TradesClient from "@/components/trades/TradesClient";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const wellsActivePositionCount = await prisma.position.count({
+ const [
+  wellsActivePositionCount,
+  latestFundEquitySnapshot,
+] = await Promise.all([
+  prisma.position.count({
     where: {
       status: "ACTIVE",
       source: "WELLS_FARGO",
     },
-  });
+  }),
 
+  prisma.fundEquitySnapshot.findFirst({
+    orderBy: {
+      asOfDate: "desc",
+    },
+    select: {
+      id: true,
+      asOfDate: true,
+      netEquity: true,
+      source: true,
+    },
+  }),
+]);
 
-  const positions = await prisma.position.findMany({
+const positions =
+  await prisma.position.findMany({
     where: {
       status: "ACTIVE",
       ...(wellsActivePositionCount > 0
@@ -124,7 +141,26 @@ export default async function HomePage() {
   });
 
 
-  const serializedPositions = JSON.parse(JSON.stringify(positions));
+  const serializedPositions =
+    JSON.parse(
+      JSON.stringify(positions)
+    );
 
-  return <TradesClient positions={serializedPositions} />;
+  const serializedFundEquitySnapshot =
+    latestFundEquitySnapshot
+      ? JSON.parse(
+          JSON.stringify(
+            latestFundEquitySnapshot
+          )
+        )
+      : null;
+
+  return (
+    <TradesClient
+      positions={serializedPositions}
+      fundEquitySnapshot={
+        serializedFundEquitySnapshot
+      }
+    />
+  );
 }

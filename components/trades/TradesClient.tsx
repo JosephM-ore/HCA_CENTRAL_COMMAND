@@ -9,6 +9,12 @@ import LocalDateTime from "@/components/common/LocalDateTime";
 
 type TradesClientProps = {
   positions: any[];
+  fundEquitySnapshot: {
+    id: string;
+    asOfDate: string;
+    netEquity: number;
+    source: string;
+  } | null;
 };
 
 function formatMoney(
@@ -125,6 +131,7 @@ function SummaryCard({
 
 export default function TradesClient({
   positions,
+  fundEquitySnapshot,
 }: TradesClientProps) {
   const [query, setQuery] =
     useState("");
