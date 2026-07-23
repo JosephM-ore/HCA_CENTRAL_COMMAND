@@ -173,17 +173,37 @@ export default function SummaryModal({
             )
             .slice(0, 10);
 
+    const sortByAbsoluteDayMove = (
+        a: any,
+        b: any
+        ) => {
+            const aDayMove =
+                getDisplayDayPctChange(a) ?? 0;
+
+            const bDayMove =
+                getDisplayDayPctChange(b) ?? 0;
+
+            return (
+                Math.abs(bDayMove) -
+                Math.abs(aDayMove)
+            );
+            };
+
     const longPositions =
-      positionsWithDayPnl.filter(
+    positionsWithDayPnl
+        .filter(
         (position) =>
-          position.side === "LONG"
-      );
+            position.side === "LONG"
+        )
+        .sort(sortByAbsoluteDayMove);
 
     const shortPositions =
-      positionsWithDayPnl.filter(
+    positionsWithDayPnl
+        .filter(
         (position) =>
-          position.side === "SHORT"
-      );
+            position.side === "SHORT"
+        )
+        .sort(sortByAbsoluteDayMove);
 
     const sectorExposure =
       Object.entries(
