@@ -259,7 +259,6 @@ export default function MeetingsClient({
         )
       );
 
-  add
     } finally {
       setSavingMeetingNoteId(
         null
