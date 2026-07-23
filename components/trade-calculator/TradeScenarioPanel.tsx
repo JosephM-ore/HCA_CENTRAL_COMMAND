@@ -15,6 +15,13 @@ import {
   type TradeSizingMode,
 } from "@/lib/trade-calculator/trade-calculator";
 
+type FundEquitySnapshot = {
+  id: string;
+  asOfDate: string;
+  netEquity: number;
+  source: string;
+};
+
 type TradeScenarioPanelProps = {
   security: any;
   position: any;
@@ -24,6 +31,7 @@ type TradeScenarioPanelProps = {
   currentPrice: number | null;
   wellsWap: number | null;
   grossPortfolioMarketValue: number;
+  fundEquitySnapshots: FundEquitySnapshot[];
   canSubmitManualTrade: boolean;
   onTradeCreated: (trade: any) => void;
 };
@@ -246,6 +254,7 @@ export default function TradeScenarioPanel({
   currentPrice,
   wellsWap,
   grossPortfolioMarketValue,
+  fundEquitySnapshots,
   canSubmitManualTrade,
   onTradeCreated,
 }: TradeScenarioPanelProps) {

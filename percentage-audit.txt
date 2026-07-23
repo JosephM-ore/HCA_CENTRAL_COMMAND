@@ -1,0 +1,21 @@
+C:\HCA_CENTRAL_COMMAND\components\trade-calculator\TradeScenarioPanel.tsx:435: if (nextMode !== "AMOUNT_BPS") {
+C:\HCA_CENTRAL_COMMAND\components\trade-calculator\TradeScenarioPanel.tsx:660: ["AMOUNT_BPS", "Amount (BPS)"],
+C:\HCA_CENTRAL_COMMAND\components\trade-calculator\TradeScenarioPanel.tsx:765: "AMOUNT_BPS" ? (
+C:\HCA_CENTRAL_COMMAND\components\trade-calculator\TradeScenarioPanel.tsx:768: Amount (BPS)
+C:\HCA_CENTRAL_COMMAND\components\trade-calculator\TradeScenarioPanel.tsx:787: bps
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:38: function formatBps(
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:55: )} bps`;
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:525: const dayLongExposureBps =
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:531: ) * 10_000
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:534: const dayShortExposureBps =
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:540: ) * 10_000
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:591: {formatBps(
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:592: dayLongExposureBps
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:612: {formatBps(
+C:\HCA_CENTRAL_COMMAND\components\trades\TradesClient.tsx:613: dayShortExposureBps
+C:\HCA_CENTRAL_COMMAND\lib\trade-calculator\trade-calculator.ts:11: | "AMOUNT_BPS";
+C:\HCA_CENTRAL_COMMAND\lib\trade-calculator\trade-calculator.ts:536: input.sizingMode === "AMOUNT_BPS"
+C:\HCA_CENTRAL_COMMAND\lib\trade-calculator\trade-calculator.ts:548: "Amount (BPS) must be greater than zero."
+C:\HCA_CENTRAL_COMMAND\lib\trade-calculator\trade-calculator.ts:554: "Gross portfolio market value is required for Amount (BPS) sizing."
+C:\HCA_CENTRAL_COMMAND\lib\trade-calculator\trade-calculator.ts:562: (basisPointsInput / 10000);
+C:\HCA_CENTRAL_COMMAND\lib\trade-calculator\trade-calculator.ts:574: "The Amount (BPS) value is too small to purchase one share."

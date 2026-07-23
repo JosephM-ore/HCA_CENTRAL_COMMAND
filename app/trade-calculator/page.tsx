@@ -4,8 +4,11 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export default async function TradeCalculatorPage() {
-  const [securities, activePositionValues] =
-    await Promise.all([
+  const [
+    securities,
+    activePositionValues,
+    fundEquitySnapshots,
+  ] = await Promise.all([
       prisma.security.findMany({
         select: {
           id: true,
@@ -88,6 +91,8 @@ export default async function TradeCalculatorPage() {
         },
       }),
 
+      
+
       prisma.position.findMany({
         where: {
           status: "ACTIVE",
@@ -97,8 +102,20 @@ export default async function TradeCalculatorPage() {
           marketValue: true,
         },
       }),
-    ]);
 
+      prisma.fundEquitySnapshot.findMany({
+        orderBy: {
+          asOfDate: "desc",
+        },
+        select: {
+          id: true,
+          asOfDate: true,
+          netEquity: true,
+          source: true,
+        },
+      }),
+    ]);
+    
   const grossPortfolioMarketValue =
     activePositionValues.reduce(
       (total, position) =>
@@ -113,14 +130,24 @@ export default async function TradeCalculatorPage() {
     JSON.stringify(securities)
   );
 
+  const serializedFundEquitySnapshots =
+  JSON.parse(
+    JSON.stringify(
+      fundEquitySnapshots
+    )
+  );
+
   return (
-    <TradeCalculatorClient
-      initialSecurities={
-        serializedSecurities
-      }
-      grossPortfolioMarketValue={
-        grossPortfolioMarketValue
-      }
-    />
+  <TradeCalculatorClient
+    initialSecurities={
+      serializedSecurities
+    }
+    grossPortfolioMarketValue={
+      grossPortfolioMarketValue
+    }
+    fundEquitySnapshots={
+      serializedFundEquitySnapshots
+    }
+  />
   );
 }

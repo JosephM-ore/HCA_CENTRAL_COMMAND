@@ -14,9 +14,17 @@ import type {
   TradeBaselineMode,
 } from "@/lib/trade-calculator/trade-calculator";
 
+type FundEquitySnapshot = {
+  id: string;
+  asOfDate: string;
+  netEquity: number;
+  source: string;
+};
+
 type TradeCalculatorWorkspaceProps = {
   securities: any[];
   grossPortfolioMarketValue: number;
+  fundEquitySnapshots: FundEquitySnapshot[];
 };
 
 function toFiniteNumber(
@@ -263,6 +271,7 @@ function BaselineCard({
 export default function TradeCalculatorWorkspace({
   securities,
   grossPortfolioMarketValue,
+  fundEquitySnapshots,
 }: TradeCalculatorWorkspaceProps) {
   const [
     localSecurities,
@@ -952,6 +961,9 @@ export default function TradeCalculatorWorkspace({
                 wellsWap={wellsWap}
                 grossPortfolioMarketValue={
                   grossPortfolioMarketValue
+                }
+                fundEquitySnapshots={
+                  fundEquitySnapshots
                 }
                 canSubmitManualTrade={
                   canLogManualTrade(

@@ -1,0 +1,18 @@
+C:\HCA_CENTRAL_COMMAND\app\api\ingestion\wells\manual-upload\route.ts:347: portfolioPct: 0,
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:20: getDisplayPortfolioPct,
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:235: const portfolioPct = getDisplayPortfolioPct(position, portfolioPositions);
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:272: {portfolioPct != null ? `${portfolioPct.toFixed(2)}%` : "—"}
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:1874: (getDisplayPortfolioPct(b, localPositions) ?? 0) -
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:1875: (getDisplayPortfolioPct(a, localPositions) ?? 0)
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:1892: totalMarketValue,
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:1893: netMarketValue,
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:2285: value={formatMoney(totalMarketValue)}
+C:\HCA_CENTRAL_COMMAND\components\dashboard\DashboardClient.tsx:2291: value={formatMoney(netMarketValue)}
+C:\HCA_CENTRAL_COMMAND\lib\dashboard\position-metrics.ts:211: export function getDisplayPortfolioPct(
+C:\HCA_CENTRAL_COMMAND\lib\dashboard\position-metrics.ts:223: const grossMarketValue = positions.reduce(
+C:\HCA_CENTRAL_COMMAND\lib\dashboard\position-metrics.ts:234: if (grossMarketValue === 0) {
+C:\HCA_CENTRAL_COMMAND\lib\dashboard\position-metrics.ts:239: (Math.abs(positionMarketValue) / grossMarketValue) *
+C:\HCA_CENTRAL_COMMAND\lib\dashboard\position-metrics.ts:245: const totalMarketValue = positions.reduce(
+C:\HCA_CENTRAL_COMMAND\lib\dashboard\position-metrics.ts:250: const netMarketValue = positions.reduce(
+C:\HCA_CENTRAL_COMMAND\lib\dashboard\position-metrics.ts:266: totalMarketValue,
+C:\HCA_CENTRAL_COMMAND\lib\dashboard\position-metrics.ts:267: netMarketValue,

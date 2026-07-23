@@ -6,10 +6,17 @@ import CurrentUserPill from "@/components/auth/CurrentUserPill";
 import TradeCalculatorWorkspace from "@/components/trade-calculator/TradeCalculatorWorkspace";
 import AppSidebar from "@/components/common/AppSidebar";
 
+type FundEquitySnapshot = {
+  id: string;
+  asOfDate: string;
+  netEquity: number;
+  source: string;
+};
 
 type TradeCalculatorClientProps = {
   initialSecurities: any[];
   grossPortfolioMarketValue: number;
+  fundEquitySnapshots: FundEquitySnapshot[];
 };
 
 function formatMoney(
@@ -32,6 +39,7 @@ function formatMoney(
 export default function TradeCalculatorClient({
   initialSecurities,
   grossPortfolioMarketValue,
+  fundEquitySnapshots,
 }: TradeCalculatorClientProps) {
   const activePositionCount =
     initialSecurities.reduce(
@@ -119,10 +127,13 @@ export default function TradeCalculatorClient({
                 
             </div>
 
-                <TradeCalculatorWorkspace
+              <TradeCalculatorWorkspace
                 securities={initialSecurities}
                 grossPortfolioMarketValue={
                   grossPortfolioMarketValue
+                }
+                fundEquitySnapshots={
+                  fundEquitySnapshots
                 }
               />
 
