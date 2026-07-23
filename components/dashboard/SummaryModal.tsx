@@ -80,10 +80,12 @@ function ReportTable({
   title,
   columns,
   rows,
+  numericColumns = [],
 }: {
   title: string;
   columns: string[];
   rows: React.ReactNode[][];
+  numericColumns?: number[];
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -97,14 +99,23 @@ function ReportTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {columns.map((column) => (
-                <th
-                  key={column}
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
-                >
-                  {column}
-                </th>
-              ))}
+              {columns.map((column, columnIndex) => {
+                const isNumeric =
+                    numericColumns.includes(columnIndex);
+
+                return (
+                    <th
+                    key={column}
+                    className={`px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 ${
+                        isNumeric
+                        ? "text-right tabular-nums"
+                        : "text-left"
+                    }`}
+                    >
+                    {column}
+                    </th>
+                );
+                })}
             </tr>
           </thead>
 
@@ -114,14 +125,23 @@ function ReportTable({
                 key={index}
                 className="border-b border-slate-100 hover:bg-slate-50"
               >
-                {row.map((cell, cellIndex) => (
-                  <td
-                    key={cellIndex}
-                    className="px-4 py-3"
-                  >
-                    {cell}
-                  </td>
-                ))}
+                {row.map((cell, cellIndex) => {
+                    const isNumeric =
+                        numericColumns.includes(cellIndex);
+
+                    return (
+                        <td
+                        key={cellIndex}
+                        className={`px-4 py-3 ${
+                            isNumeric
+                            ? "text-right tabular-nums"
+                            : "text-left"
+                        }`}
+                        >
+                        {cell}
+                        </td>
+                    );
+                    })}
               </tr>
             ))}
           </tbody>
@@ -336,11 +356,12 @@ const shortPositions =
               <ReportTable
                 title="Top 10 Profit Rankings"
                 columns={[
-                  "Ticker",
-                  "Side",
-                  "Quantity",
-                  "Day P&L",
+                    "Ticker",
+                    "Side",
+                    "Quantity",
+                    "Day P&L",
                 ]}
+                numericColumns={[2, 3]}
                 rows={analytics.profitRankings.map(
                   (
                     position
@@ -364,11 +385,12 @@ const shortPositions =
               <ReportTable
                 title="Top 10 Loss Rankings"
                 columns={[
-                  "Ticker",
-                  "Side",
-                  "Quantity",
-                  "Day P&L",
+                    "Ticker",
+                    "Side",
+                    "Quantity",
+                    "Day P&L",
                 ]}
+                numericColumns={[2, 3]}
                 rows={analytics.lossRankings.map(
                   (
                     position
@@ -399,6 +421,7 @@ const shortPositions =
                     "Net ($)",
                     "Change %",
                 ]}
+                numericColumns={[1, 2, 3, 4, 5]}
                 rows={analytics.longPositions.map(
                     (position) => [
                     position.security?.ticker,
@@ -441,6 +464,7 @@ const shortPositions =
                     "Net ($)",
                     "Change %",
                 ]}
+                numericColumns={[1, 2, 3, 4, 5]}
                 rows={analytics.shortPositions.map(
                     (position) => [
                     position.security?.ticker,
