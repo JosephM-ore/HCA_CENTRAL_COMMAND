@@ -81,11 +81,13 @@ function ReportTable({
   columns,
   rows,
   numericColumns = [],
+  emptyMessage = "No positions available.",
 }: {
   title: string;
   columns: string[];
   rows: React.ReactNode[][];
   numericColumns?: number[];
+  emptyMessage?: string;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -120,12 +122,13 @@ function ReportTable({
           </thead>
 
           <tbody>
-            {rows.map((row, index) => (
-              <tr
-                key={index}
-                className="border-b border-slate-100 hover:bg-slate-50"
-              >
-                {row.map((cell, cellIndex) => {
+            {rows.length > 0 ? (
+                rows.map((row, index) => (
+                <tr
+                    key={index}
+                    className="border-b border-slate-100 hover:bg-slate-50"
+                >
+                    {row.map((cell, cellIndex) => {
                     const isNumeric =
                         numericColumns.includes(cellIndex);
 
@@ -142,9 +145,19 @@ function ReportTable({
                         </td>
                     );
                     })}
-              </tr>
-            ))}
-          </tbody>
+                </tr>
+                ))
+            ) : (
+                <tr>
+                <td
+                    colSpan={columns.length}
+                    className="px-4 py-10 text-center text-sm text-slate-500"
+                >
+                    {emptyMessage}
+                </td>
+                </tr>
+            )}
+            </tbody>
         </table>
       </div>
     </div>
@@ -355,6 +368,7 @@ const shortPositions =
 
               <ReportTable
                 title="Top 10 Profit Rankings"
+                emptyMessage="No profitable positions for the current trading day."
                 columns={[
                     "Ticker",
                     "Side",
@@ -384,6 +398,7 @@ const shortPositions =
 
               <ReportTable
                 title="Top 10 Loss Rankings"
+                emptyMessage="No losing positions for the current trading day."
                 columns={[
                     "Ticker",
                     "Side",
@@ -413,6 +428,7 @@ const shortPositions =
 
               <ReportTable
                 title="Long Positions Day Change"
+                emptyMessage="No long positions are currently held."
                 columns={[
                     "Ticker",
                     "Quantity",
@@ -456,6 +472,7 @@ const shortPositions =
 
              <ReportTable
                 title="Short Positions Day Change"
+                emptyMessage="No short positions are currently held."
                 columns={[
                     "Ticker",
                     "Quantity",
