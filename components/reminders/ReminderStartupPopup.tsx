@@ -360,6 +360,16 @@ export default function ReminderStartupPopup() {
   );
 
   async function handleResolve(reminder: Reminder) {
+    if (
+      reminder.id ===
+      "UPLOAD_WELLS_FILES"
+    ) {
+      setIsOpen(false);
+
+      router.push("/settings");
+
+      return;
+    }
     const contextLabel =
       reminder.security?.ticker || "General";
 

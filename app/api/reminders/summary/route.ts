@@ -144,11 +144,49 @@ export async function GET(request: Request) {
         },
       ],
     });
+    const now = new Date();
 
-    return NextResponse.json({
-      reminders,
-      through: throughDate.toISOString(),
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const wellsUploadToday =
+    await prisma.ingestionRun.findFirst({
+      where: {
+        source: "WELLS_FARGO",
+        startedAt: {
+          gte: startOfToday,
+        },
+        status: "COMPLETED",
+      },
+      orderBy: {
+        startedAt: "desc",
+      },
     });
+    const allReminders = [...reminders];
+
+  if (!wellsUploadToday) {
+    allReminders.unshift({
+      id: "UPLOAD_WELLS_FILES",
+      flagType: "Operations",
+      description:
+        "Upload today's Wells Fargo files. Portfolio data will not refresh until a Wells file has been successfully ingested.",
+      priority: "HIGH",
+      status: "OPEN",
+      reminderAt: startOfToday,
+      securityId: null,
+      positionId: null,
+      watchlistEntryId: null,
+      security: null,
+    });
+  }
+
+  return NextResponse.json({
+    reminders: allReminders,
+    through: throughDate.toISOString(),
+  });
   } catch (error) {
     console.error(
       "GET /api/reminders/summary failed",
