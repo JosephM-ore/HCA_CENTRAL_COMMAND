@@ -14,6 +14,7 @@ export async function POST(request: Request) {
       positionId,
       watchlistEntryId,
       tag,
+      meetingId,
       content,
     } = body;
 
@@ -51,14 +52,15 @@ export async function POST(request: Request) {
       }
 
     const comment = await prisma.comment.create({
-     data: {
-      securityId: securityId || null,
-      positionId: positionId || null,
-      watchlistEntryId: watchlistEntryId || null,
-      authorId: author.id,
-      tag,
-      content: content.trim(),
-    },
+    data: {
+    securityId: securityId || null,
+    positionId: positionId || null,
+    watchlistEntryId: watchlistEntryId || null,
+    meetingId: meetingId || null,
+    authorId: author.id,
+    tag,
+    content: content.trim(),
+  },
 
       include: {
         author: {
