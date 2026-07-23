@@ -39,6 +39,20 @@ model Session {
   createdAt DateTime @default(now())
 }
 
+model Meeting {
+  id String @id @default(cuid())
+
+  title String
+
+  meetingDate DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comments Comment[]
+
+  @@index([meetingDate])
+}
 model Security {
   id              String  @id @default(cuid())
   ticker          String  @unique
@@ -237,6 +251,9 @@ model Comment {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  meetingId String?
+  meeting   Meeting? @relation(fields: [meetingId], references: [id])   
 }
 
 model Flag {
