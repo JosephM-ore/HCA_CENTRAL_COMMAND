@@ -51,6 +51,9 @@ export default function MeetingsClient({
   const [showAddMeeting, setShowAddMeeting] =
     useState(false);
 
+    const [activeMeetingForNote, setActiveMeetingForNote] =
+    useState<any | null>(null);
+
   const [meetingTitle, setMeetingTitle] =
     useState("");
 
@@ -322,27 +325,9 @@ export default function MeetingsClient({
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Notes
-                </p>
+              
 
-                <p className="mt-2 text-2xl font-semibold">
-                  {totalNotes}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Securities
-                </p>
-
-                <p className="mt-2 text-2xl font-semibold">
-                  {
-                    securities.length
-                  }
-                </p>
-              </div>
+              
             </div>
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-3">
@@ -381,125 +366,26 @@ export default function MeetingsClient({
                           </p>
                         </div>
 
-                        <Badge tone="blue">
-                          {
-                            meeting
-                              .comments
-                              ?.length
-                          }{" "}
-                          Notes
-                        </Badge>
+                       <div className="flex items-center gap-2">
+                            <Badge tone="blue">
+                                {meeting.comments?.length} Notes
+                            </Badge>
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                setActiveMeetingForNote(meeting)
+                                }
+                                className="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                            >
+                                + Note
+                            </button>
+                        </div>
                       </div>
                     </div>
 
                     <div className="p-5">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex items-center justify-between">
-                          <p className="font-semibold">
-                            Add Note
-                          </p>
-
-                          <Badge tone="blue">
-                            NOTE
-                          </Badge>
-                        </div>
-
-                        <select
-                          value={
-                            selectedSecurityIds[
-                              meeting.id
-                            ] || ""
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            setSelectedSecurityIds(
-                              (
-                                current
-                              ) => ({
-                                ...current,
-                                [meeting.id]:
-                                  event
-                                    .target
-                                    .value,
-                              })
-                            )
-                          }
-                          className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
-                        >
-                          <option value="">
-                            No Security
-                          </option>
-
-                          {securities.map(
-                            (
-                              security: any
-                            ) => (
-                              <option
-                                key={
-                                  security.id
-                                }
-                                value={
-                                  security.id
-                                }
-                              >
-                                {
-                                  security.ticker
-                                }{" "}
-                                •{" "}
-                                {
-                                  security.name
-                                }
-                              </option>
-                            )
-                          )}
-                        </select>
-
-                        <textarea
-                          value={
-                            noteDrafts[
-                              meeting.id
-                            ] || ""
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            setNoteDrafts(
-                              (
-                                current
-                              ) => ({
-                                ...current,
-                                [meeting.id]:
-                                  event
-                                    .target
-                                    .value,
-                              })
-                            )
-                          }
-                          placeholder="Write meeting note..."
-                          className="mt-3 min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                        />
-
-                        <div className="mt-3 flex justify-end">
-                          <button
-                            onClick={() =>
-                              handleSaveNote(
-                                meeting.id
-                              )
-                            }
-                            disabled={
-                              savingMeetingNoteId ===
-                              meeting.id
-                            }
-                            className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-                          >
-                            {savingMeetingNoteId ===
-                            meeting.id
-                              ? "Saving..."
-                              : "Add Note"}
-                          </button>
-                        </div>
-                      </div>
+                      
 
                       <div className="mt-4 space-y-3">
                         {meeting
@@ -636,6 +522,113 @@ export default function MeetingsClient({
             </div>
           </div>
         ) : null}
+        {activeMeetingForNote ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4">
+                <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+                <div className="flex items-start justify-between">
+                    <div>
+                    <h3 className="text-xl font-semibold">
+                        Add Note
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                        {activeMeetingForNote.title}
+                    </p>
+                    </div>
+
+                    <button
+                    type="button"
+                    onClick={() =>
+                        setActiveMeetingForNote(null)
+                    }
+                    className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+                    >
+                    ✕
+                    </button>
+                </div>
+
+                <select
+                    value={
+                    selectedSecurityIds[
+                        activeMeetingForNote.id
+                    ] || ""
+                    }
+                    onChange={(event) =>
+                    setSelectedSecurityIds(
+                        (current) => ({
+                        ...current,
+                        [activeMeetingForNote.id]:
+                            event.target.value,
+                        })
+                    )
+                    }
+                    className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm"
+                >
+                    <option value="">
+                    No Security
+                    </option>
+
+                    {securities.map(
+                    (security: any) => (
+                        <option
+                        key={security.id}
+                        value={security.id}
+                        >
+                        {security.ticker} •{" "}
+                        {security.name}
+                        </option>
+                    )
+                    )}
+                </select>
+
+                <textarea
+                    value={
+                    noteDrafts[
+                        activeMeetingForNote.id
+                    ] || ""
+                    }
+                    onChange={(event) =>
+                    setNoteDrafts(
+                        (current) => ({
+                        ...current,
+                        [activeMeetingForNote.id]:
+                            event.target.value,
+                        })
+                    )
+                    }
+                    placeholder="Write meeting note..."
+                    className="mt-4 min-h-32 w-full rounded-2xl border border-slate-200 px-4 py-3"
+                />
+
+                <div className="mt-5 flex justify-end gap-2">
+                    <button
+                    type="button"
+                    onClick={() =>
+                        setActiveMeetingForNote(null)
+                    }
+                    className="rounded-2xl border border-slate-200 px-4 py-2"
+                    >
+                    Cancel
+                    </button>
+
+                    <button
+                    type="button"
+                    onClick={async () => {
+                        await handleSaveNote(
+                        activeMeetingForNote.id
+                        );
+
+                        setActiveMeetingForNote(null);
+                    }}
+                    className="rounded-2xl bg-slate-900 px-4 py-2 text-white"
+                    >
+                    Add Note
+                    </button>
+                </div>
+                </div>
+            </div>
+            ) : null}
+        
       </div>
     </main>
   );
