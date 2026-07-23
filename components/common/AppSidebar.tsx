@@ -39,6 +39,7 @@ const navItems = [
   { href: "/comments", label: "Comments" },
   { href: "/alerts", label: "Alerts" },
   { href: "/trade-calculator", label: "Trade Calculator" },
+  { href: "/trades", label: "Trades" },
   { href: "/settings", label: "Settings" },
 ];
 
