@@ -46,6 +46,22 @@ function formatPercent(value: number | null | undefined) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
+function getPerformanceClass(
+  value: number | null | undefined
+) {
+  const numericValue = Number(value ?? 0);
+
+  if (numericValue > 0) {
+    return "font-semibold text-emerald-600";
+  }
+
+  if (numericValue < 0) {
+    return "font-semibold text-rose-600";
+  }
+
+  return "font-semibold text-slate-600";
+}
+
 function getDayPnl(position: any) {
   const marketValue = Number(
     position.marketValue || 0
@@ -364,16 +380,24 @@ export default function SummaryModal({
                     formatMoney(
                         position.marketValue
                     ),
-                    <span className="font-semibold text-emerald-600">
+                    <span
+                        className={getPerformanceClass(
+                            position.calculatedDayPnl
+                        )}
+                        >
                         {formatMoney(
-                        position.calculatedDayPnl
+                            position.calculatedDayPnl
                         )}
-                    </span>,
-                    <span className="font-semibold text-emerald-600">
+                        </span>,
+                        <span
+                        className={getPerformanceClass(
+                            getDisplayDayPctChange(position)
+                        )}
+                        >
                         {formatPercent(
-                        getDisplayDayPctChange(position)
+                            getDisplayDayPctChange(position)
                         )}
-                    </span>,
+                        </span>,
                     ]
                 )}
                 />
@@ -398,16 +422,24 @@ export default function SummaryModal({
                     formatMoney(
                         position.marketValue
                     ),
-                    <span className="font-semibold text-rose-600">
+                    <span
+                        className={getPerformanceClass(
+                            position.calculatedDayPnl
+                        )}
+                        >
                         {formatMoney(
-                        position.calculatedDayPnl
+                            position.calculatedDayPnl
                         )}
-                    </span>,
-                    <span className="font-semibold text-rose-600">
+                        </span>,
+                        <span
+                        className={getPerformanceClass(
+                            getDisplayDayPctChange(position)
+                        )}
+                        >
                         {formatPercent(
-                        getDisplayDayPctChange(position)
+                            getDisplayDayPctChange(position)
                         )}
-                    </span>,
+                        </span>,
                     ]
                 )}
                 />
