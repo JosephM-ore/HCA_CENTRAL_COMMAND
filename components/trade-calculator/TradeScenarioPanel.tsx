@@ -64,6 +64,25 @@ function getLocalDateTimeInputValue(
     .slice(0, 16);
 }
 
+function getSnapshotDateKey(
+  value: string | Date
+) {
+  const date = new Date(value);
+
+  const year =
+    date.getUTCFullYear();
+
+  const month = String(
+    date.getUTCMonth() + 1
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getUTCDate()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function serializeLocalDateTime(
   value: string
 ) {
@@ -130,7 +149,8 @@ function formatNumber(
   }
 
   return value.toLocaleString("en-US", {
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
   });
 }
 
@@ -359,6 +379,36 @@ export default function TradeScenarioPanel({
   const serializedDateTraded =
     serializeLocalDateTime(dateTraded);
 
+  const proposedTradeDateKey =
+    dateTraded
+      ? dateTraded.slice(0, 10)
+      : null;
+
+  const applicableFundEquity =
+    proposedTradeDateKey
+      ? fundEquitySnapshots.find(
+          (snapshot) =>
+            getSnapshotDateKey(
+              snapshot.asOfDate
+            ) <= proposedTradeDateKey
+        ) ?? null
+      : null;
+
+  const netEquity =
+    applicableFundEquity
+      ? Number(
+          applicableFundEquity
+            .netEquity
+        )
+      : null;
+
+  const validNetEquity =
+    netEquity != null &&
+    Number.isFinite(netEquity) &&
+    netEquity > 0
+      ? netEquity
+      : null;
+
   const result = useMemo(
     () =>
       calculateTradeScenario({
@@ -377,6 +427,7 @@ export default function TradeScenarioPanel({
         pendingManualDelta,
         pendingProjectionIsValid,
         grossPortfolioMarketValue,
+        netEquity: validNetEquity,
         baselineMode,
         tradeAction,
         sizingMode,
@@ -415,11 +466,13 @@ export default function TradeScenarioPanel({
       pendingManualDelta,
       pendingProjectionIsValid,
       grossPortfolioMarketValue,
+      validNetEquity,
       baselineMode,
       tradeAction,
       sizingMode,
       sharesInput,
       notionalInput,
+      basisPointsInput,
       targetWeightPctInput,
       estimatedPriceInput,
       stopPriceInput,
@@ -590,14 +643,21 @@ export default function TradeScenarioPanel({
 
   const sizingInputIsStarted =
     sizingMode === "SHARES"
-      ? Boolean(sharesInput.trim())
+      ? Boolean(
+          sharesInput.trim()
+        )
       : sizingMode === "NOTIONAL"
         ? Boolean(
             notionalInput.trim()
           )
-        : Boolean(
-            targetWeightPctInput.trim()
-          );
+        : sizingMode ===
+            "AMOUNT_BPS"
+          ? Boolean(
+              basisPointsInput.trim()
+            )
+          : Boolean(
+              targetWeightPctInput.trim()
+            );
 
   const showValidation =
     sizingInputIsStarted ||
@@ -797,7 +857,25 @@ export default function TradeScenarioPanel({
                   </span>
                 </div>
 
-                
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {applicableFundEquity &&
+                  validNetEquity != null
+                    ? `Calculated using Net Equity of ${formatMoney(
+                        validNetEquity
+                      )} as of ${new Date(
+                        applicableFundEquity
+                          .asOfDate
+                      ).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        }
+                      )}.`
+                    : "No Net Equity snapshot is available on or before the proposed trade date."}
+                </p>
               </div>
             ) : null}
 
@@ -1061,7 +1139,7 @@ export default function TradeScenarioPanel({
               value={formatPercent(
                 result.projectedPortfolioWeightPct
               )}
-              detail="Projected gross portfolio weight"
+              detail="Projected market value ÷ Net Equity"
             />
 
             <ResultCard
@@ -1106,7 +1184,7 @@ export default function TradeScenarioPanel({
               value={formatPercent(
                 result.currentPortfolioWeightPct
               )}
-              detail="Authoritative current weight"
+              detail="Wells market value ÷ Net Equity"
             />
 
             <ResultCard
@@ -1163,7 +1241,7 @@ export default function TradeScenarioPanel({
             value={formatPercent(
               result.portfolioRiskPct
             )}
-            detail="Risk ÷ projected gross portfolio"
+            detail="Total risk ÷ Net Equity"
           />
 
           <ResultCard

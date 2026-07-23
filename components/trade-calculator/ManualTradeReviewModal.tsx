@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Badge from "@/components/common/Badge";
 import LocalDateTime from "@/components/common/LocalDateTime";
@@ -64,7 +64,8 @@ function formatNumber(
   }
 
   return value.toLocaleString("en-US", {
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
   });
 }
 
@@ -171,7 +172,7 @@ export default function ManualTradeReviewModal({
             </div>
 
             <p className="mt-1 text-sm text-slate-500">
-              {draft.ticker} •{" "}
+              {draft.ticker} â€¢{" "}
               {draft.companyName}
             </p>
           </div>
@@ -182,7 +183,7 @@ export default function ManualTradeReviewModal({
             disabled={isSubmitting}
             className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            ✕
+            âœ•
           </button>
         </div>
 
@@ -226,7 +227,7 @@ export default function ManualTradeReviewModal({
                 value={formatMoney(
                   result.proposedNotional
                 )}
-                detail="Shares × estimated price"
+                detail="Shares Ã— estimated price"
               />
 
               <ReviewValue
@@ -373,7 +374,7 @@ export default function ManualTradeReviewModal({
                 value={formatPercent(
                   result.portfolioRiskPct
                 )}
-                detail="Risk ÷ projected gross portfolio"
+                detail="Risk Ã· projected gross portfolio"
               />
 
               <ReviewValue
@@ -421,7 +422,7 @@ export default function ManualTradeReviewModal({
                 {result.warnings.map(
                   (warning) => (
                     <li key={warning}>
-                      • {warning}
+                      â€¢ {warning}
                     </li>
                   )
                 )}

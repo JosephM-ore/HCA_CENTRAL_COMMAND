@@ -91,9 +91,11 @@ function formatNumber(
   }
 
   return value.toLocaleString("en-US", {
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4,
   });
 }
+
 
 function formatSignedNumber(
   value: number | null | undefined
@@ -213,22 +215,24 @@ function getWellsWap(position: any) {
 
 function getWellsPortfolioWeight(
   position: any,
-  grossPortfolioMarketValue: number
+  netEquity: number | null
 ) {
-  const marketValue = toFiniteNumber(
-    position?.marketValue
-  );
+  const marketValue =
+    toFiniteNumber(
+      position?.marketValue
+    );
 
   if (
     marketValue == null ||
-    grossPortfolioMarketValue <= 0
+    netEquity == null ||
+    netEquity <= 0
   ) {
     return null;
   }
 
   return (
     (Math.abs(marketValue) /
-      grossPortfolioMarketValue) *
+      netEquity) *
     100
   );
 }
@@ -447,11 +451,22 @@ export default function TradeCalculatorWorkspace({
         )
       : null;
 
+  const latestFundEquitySnapshot =
+    fundEquitySnapshots[0] ?? null;
+
+  const latestNetEquity =
+    latestFundEquitySnapshot
+      ? toFiniteNumber(
+          latestFundEquitySnapshot
+            .netEquity
+        )
+      : null;
+
   const wellsPortfolioWeight =
     selectedPosition
       ? getWellsPortfolioWeight(
           selectedPosition,
-          grossPortfolioMarketValue
+          latestNetEquity
         )
       : null;
   function handleTradeCreated(
@@ -778,16 +793,48 @@ export default function TradeCalculatorWorkspace({
                   </p>
                 </div>
 
-                <div className="text-right">
-                  <p className="text-xs text-slate-500">
-                    Gross Portfolio Basis
-                  </p>
+                <div className="flex items-start gap-6 text-right">
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Net Equity
+                    </p>
 
-                  <p className="mt-1 font-semibold text-slate-950">
-                    {formatMoney(
-                      grossPortfolioMarketValue
-                    )}
-                  </p>
+                    <p className="mt-1 font-semibold text-slate-950 tabular-nums">
+                      {formatMoney(
+                        latestNetEquity
+                      )}
+                    </p>
+
+                    {latestFundEquitySnapshot ? (
+                      <p className="mt-1 text-[11px] text-slate-400">
+                        As of{" "}
+                        {new Date(
+                          latestFundEquitySnapshot
+                            .asOfDate
+                        ).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            timeZone: "UTC",
+                          }
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-slate-500">
+                      Gross Exposure
+                    </p>
+
+                    <p className="mt-1 font-semibold text-slate-950 tabular-nums">
+                      {formatMoney(
+                        grossPortfolioMarketValue
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -862,7 +909,7 @@ export default function TradeCalculatorWorkspace({
                 value={formatPercent(
                   wellsPortfolioWeight
                 )}
-                detail="Absolute Wells market value ÷ gross portfolio"
+                detail="Absolute Wells market value ÷ Net Equity"
               />
             </div>
 

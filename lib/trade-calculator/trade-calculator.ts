@@ -44,6 +44,7 @@ export type TradeCalculatorInput = {
   pendingManualDelta: number;
   pendingProjectionIsValid: boolean;
   grossPortfolioMarketValue: number;
+  netEquity: number | null;
   baselineMode: TradeBaselineMode;
   tradeAction: TradeAction;
   sizingMode: TradeSizingMode;
@@ -133,7 +134,13 @@ function toFiniteNumber(
 }
 
 function roundShares(value: number) {
-  return Math.max(0, Math.round(value));
+  return Math.max(
+    0,
+    Math.round(
+      (value + Number.EPSILON) *
+        10_000
+    ) / 10_000
+  );
 }
 
 function getPositionSide(
@@ -218,48 +225,40 @@ function getTargetSignedShares(
 
 function calculateCurrentWeight(
   wellsMarketValue: number | null,
-  grossPortfolioMarketValue: number
+  netEquity: number
 ) {
   if (
     wellsMarketValue == null ||
-    grossPortfolioMarketValue <= 0
+    netEquity <= 0
   ) {
     return null;
   }
 
   return (
     (Math.abs(wellsMarketValue) /
-      grossPortfolioMarketValue) *
+      netEquity) *
     100
   );
 }
 
 function calculateTargetMarketValue(
   targetWeightPct: number,
-  grossPortfolioMarketValue: number,
-  currentAbsoluteMarketValue: number
+  netEquity: number
 ) {
   const targetWeight =
     targetWeightPct / 100;
 
-  const otherPortfolioMarketValue =
-    Math.max(
-      0,
-      grossPortfolioMarketValue -
-        currentAbsoluteMarketValue
-    );
-
   if (
     targetWeight <= 0 ||
-    targetWeight >= 1
+    targetWeight >= 1 ||
+    netEquity <= 0
   ) {
     return null;
   }
 
   return (
-    (targetWeight *
-      otherPortfolioMarketValue) /
-    (1 - targetWeight)
+    netEquity *
+    targetWeight
   );
 }
 
@@ -269,16 +268,14 @@ function calculateRiskAndReward({
   estimatedPrice,
   stopPrice,
   targetPrice,
-  projectedGrossPortfolioMarketValue,
+  netEquity,
 }: {
   projectedSide: PositionSide;
   proposedShares: number | null;
   estimatedPrice: number | null;
   stopPrice: number | null;
   targetPrice: number | null;
-  projectedGrossPortfolioMarketValue:
-    | number
-    | null;
+  netEquity: number;
 }) {
   let riskPerShare: number | null = null;
   let rewardPerShare: number | null = null;
@@ -359,11 +356,9 @@ function calculateRiskAndReward({
 
   const portfolioRiskPct =
     totalRisk != null &&
-    projectedGrossPortfolioMarketValue !=
-      null &&
-    projectedGrossPortfolioMarketValue > 0
+    netEquity > 0
       ? (totalRisk /
-          projectedGrossPortfolioMarketValue) *
+          netEquity) *
         100
       : null;
 
@@ -459,6 +454,13 @@ export function calculateTradeScenario(
       ) ?? 0
     );
 
+  const netEquity =
+    Math.abs(
+      toFiniteNumber(
+        input.netEquity
+      ) ?? 0
+    );
+
   const wellsMarketValue = toFiniteNumber(
     input.wellsMarketValue
   );
@@ -469,7 +471,7 @@ export function calculateTradeScenario(
   const currentPortfolioWeightPct =
     calculateCurrentWeight(
       wellsMarketValue,
-      grossPortfolioMarketValue
+      netEquity
     );
 
   let proposedShares: number | null = null;
@@ -548,18 +550,18 @@ export function calculateTradeScenario(
         "Amount (BPS) must be greater than zero."
       );
     } else if (
-      grossPortfolioMarketValue <= 0
+      netEquity <= 0
     ) {
       errors.push(
-        "Gross portfolio market value is required for Amount (BPS) sizing."
+        "Net Equity is required for Amount (BPS) sizing."
       );
     } else if (
       estimatedPrice != null &&
       estimatedPrice > 0
     ) {
       const notionalAmount =
-        grossPortfolioMarketValue *
-        (basisPointsInput / 10000);
+        netEquity *
+        (basisPointsInput / 10_000);
 
       proposedShares =
         roundShares(
@@ -598,10 +600,10 @@ export function calculateTradeScenario(
         "Target portfolio weight must be greater than zero and less than 100%."
       );
     } else if (
-      grossPortfolioMarketValue <= 0
+      netEquity <= 0
     ) {
       errors.push(
-        "Gross portfolio market value is required for target-weight sizing."
+        "Net Equity is required for target-weight sizing."
       );
     } else if (
       estimatedPrice != null &&
@@ -610,8 +612,7 @@ export function calculateTradeScenario(
       const targetMarketValue =
         calculateTargetMarketValue(
           targetWeightPct,
-          grossPortfolioMarketValue,
-          currentAbsoluteMarketValue
+          netEquity
         );
 
       if (targetMarketValue == null) {
@@ -787,14 +788,13 @@ export function calculateTradeScenario(
 
   const projectedPortfolioWeightPct =
     projectedMarketValue != null &&
-    projectedGrossPortfolioMarketValue !=
-      null &&
-    projectedGrossPortfolioMarketValue > 0
-      ? (Math.abs(
-          projectedMarketValue
-        ) /
-          projectedGrossPortfolioMarketValue) *
-        100
+    netEquity > 0
+      ? (
+          Math.abs(
+            projectedMarketValue
+          ) /
+          netEquity
+        ) * 100
       : null;
 
   const portfolioWeightChangePctPoints =
@@ -954,7 +954,7 @@ export function calculateTradeScenario(
       estimatedPrice,
       stopPrice,
       targetPrice,
-      projectedGrossPortfolioMarketValue,
+      netEquity,
     });
 
   const hasActivePosition =
